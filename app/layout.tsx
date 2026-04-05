@@ -14,7 +14,6 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
     title: "Fit Core",
-    description: "My Mobile First App",
 }
 
 export default function RootLayout({
@@ -29,7 +28,7 @@ export default function RootLayout({
         bg-gray-100 flex justify-center min-h-full`}
             >
                 {/* 모바일 화면처럼 보이게 하는 메인 컨테이너 */}
-                <main className="w-full max-w-[480px] min-h-screen bg-white shadow-2xl relative flex flex-col">
+                <main className="w-full max-w-120 min-h-screen bg-white shadow-2xl relative flex flex-col">
                     {children}
                 </main>
             </body>
