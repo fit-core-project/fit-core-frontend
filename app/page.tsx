@@ -19,12 +19,26 @@ export default function HomePage() {
             >
                 로그인
             </Link>
-            {/* 프로필 페이지로 이동하는 버튼 */}
+            {/* AI 루틴 생성기로 이동하는 버튼 */}
             <Link
                 href="/ai_routine"
                 className="mt-8 bg-blue-600 text-white text-center py-3 rounded-lg font-semibold active:scale-95 transition-transform"
             >
                 오늘의 루틴 생성하기
+            </Link>
+            {/* AI 퀵 로그로 이동하는 버튼 */}
+            <Link
+                href="/ai_quicklog"
+                className="mt-8 bg-blue-600 text-white text-center py-3 rounded-lg font-semibold active:scale-95 transition-transform"
+            >
+                NLP Quick Log
+            </Link>
+            {/* AI 서플리먼트로 이동하는 버튼 */}
+            <Link
+                href="/ai_supplement"
+                className="mt-8 bg-blue-600 text-white text-center py-3 rounded-lg font-semibold active:scale-95 transition-transform"
+            >
+                Supplement
             </Link>
         </div>
     )
