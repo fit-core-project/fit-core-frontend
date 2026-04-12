@@ -1,52 +1,45 @@
 "use client"
+
 import React from "react"
 import AxiosController from "@/app/common/axios/AxiosController"
-import SocialButton from "@/app/login/SocialButtonProps"
+import SocialButton from "@/app/components/SocialButton"
+import { ArrowLeft, UserCircle } from "lucide-react"
 
 export default function LoginPage() {
     /**
      * 소셜 로그인 핸들러
      */
     const handleSocialLogin = (provider: string) => {
-        // AxiosController의 설정을 공유하여 유지보수성 확보
         const baseUrl = AxiosController.defaults.baseURL
 
         if (!baseUrl) {
             alert("백엔드 서버 주소(BASE_URL)가 설정되지 않았습니다.")
             return
         }
-
-        // 소셜 로그인 인증은 리다이렉트가 필요하므로 window.location.href 사용
         window.location.href = `${baseUrl}/oauth2/authorization/${provider}`
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-[#F2F4F7]">
-            <div className="w-full max-w-[400px] px-6">
-                <div className="rounded-[12px] bg-white p-8 shadow-sm">
-                    <div className="mb-10 text-center">
-                        <h1 className="text-2xl font-bold text-[#111]">로그인</h1>
-                        <p className="mt-2 text-sm text-[#666]">Fit-Core 서비스를 시작합니다</p>
+        <div className="flex-1 w-full h-full flex items-center justify-center p-4">
+            <div className="w-full max-w-sm bg-white rounded-3xl shadow-sm border border-slate-100 p-8 flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="mb-10 text-center flex flex-col items-center">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-5 border border-slate-200">
+                        <UserCircle className="w-9 h-9 text-slate-500" />
                     </div>
-
-                    <div className="flex flex-col gap-[10px]">
-                        {/* 카카오: 공식 가이드 준수 */}
-                        <SocialButton provider="kakao" imageSrc="/images/kakao.png" onClick={handleSocialLogin} />
-
-                        {/* 네이버: 공식 가이드 준수 */}
-                        <SocialButton provider="naver" imageSrc="/images/naver.png" onClick={handleSocialLogin} />
-
-                        {/* 구글: 공식 가이드 준수 (테두리 포함) */}
-                        <SocialButton provider="google" imageSrc="/images/google.svg" onClick={handleSocialLogin} />
-                    </div>
-
-                    <button
-                        onClick={() => window.history.back()}
-                        className="mt-8 text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                        이전 페이지로 돌아가기
-                    </button>
+                    <h1 className="text-xl font-extrabold text-slate-800">서비스 로그인</h1>
+                    <p className="mt-2 text-xs text-emerald-600 font-medium">Fit-Core 서비스를 시작합니다</p>
                 </div>
+
+                <div className="flex flex-col gap-3">
+                    <SocialButton provider="kakao" imageSrc="/images/kakao.png" onClick={handleSocialLogin} />
+                    <SocialButton provider="naver" imageSrc="/images/naver.png" onClick={handleSocialLogin} />
+                    <SocialButton provider="google" imageSrc="/images/google.png" onClick={handleSocialLogin} />
+                </div>
+
+                <button
+                    onClick={() => window.history.back()}
+                    className="mt-10 group text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center gap-1.5"
+                ></button>
             </div>
         </div>
     )

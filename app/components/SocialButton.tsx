@@ -1,0 +1,53 @@
+import React from "react"
+
+interface SocialButtonProps {
+    provider: "kakao" | "naver" | "google"
+    imageSrc: string
+    onClick: (provider: string) => void
+}
+
+export default function SocialButton({ provider, imageSrc, onClick }: SocialButtonProps) {
+    const getProviderStyle = () => {
+        switch (provider) {
+            case "kakao":
+                return {
+                    bg: "bg-[#FEE500] hover:bg-[#F4DC00]",
+                    text: "text-[#000000] opacity-85",
+                    label: "카카오 로그인",
+                    border: "border-transparent",
+                    iconSize: "w-9 h-9",
+                }
+            case "naver":
+                return {
+                    bg: "bg-[#03C75A] hover:bg-[#02b350]",
+                    text: "text-white",
+                    label: "네이버 로그인",
+                    border: "border-transparent",
+                    iconSize: "w-7 h-7",
+                }
+            case "google":
+                return {
+                    bg: "bg-white hover:bg-slate-50",
+                    text: "text-slate-700",
+                    label: "구글 로그인",
+                    border: "border-slate-200",
+                    iconSize: "w-7 h-7",
+                }
+        }
+    }
+
+    const style = getProviderStyle()
+
+    return (
+        <button
+            onClick={() => onClick(provider)}
+            className={`relative w-full h-[52px] flex items-center justify-center rounded-2xl border transition-all duration-200 active:scale-[0.98] shadow-sm ${style.bg} ${style.border}`}
+        >
+            <div className="absolute left-3 w-12 flex items-center justify-center">
+                <img src={imageSrc} alt={`${provider} logo`} className={`${style.iconSize} object-contain`} />
+            </div>
+
+            <span className={`font-semibold text-[15px] tracking-tight ${style.text}`}>{style.label}</span>
+        </button>
+    )
+}

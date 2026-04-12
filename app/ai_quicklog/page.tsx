@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Send, Sparkles, Mic, Bot, StopCircle, AlertCircle, Activity } from "lucide-react"
+import { Send, Sparkles, Mic, Bot, StopCircle, AlertCircle, Activity, Save, Apple, Dumbbell } from "lucide-react"
 
 // --- TypeScript 타입 정의 ---
 interface ParsedData {
@@ -35,6 +35,8 @@ export default function QuickLogPage() {
     const audioChunksRef = useRef<BlobPart[]>([])
 
     const [displayedFeedback, setDisplayedFeedback] = useState("")
+    const [isSaving, setIsSaving] = useState(false) // 저장 중 상태 추가
+    const [saveSuccess, setSaveSuccess] = useState(false)
 
     // 로딩 메시지 순환 효과
     useEffect(() => {
@@ -109,6 +111,7 @@ export default function QuickLogPage() {
         setError(null)
         setParsedData(null)
         setDisplayedFeedback("")
+        setSaveSuccess(false)
 
         try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/parse-log`, {
@@ -135,6 +138,21 @@ export default function QuickLogPage() {
         }
     }
 
+    // 가상 DB 저장 로직 (UI 피드백용)
+    const handleSaveLog = () => {
+        setIsSaving(true)
+        setTimeout(() => {
+            setIsSaving(false)
+            setSaveSuccess(true)
+            setInputText("")
+            // 잠시 후 초기 화면으로 돌아가기
+            setTimeout(() => {
+                setParsedData(null)
+                setSaveSuccess(false)
+            }, 2000)
+        }, 800)
+    }
+
     // 코치 피드백 타이핑 효과
     useEffect(() => {
         if (parsedData?.overall_summary) {
@@ -151,12 +169,11 @@ export default function QuickLogPage() {
     }, [parsedData])
 
     const totalCalories = parsedData?.diet_logs.reduce((acc, curr) => acc + curr.estimated_calories, 0) || 0
+    const totalProtein = parsedData?.diet_logs.reduce((acc, curr) => acc + curr.protein_g, 0) || 0
 
     return (
-        // 🚨 포인트 1: min-h-screen 제거 -> flex-1 w-full h-full 로 부모의 남은 영역을 꽉 채움
-        // layout.tsx에 이미 <main>이 있으므로 여기는 <div>로 변경했습니다.
         <div className="flex-1 w-full h-full flex flex-col items-center px-4 py-4 md:px-8 relative">
-            {/* 🌟 로딩 오버레이 (기존 코드 그대로) */}
+            {/* 🌟 로딩 오버레이 */}
             {isLoading && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-sm w-11/12 text-center transform transition-all scale-100 animate-in zoom-in-95">
@@ -177,8 +194,6 @@ export default function QuickLogPage() {
                 </div>
             )}
 
-            {/* 🚨 포인트 2: h-[80vh] 제거 -> flex-1 min-h-0 추가 */}
-            {/* min-h-0이 있어야 내부 스크롤이 고장나지 않고 예쁘게 작동합니다. */}
             <div className="w-full max-w-3xl flex-1 min-h-0 flex flex-col bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative">
                 {/* 1. 헤더 영역 */}
                 <div className="bg-emerald-50/50 p-5 border-b border-emerald-100 flex items-center justify-between shrink-0">
@@ -195,11 +210,9 @@ export default function QuickLogPage() {
                     </div>
                 </div>
 
-                {/* 2. 콘텐츠 영역 (flex-1 overflow-y-auto 유지) */}
+                {/* 2. 콘텐츠 영역 (flex-1 overflow-y-auto) */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/50 flex flex-col gap-6">
-                    {/* ... (이 안의 에러, 초기 화면, 파싱 결과 렌더링 영역 등 기존 코드 그대로 유지) ... */}
-
-                    {/* 🚨 에러 메시지 */}
+                    {/* 에러 메시지 */}
                     {error && (
                         <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start text-red-700 animate-in slide-in-from-top-2">
                             <AlertCircle className="w-5 h-5 mr-3 mt-0.5 shrink-0" />
@@ -210,7 +223,7 @@ export default function QuickLogPage() {
                         </div>
                     )}
 
-                    {/* 데이터가 없을 때의 초기 화면 */}
+                    {/* 초기 화면 */}
                     {!parsedData && !isLoading && !error && (
                         <div className="flex-1 flex flex-col items-center justify-center text-slate-400 h-full animate-in fade-in">
                             <Bot className="w-12 h-12 mb-3 text-slate-300" />
@@ -218,10 +231,10 @@ export default function QuickLogPage() {
                         </div>
                     )}
 
-                    {/* 파싱 결과 렌더링 영역 */}
+                    {/* 🌟 파싱 결과 렌더링 영역 (여기서부터 복구된 데이터 렌더링 부분입니다) */}
                     {parsedData && (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6 pb-4">
-                            {/* 코치 아바타 피드백 (에메랄드 테마로 변경) */}
+                            {/* 코치 아바타 피드백 */}
                             <div className="flex items-start space-x-4 mb-2">
                                 <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 mt-1">
                                     <Bot className="w-6 h-6 text-emerald-600" />
@@ -236,18 +249,107 @@ export default function QuickLogPage() {
                                 </div>
                             </div>
 
-                            {/* 식단 및 운동 카드 */}
-                            <div className="flex flex-col gap-6">
-                                {/* ... (이하 기존 식단/운동 카드 렌더링 부분 동일) ... */}
-                            </div>
+                            {/* 🍎 식단 기록 카드 */}
+                            {parsedData.diet_logs.length > 0 && (
+                                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                                    <h2 className="flex items-center text-base font-bold text-slate-800 mb-5">
+                                        <Apple className="w-5 h-5 mr-2 text-rose-500" />
+                                        식단 분석
+                                        <span className="ml-auto text-sm text-slate-500 font-medium">
+                                            총 {totalCalories} kcal
+                                        </span>
+                                    </h2>
+
+                                    <div className="space-y-4">
+                                        {parsedData.diet_logs.map((log, idx) => (
+                                            <div
+                                                key={idx}
+                                                className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl"
+                                            >
+                                                <div className="font-bold text-slate-700">{log.food_name}</div>
+                                                <div className="text-right">
+                                                    <div className="text-sm font-bold text-slate-800">
+                                                        {log.estimated_calories} kcal
+                                                    </div>
+                                                    <div className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                                        탄 {log.carbs_g}g / 단 {log.protein_g}g / 지 {log.fat_g}g
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* 단백질 프로그레스 바 */}
+                                    <div className="mt-6">
+                                        <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-2">
+                                            <span>단백질 섭취량</span>
+                                            <span className="text-rose-500">{totalProtein}g / 120g (권장)</span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                            <div
+                                                className="bg-rose-400 h-full rounded-full transition-all duration-1000 ease-out"
+                                                style={{ width: `${Math.min((totalProtein / 120) * 100, 100)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 🏋️ 운동 기록 카드 */}
+                            {parsedData.workout_logs.length > 0 && (
+                                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                                    <h2 className="flex items-center text-base font-bold text-slate-800 mb-5">
+                                        <Dumbbell className="w-5 h-5 mr-2 text-blue-500" />
+                                        운동 기록
+                                    </h2>
+                                    <div className="space-y-3">
+                                        {parsedData.workout_logs.map((log, idx) => (
+                                            <div
+                                                key={idx}
+                                                className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100"
+                                            >
+                                                <div className="font-bold text-slate-700 flex items-center">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-2"></span>
+                                                    {log.exercise_name}
+                                                </div>
+                                                <div className="text-sm font-bold text-slate-600 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
+                                                    {log.weight_kg ? `${log.weight_kg}kg · ` : ""}
+                                                    {log.sets ? `${log.sets}세트 ` : ""}
+                                                    {log.reps ? `· ${log.reps}회` : ""}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 💾 저장 버튼 */}
+                            <button
+                                onClick={handleSaveLog}
+                                disabled={isSaving || saveSuccess}
+                                className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center transition-all ${
+                                    saveSuccess
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : "bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.98]"
+                                }`}
+                            >
+                                {isSaving ? (
+                                    <Sparkles className="w-5 h-5 mr-2 animate-spin" />
+                                ) : saveSuccess ? (
+                                    "✨ 오늘의 기록 저장 완료!"
+                                ) : (
+                                    <>
+                                        <Save className="w-5 h-5 mr-2" />내 대시보드에 기록 저장하기
+                                    </>
+                                )}
+                            </button>
                         </div>
                     )}
                 </div>
 
-                {/* 3. 하단 입력 영역 (음성 녹음 + 텍스트 입력 통합) */}
+                {/* 3. 하단 입력 영역 (음성 + 텍스트 통합) */}
                 <div className="p-4 bg-white border-t border-slate-100 shrink-0">
                     <div className="flex items-end gap-2">
-                        {/* STT 마이크 버튼: h-[52px] 고정 */}
                         <button
                             onClick={isRecording ? stopRecording : startRecording}
                             disabled={isSttLoading || isLoading}
@@ -260,7 +362,6 @@ export default function QuickLogPage() {
                             {isRecording ? <StopCircle className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
                         </button>
 
-                        {/* 텍스트 입력 및 전송 영역 */}
                         <div className="relative flex-1">
                             <textarea
                                 value={inputText}
@@ -275,12 +376,10 @@ export default function QuickLogPage() {
                                 }}
                                 placeholder={isSttLoading ? "음성 인식 중..." : "오늘의 식단과 운동을 알려주세요"}
                                 disabled={isSttLoading || isLoading || isRecording}
-                                // 💡 block 속성을 추가해 하단 고스트 여백을 없애고, min-h-[52px]로 최소 높이를 고정합니다.
                                 className="block w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-2xl py-3.5 pl-4 pr-12 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none overflow-y-auto min-h-[52px] max-h-32 text-[15px] leading-relaxed"
                                 rows={1}
                             />
 
-                            {/* 💡 전송 버튼: top-2를 없애고 우측 하단(bottom-1.5)에 크기를 고정(w-10 h-10)하여 배치합니다. */}
                             <button
                                 onClick={handleParse}
                                 disabled={isLoading || inputText.length === 0 || isRecording || isSttLoading}
