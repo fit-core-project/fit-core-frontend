@@ -128,3 +128,8 @@ body {
   background-color: #303030;
   opacity: 8%;
 }
+
+svg path[data-name="3점"] { fill: #ef4444 !important; }
+svg path[data-name="2점"] { fill: #f97316 !important; }
+svg path[data-name="1점"] { fill: #eab308 !important; }
+svg path[data-name="selected"] { fill: #3b82f6 !important; }

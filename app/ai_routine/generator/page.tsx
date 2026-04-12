@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Activity, Clock, Target, Dumbbell, Send, AlertCircle, Loader2 } from "lucide-react"
+import { Activity, Clock, Target, Dumbbell, Send, AlertCircle } from "lucide-react"
 
 type MuscleGroup =
     | "CHEST_UPPER"
@@ -137,7 +137,7 @@ export default function RoutineGenerator() {
         setIsLoading(true)
 
         try {
-            const response = await fetch("http://localhost:8000/api/ai/generate-routine", {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/generate-routine`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),
@@ -160,28 +160,42 @@ export default function RoutineGenerator() {
 
     return (
         <>
-            <main className="min-h-screen bg-gray-50 p-4 md:p-8 flex justify-center text-gray-800 pb-24">
-                <div className="w-full max-w-3xl flex flex-col gap-6 animate-fade-in-up">
-                    <div className="space-y-8 bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900 mb-2">세부 설정</h1>
-                            <p className="text-gray-500 text-sm">
-                                목표와 장비를 선택하면 AI가 최적의 루틴을 설계합니다.
-                            </p>
-                        </div>
-
-                        <div className="bg-blue-50/50 p-4 rounded-xl flex items-start border border-blue-100">
-                            <AlertCircle className="w-5 h-5 text-blue-500 mr-3 mt-0.5 shrink-0" />
+            <div className="flex-1 w-full h-full flex flex-col items-center px-4 py-4 md:px-8 relative">
+                {/* 🌟 챗봇들과 완벽히 동일한 '앱 윈도우' 스타일의 메인 카드 */}
+                <div className="w-full max-w-3xl flex-1 min-h-0 flex flex-col bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative">
+                    {/* 1. 상단 고정 헤더 (루틴 테마: 블루) */}
+                    <div className="bg-blue-50/50 p-5 border-b border-blue-100 flex items-center justify-between shrink-0">
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-md shadow-blue-200">
+                                <Dumbbell className="w-6 h-6 text-white" />
+                            </div>
                             <div>
-                                <p className="text-sm font-bold text-blue-900">홈 화면에서 연동된 컨디션</p>
-                                <p className="text-xs text-blue-700 mt-1">
-                                    {domsSummary} AI가 이를 반영하여 볼륨과 종목을 조절합니다.
+                                <h1 className="text-lg font-extrabold text-slate-800">루틴 세부 설정</h1>
+                                <p className="text-xs text-blue-600 font-medium">
+                                    목표와 장비를 선택하면 AI가 최적의 루틴을 설계합니다.
                                 </p>
                             </div>
                         </div>
+                    </div>
 
+                    {/* 2. 스크롤 가능한 폼 영역 (flex-1 overflow-y-auto) */}
+                    <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-10 bg-white">
+                        {/* 컨디션 연동 알림 */}
+                        {domsSummary && (
+                            <div className="bg-blue-50/50 p-4 rounded-xl flex items-start border border-blue-100 animate-in fade-in slide-in-from-top-2">
+                                <AlertCircle className="w-5 h-5 text-blue-500 mr-3 mt-0.5 shrink-0" />
+                                <div>
+                                    <p className="text-sm font-bold text-blue-900">홈 화면에서 연동된 컨디션</p>
+                                    <p className="text-xs text-blue-700 mt-1 leading-relaxed">
+                                        {domsSummary} AI가 이를 반영하여 부상 부위의 볼륨을 조절합니다.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 타겟 근육 섹션 */}
                         <section>
-                            <h2 className="flex items-center text-lg font-semibold mb-3">
+                            <h2 className="flex items-center text-base font-bold text-slate-800 mb-4">
                                 <Activity className="w-5 h-5 mr-2 text-blue-500" />
                                 타겟 근육 (다중 선택)
                             </h2>
@@ -190,10 +204,10 @@ export default function RoutineGenerator() {
                                     <button
                                         key={item.value}
                                         onClick={() => toggleArrayItem("target_muscles", item.value)}
-                                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${
                                             formData.target_muscles.includes(item.value)
-                                                ? "bg-blue-500 text-white shadow-md"
-                                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                                ? "bg-blue-500 text-white shadow-md shadow-blue-100 border-blue-500"
+                                                : "bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100"
                                         }`}
                                     >
                                         {item.label}
@@ -202,33 +216,42 @@ export default function RoutineGenerator() {
                             </div>
                         </section>
 
+                        {/* 가용 시간 섹션 */}
                         <section>
-                            <h2 className="flex items-center text-lg font-semibold mb-3">
-                                <Clock className="w-5 h-5 mr-2 text-green-500" />
-                                가용 시간: {formData.time_available_min}분
+                            <h2 className="flex items-center text-base font-bold text-slate-800 mb-4">
+                                <Clock className="w-5 h-5 mr-2 text-emerald-500" />
+                                가용 시간:{" "}
+                                <span className="text-emerald-600 ml-1.5">{formData.time_available_min}분</span>
                             </h2>
-                            <input
-                                type="range"
-                                min="30"
-                                max="120"
-                                step="15"
-                                value={formData.time_available_min}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, time_available_min: parseInt(e.target.value) })
-                                }
-                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-500"
-                            />
+                            <div className="px-2">
+                                <input
+                                    type="range"
+                                    min="30"
+                                    max="120"
+                                    step="15"
+                                    value={formData.time_available_min}
+                                    onChange={(e) =>
+                                        setFormData({ ...formData, time_available_min: parseInt(e.target.value) })
+                                    }
+                                    className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                />
+                                <div className="flex justify-between mt-2 text-[10px] font-bold text-slate-300 px-1">
+                                    <span>30분</span>
+                                    <span>120분</span>
+                                </div>
+                            </div>
                         </section>
 
+                        {/* 훈련 목표 섹션 */}
                         <section>
-                            <h2 className="flex items-center text-lg font-semibold mb-3">
+                            <h2 className="flex items-center text-base font-bold text-slate-800 mb-4">
                                 <Target className="w-5 h-5 mr-2 text-purple-500" />
                                 훈련 목표
                             </h2>
                             <select
                                 value={formData.goal}
                                 onChange={(e) => setFormData({ ...formData, goal: e.target.value as TrainingGoal })}
-                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-500"
+                                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold text-slate-700 text-sm"
                             >
                                 <option value="HYPERTROPHY">근비대 (근육 크기 증가)</option>
                                 <option value="STRENGTH">스트렝스 (최대 근력 증가)</option>
@@ -236,8 +259,9 @@ export default function RoutineGenerator() {
                             </select>
                         </section>
 
+                        {/* 사용 장비 섹션 */}
                         <section>
-                            <h2 className="flex items-center text-lg font-semibold mb-3">
+                            <h2 className="flex items-center text-base font-bold text-slate-800 mb-4">
                                 <Dumbbell className="w-5 h-5 mr-2 text-orange-500" />
                                 사용 가능한 장비
                             </h2>
@@ -246,10 +270,10 @@ export default function RoutineGenerator() {
                                     <button
                                         key={item.value}
                                         onClick={() => toggleArrayItem("equipment", item.value)}
-                                        className={`px-3 py-1.5 rounded-md border text-sm transition-colors ${
+                                        className={`px-4 py-2 rounded-xl border-2 text-sm font-bold transition-all ${
                                             formData.equipment.includes(item.value)
                                                 ? "border-orange-500 bg-orange-50 text-orange-700"
-                                                : "border-gray-200 text-gray-500"
+                                                : "border-slate-100 bg-white text-slate-400"
                                         }`}
                                     >
                                         {item.label}
@@ -258,27 +282,33 @@ export default function RoutineGenerator() {
                             </div>
                         </section>
 
-                        <section>
-                            <h2 className="text-lg font-semibold mb-2">PT 선생님께 남길 말 (선택)</h2>
+                        {/* 추가 요청 섹션 */}
+                        <section className="pb-4">
+                            <h2 className="text-base font-bold text-slate-800 mb-4">AI 코치에게 남길 말 (선택)</h2>
                             <textarea
                                 value={formData.user_note}
                                 onChange={(e) => setFormData({ ...formData, user_note: e.target.value })}
-                                className="w-full p-3 border border-gray-200 rounded-lg h-24 resize-none outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="예: 무릎이 안 좋으니 스쿼트는 빼주세요."
+                                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl h-28 resize-none outline-none focus:ring-2 focus:ring-blue-500 text-sm leading-relaxed"
                             />
                         </section>
+                    </div>
 
+                    {/* 3. 하단 고정 버튼 영역 */}
+                    <div className="p-4 bg-white border-t border-slate-100 shrink-0">
                         <button
                             onClick={handleSubmit}
                             disabled={isLoading || formData.target_muscles.length === 0}
-                            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center disabled:bg-gray-300"
+                            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
                         >
                             <Send className="w-5 h-5 mr-2" />
                             나만의 AI 루틴 생성하기
                         </button>
                     </div>
                 </div>
-            </main>
+            </div>
 
+            {/* 🌟 로딩 오버레이 (기존 유지) */}
             {isLoading && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-sm w-11/12 text-center transform transition-all scale-100 animate-in zoom-in-95">
@@ -288,30 +318,13 @@ export default function RoutineGenerator() {
                                 <Dumbbell className="w-8 h-8 animate-spin" style={{ animationDuration: "3s" }} />
                             </div>
                         </div>
-
                         <h3 className="text-xl font-extrabold text-slate-900 mb-2">AI 코치 분석 중</h3>
-
                         <p
                             className="text-slate-500 font-medium h-12 flex items-center justify-center transition-opacity duration-300"
                             key={loadingMsgIndex}
                         >
                             {LOADING_MESSAGES[loadingMsgIndex]}
                         </p>
-
-                        <div className="mt-4 flex space-x-1">
-                            <div
-                                className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
-                                style={{ animationDelay: "0ms" }}
-                            ></div>
-                            <div
-                                className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
-                                style={{ animationDelay: "150ms" }}
-                            ></div>
-                            <div
-                                className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
-                                style={{ animationDelay: "300ms" }}
-                            ></div>
-                        </div>
                     </div>
                 </div>
             )}

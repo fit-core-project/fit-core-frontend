@@ -180,9 +180,6 @@ export default function WorkoutPlayer() {
         )
     }
 
-    // ==========================================
-    // VIEW 1: 워크아웃 플레이어 (운동 중)
-    // ==========================================
     return (
         <main className="min-h-screen bg-slate-50 pb-32">
             {/* 🌟 상단 고정: 프로그레스 바 */}

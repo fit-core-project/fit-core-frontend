@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, Bot, User, Loader2, Pill, ShieldAlert, Sparkles, ChevronRight } from "lucide-react"
+import { Send, Bot, Loader2, Pill, Sparkles } from "lucide-react"
 
 // --- TypeScript 타입 정의 ---
 interface SourceDetail {
@@ -14,10 +14,9 @@ interface Message {
     id: string
     role: "user" | "ai"
     content: string
-    sources?: SourceDetail[] // 기존 string[]에서 SourceDetail[]로 변경
+    sources?: SourceDetail[]
 }
 
-// --- 추천 질문 (유저의 빠른 입력을 돕는 칩) ---
 const SUGGESTED_QUESTIONS = [
     "타이레놀이랑 오메가3 같이 먹어도 돼?",
     "홍삼 복용 시 주의할 부작용이 뭐야?",
@@ -38,6 +37,12 @@ export default function SupplementChatPage() {
     const [isLoading, setIsLoading] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
+    // 🌟 드래그 스크롤(Drag-to-Scroll)을 위한 상태 및 Ref
+    const scrollRef = useRef<HTMLDivElement>(null)
+    const [isDragging, setIsDragging] = useState(false)
+    const [startX, setStartX] = useState(0)
+    const [scrollLeft, setScrollLeft] = useState(0)
+
     // 새 메시지가 추가될 때마다 맨 아래로 스크롤
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -52,7 +57,7 @@ export default function SupplementChatPage() {
         setIsLoading(true)
 
         try {
-            const response = await fetch("http://localhost:8000/api/ai/supplement-chat", {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/supplement-chat`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ question: textToSubmit }),
@@ -83,9 +88,29 @@ export default function SupplementChatPage() {
         }
     }
 
+    // 🌟 PC 환경 마우스 드래그 이벤트 핸들러
+    const onDragStart = (e: React.MouseEvent) => {
+        if (!scrollRef.current) return
+        setIsDragging(true)
+        setStartX(e.pageX - scrollRef.current.offsetLeft)
+        setScrollLeft(scrollRef.current.scrollLeft)
+    }
+
+    const onDragEnd = () => {
+        setIsDragging(false)
+    }
+
+    const onDragMove = (e: React.MouseEvent) => {
+        if (!isDragging || !scrollRef.current) return
+        e.preventDefault()
+        const x = e.pageX - scrollRef.current.offsetLeft
+        const walk = (x - startX) * 1.5 // 드래그 속도 조절
+        scrollRef.current.scrollLeft = scrollLeft - walk
+    }
+
     return (
-        <main className="min-h-screen bg-slate-50 flex flex-col items-center pt-8 pb-4 px-4 md:px-8">
-            <div className="w-full max-w-3xl flex flex-col h-[90vh] bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative">
+        <div className="flex-1 w-full h-full flex flex-col items-center px-4 py-4 md:px-8 relative">
+            <div className="w-full max-w-3xl flex-1 min-h-0 flex flex-col bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative">
                 {/* 1. 헤더 영역 */}
                 <div className="bg-emerald-50/50 p-5 border-b border-emerald-100 flex items-center justify-between shrink-0">
                     <div className="flex items-center space-x-3">
@@ -108,7 +133,6 @@ export default function SupplementChatPage() {
                             key={msg.id}
                             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
                         >
-                            {/* AI 아바타 */}
                             {msg.role === "ai" && (
                                 <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center mr-3 shrink-0 mt-1">
                                     <Bot className="w-5 h-5 text-emerald-600" />
@@ -116,7 +140,6 @@ export default function SupplementChatPage() {
                             )}
 
                             <div className="max-w-[85%] flex flex-col">
-                                {/* 메시지 말풍선 */}
                                 <div
                                     className={`p-4 text-[15px] leading-relaxed shadow-sm ${
                                         msg.role === "user"
@@ -130,7 +153,6 @@ export default function SupplementChatPage() {
                         </div>
                     ))}
 
-                    {/* 로딩 인디케이터 (고급 RAG 처리 대기용) */}
                     {isLoading && (
                         <div className="flex justify-start animate-in fade-in">
                             <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center mr-3 shrink-0">
@@ -147,16 +169,25 @@ export default function SupplementChatPage() {
                     <div ref={messagesEndRef} />
                 </div>
 
-                {/* 3. 입력 영역 */}
-                <div className="p-4 bg-white border-t border-slate-100 shrink-0 relative">
-                    {/* 추천 질문 칩 (첫 대화 시에만 표시) */}
+                {/* 3. 하단 입력 영역 */}
+                <div className="bg-white border-t border-slate-100 shrink-0 py-4 flex flex-col w-full">
+                    {/* 🌟 추천 질문 칩 (absolute 제거, 일반 흐름으로 변경하여 겹침 완벽 해결) */}
                     {messages.length === 1 && (
-                        <div className="absolute bottom-[88px] left-0 right-0 px-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                        <div
+                            ref={scrollRef}
+                            onMouseDown={onDragStart}
+                            onMouseLeave={onDragEnd}
+                            onMouseUp={onDragEnd}
+                            onMouseMove={onDragMove}
+                            className={`flex gap-2 overflow-x-auto px-4 mb-3 select-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] ${
+                                isDragging ? "cursor-grabbing" : "cursor-grab"
+                            }`}
+                        >
                             {SUGGESTED_QUESTIONS.map((q, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => handleSendMessage(q)}
-                                    className="shrink-0 bg-white border border-slate-200 shadow-sm text-slate-600 text-xs py-2 px-4 rounded-full flex items-center hover:bg-emerald-50 hover:border-emerald-200 transition-colors"
+                                    className="shrink-0 bg-white border border-slate-200 shadow-sm text-slate-600 text-xs py-2 px-4 rounded-full flex items-center hover:bg-emerald-50 hover:border-emerald-200 transition-colors pointer-events-auto"
                                 >
                                     <Sparkles className="w-3 h-3 text-emerald-500 mr-1.5" />
                                     {q}
@@ -165,36 +196,40 @@ export default function SupplementChatPage() {
                         </div>
                     )}
 
-                    <div className="relative flex items-center">
+                    {/* 🌟 텍스트 입력창 및 전송 버튼 */}
+                    <div className="relative px-4 w-full">
                         <textarea
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter" && !e.shiftKey) {
                                     e.preventDefault()
-                                    handleSendMessage()
+                                    if (!isLoading && inputText.length > 0) {
+                                        handleSendMessage()
+                                    }
                                 }
                             }}
                             placeholder="질문을 입력하세요... (Shift+Enter로 줄바꿈)"
-                            className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-2xl py-3.5 pl-5 pr-14 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none overflow-hidden h-[52px] max-h-32 text-[15px]"
+                            // 💡 pr-14로 전송 버튼이 글자를 가리지 않게 안쪽 여백 확보
+                            className="block w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-2xl py-3.5 pl-4 pr-14 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none overflow-y-auto min-h-[52px] max-h-32 text-[15px] leading-relaxed"
                             rows={1}
                         />
+                        {/* 💡 right-6 bottom-2: 둥근 모서리와 겹치지 않게 버튼 위치를 살짝 안쪽으로 이동 */}
                         <button
                             onClick={() => handleSendMessage()}
                             disabled={!inputText.trim() || isLoading}
-                            className="absolute right-2 p-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white rounded-xl transition-colors"
+                            className="absolute right-6 bottom-2 w-10 h-10 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white rounded-xl transition-colors flex items-center justify-center"
                         >
                             <Send className="w-5 h-5 ml-0.5" />
                         </button>
                     </div>
 
-                    {/* 면책 조항 */}
-                    <p className="text-[10px] text-center text-slate-400 mt-3 font-medium">
+                    <p className="text-[10px] text-center text-slate-400 mt-3 px-4 font-medium">
                         AI의 답변은 의료적 진단을 대체할 수 없습니다. 건강에 관한 중요한 결정은 반드시 전문의 또는
                         약사와 상담하세요.
                     </p>
                 </div>
             </div>
-        </main>
+        </div>
     )
 }
