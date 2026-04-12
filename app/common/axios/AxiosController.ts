@@ -3,6 +3,7 @@ import qs from "qs"
 import { isNotEmpty } from "@/app/common/utill/DataUtil"
 
 export interface IAxiosController extends AxiosInstance {
+    defaults: any
     request<T = unknown, R = AxiosResponse<T>, D = unknown>(config: AxiosRequestConfig<D>): Promise<T>
     get<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D>): Promise<T>
     delete<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D>): Promise<T>
