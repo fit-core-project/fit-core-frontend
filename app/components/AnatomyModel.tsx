@@ -7,147 +7,188 @@ interface AnatomyModelProps {
     mode: "doms" | "target"
 }
 
+const COLORS = {
+    level1: "#FFD600",
+    level2: "#FF6600",
+    level3: "#FF0000",
+}
+
 export default function AnatomyModel({ data, onMuscleClick, mode }: AnatomyModelProps) {
-    // 점수별로 선택된 근육들을 따로따로 추출합니다.
     const muscles3 = Object.keys(data).filter((k) => data[k] === 3) as Muscle[]
     const muscles2 = Object.keys(data).filter((k) => data[k] === 2) as Muscle[]
     const muscles1 = Object.keys(data).filter((k) => data[k] === 1) as Muscle[]
     const targetMuscles = Object.keys(data).filter((k) => data[k] > 0) as Muscle[]
 
-    // 타겟 모드일 때는 파란색 단일 모델만 렌더링 (간단함)
+    // 🌟 타겟 모드 (루틴 생성기)
     if (mode === "target") {
         const targetData: IExerciseData[] = [{ name: "Target", muscles: targetMuscles }]
         return (
-            <div className="flex flex-col md:flex-row items-center justify-center gap-12 w-full select-none">
-                <div className="flex flex-col items-center relative">
-                    <span className="text-[10px] font-bold text-slate-400 mb-4 tracking-widest">FRONT</span>
-                    <Model
-                        type="anterior"
-                        data={targetData}
-                        style={{ width: "12rem" }}
-                        onClick={(e) => onMuscleClick(e.muscle)}
-                        highlightedColors={["#3b82f6"]}
-                    />
-                </div>
-                <div className="flex flex-col items-center relative">
-                    <span className="text-[10px] font-bold text-slate-400 mb-4 tracking-widest">BACK</span>
-                    <Model
-                        type="posterior"
-                        data={targetData}
-                        style={{ width: "12rem" }}
-                        onClick={(e) => onMuscleClick(e.muscle)}
-                        highlightedColors={["#3b82f6"]}
-                    />
+            <div className="flex flex-col items-center w-full select-none">
+                {/* 간격을 gap-4로 줄이고, 항상 가로(flex-row)로 배치되게 고정 */}
+                <div className="flex flex-row items-center justify-center gap-4 md:gap-8 w-full">
+                    {/* 모형 컨테이너 (w-36~w-44로 반응형 제어) */}
+                    <div className="flex flex-col items-center w-36 md:w-44">
+                        <span className="text-[10px] font-bold text-slate-400 mb-3 tracking-widest">FRONT</span>
+                        <div className="w-full relative">
+                            <Model
+                                type="anterior"
+                                data={targetData}
+                                style={{ width: "100%" }}
+                                onClick={(e) => onMuscleClick(e.muscle)}
+                                highlightedColors={["#3b82f6"]}
+                            />
+                        </div>
+                    </div>
+                    <div className="flex flex-col items-center w-36 md:w-44">
+                        <span className="text-[10px] font-bold text-slate-400 mb-3 tracking-widest">BACK</span>
+                        <div className="w-full relative">
+                            <Model
+                                type="posterior"
+                                data={targetData}
+                                style={{ width: "100%" }}
+                                onClick={(e) => onMuscleClick(e.muscle)}
+                                highlightedColors={["#3b82f6"]}
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
         )
     }
 
-    // 🌟 DOMS 모드 (핵심): 3개의 모델을 absolute로 겹쳐서 렌더링합니다.
+    // 🌟 DOMS 모드 (컨디션 체크)
     return (
-        <div className="flex flex-col md:flex-row items-center justify-center gap-12 w-full select-none">
-            {/* 전면 */}
-            <div className="flex flex-col items-center relative w-[12rem] h-[24rem]">
-                <span className="text-[10px] font-bold text-slate-400 mb-4 tracking-widest text-center w-full block">
-                    FRONT
-                </span>
-
-                {/* Layer 1: 기본 몸통 (아무 색상 없는 베이스) */}
-                <div
-                    className="absolute top-8 left-0 right-0 z-0 opacity-100"
-                    onClick={(e) => {
-                        const target = e.target as SVGPathElement
-                        if (target.className.baseVal) onMuscleClick(target.className.baseVal)
-                    }}
-                >
-                    <Model type="anterior" data={[]} style={{ width: "12rem" }} />
+        <div className="flex flex-col items-center w-full select-none">
+            <div className="flex flex-row items-center justify-center gap-4 md:gap-8 w-full">
+                {/* 전면 */}
+                <div className="flex flex-col items-center w-36 md:w-44">
+                    <span className="text-[10px] font-bold text-slate-400 mb-3 tracking-widest text-center w-full block">
+                        FRONT
+                    </span>
+                    {/* SVG 겹치기 래퍼: 이제 높이를 지정하지 않아도 Layer 1이 공간을 잡아줍니다. */}
+                    <div className="w-full relative">
+                        <div className="w-full relative z-0 opacity-100">
+                            <Model
+                                type="anterior"
+                                data={[]}
+                                style={{ width: "100%" }}
+                                onClick={(e) => onMuscleClick(e.muscle)}
+                            />
+                        </div>
+                        {muscles1.length > 0 && (
+                            <div className="absolute top-0 left-0 w-full h-full z-10 pointer-events-none mix-blend-multiply">
+                                <Model
+                                    type="anterior"
+                                    data={[{ name: "1", muscles: muscles1 }]}
+                                    style={{ width: "100%" }}
+                                    highlightedColors={[COLORS.level1]}
+                                    bodyColor="transparent"
+                                />
+                            </div>
+                        )}
+                        {muscles2.length > 0 && (
+                            <div className="absolute top-0 left-0 w-full h-full z-20 pointer-events-none mix-blend-multiply">
+                                <Model
+                                    type="anterior"
+                                    data={[{ name: "2", muscles: muscles2 }]}
+                                    style={{ width: "100%" }}
+                                    highlightedColors={[COLORS.level2]}
+                                    bodyColor="transparent"
+                                />
+                            </div>
+                        )}
+                        {muscles3.length > 0 && (
+                            <div className="absolute top-0 left-0 w-full h-full z-30 pointer-events-none mix-blend-multiply">
+                                <Model
+                                    type="anterior"
+                                    data={[{ name: "3", muscles: muscles3 }]}
+                                    style={{ width: "100%" }}
+                                    highlightedColors={[COLORS.level3]}
+                                    bodyColor="transparent"
+                                />
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Layer 2: 1점 근육 (노란색) */}
-                {muscles1.length > 0 && (
-                    <div className="absolute top-8 left-0 right-0 z-10 pointer-events-none mix-blend-multiply">
-                        <Model
-                            type="anterior"
-                            data={[{ name: "1", muscles: muscles1 }]}
-                            style={{ width: "12rem" }}
-                            highlightedColors={["#eab308"]}
-                        />
+                {/* 후면 */}
+                <div className="flex flex-col items-center w-36 md:w-44">
+                    <span className="text-[10px] font-bold text-slate-400 mb-3 tracking-widest text-center w-full block">
+                        BACK
+                    </span>
+                    <div className="w-full relative">
+                        <div className="w-full relative z-0 opacity-100">
+                            <Model
+                                type="posterior"
+                                data={[]}
+                                style={{ width: "100%" }}
+                                onClick={(e) => onMuscleClick(e.muscle)}
+                            />
+                        </div>
+                        {muscles1.length > 0 && (
+                            <div className="absolute top-0 left-0 w-full h-full z-10 pointer-events-none mix-blend-multiply">
+                                <Model
+                                    type="posterior"
+                                    data={[{ name: "1", muscles: muscles1 }]}
+                                    style={{ width: "100%" }}
+                                    highlightedColors={[COLORS.level1]}
+                                    bodyColor="transparent"
+                                />
+                            </div>
+                        )}
+                        {muscles2.length > 0 && (
+                            <div className="absolute top-0 left-0 w-full h-full z-20 pointer-events-none mix-blend-multiply">
+                                <Model
+                                    type="posterior"
+                                    data={[{ name: "2", muscles: muscles2 }]}
+                                    style={{ width: "100%" }}
+                                    highlightedColors={[COLORS.level2]}
+                                    bodyColor="transparent"
+                                />
+                            </div>
+                        )}
+                        {muscles3.length > 0 && (
+                            <div className="absolute top-0 left-0 w-full h-full z-30 pointer-events-none mix-blend-multiply">
+                                <Model
+                                    type="posterior"
+                                    data={[{ name: "3", muscles: muscles3 }]}
+                                    style={{ width: "100%" }}
+                                    highlightedColors={[COLORS.level3]}
+                                    bodyColor="transparent"
+                                />
+                            </div>
+                        )}
                     </div>
-                )}
-
-                {/* Layer 3: 2점 근육 (주황색) */}
-                {muscles2.length > 0 && (
-                    <div className="absolute top-8 left-0 right-0 z-20 pointer-events-none mix-blend-multiply">
-                        <Model
-                            type="anterior"
-                            data={[{ name: "2", muscles: muscles2 }]}
-                            style={{ width: "12rem" }}
-                            highlightedColors={["#f97316"]}
-                        />
-                    </div>
-                )}
-
-                {/* Layer 4: 3점 근육 (빨간색) */}
-                {muscles3.length > 0 && (
-                    <div className="absolute top-8 left-0 right-0 z-30 pointer-events-none mix-blend-multiply">
-                        <Model
-                            type="anterior"
-                            data={[{ name: "3", muscles: muscles3 }]}
-                            style={{ width: "12rem" }}
-                            highlightedColors={["#ef4444"]}
-                        />
-                    </div>
-                )}
+                </div>
             </div>
 
-            {/* 후면 */}
-            <div className="flex flex-col items-center relative w-[12rem] h-[24rem]">
-                <span className="text-[10px] font-bold text-slate-400 mb-4 tracking-widest text-center w-full block">
-                    BACK
-                </span>
-
-                {/* Layer 1: 기본 몸통 */}
-                <div
-                    className="absolute top-8 left-0 right-0 z-0 opacity-100"
-                    onClick={(e) => {
-                        const target = e.target as SVGPathElement
-                        if (target.className.baseVal) onMuscleClick(target.className.baseVal)
-                    }}
-                >
-                    <Model type="posterior" data={[]} style={{ width: "12rem" }} />
+            {/* 범례 UI */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3 md:gap-5 bg-white px-5 py-3.5 rounded-2xl shadow-sm border border-slate-100 w-fit mx-auto">
+                <div className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 rounded-full bg-[#e2e8f0] shadow-inner"></span>
+                    <span className="text-xs font-bold text-slate-600">정상</span>
                 </div>
-
-                {/* Layer 2~4: 점수별 색상 오버레이 */}
-                {muscles1.length > 0 && (
-                    <div className="absolute top-8 left-0 right-0 z-10 pointer-events-none mix-blend-multiply">
-                        <Model
-                            type="posterior"
-                            data={[{ name: "1", muscles: muscles1 }]}
-                            style={{ width: "12rem" }}
-                            highlightedColors={["#eab308"]}
-                        />
-                    </div>
-                )}
-                {muscles2.length > 0 && (
-                    <div className="absolute top-8 left-0 right-0 z-20 pointer-events-none mix-blend-multiply">
-                        <Model
-                            type="posterior"
-                            data={[{ name: "2", muscles: muscles2 }]}
-                            style={{ width: "12rem" }}
-                            highlightedColors={["#f97316"]}
-                        />
-                    </div>
-                )}
-                {muscles3.length > 0 && (
-                    <div className="absolute top-8 left-0 right-0 z-30 pointer-events-none mix-blend-multiply">
-                        <Model
-                            type="posterior"
-                            data={[{ name: "3", muscles: muscles3 }]}
-                            style={{ width: "12rem" }}
-                            highlightedColors={["#ef4444"]}
-                        />
-                    </div>
-                )}
+                <div className="flex items-center gap-2">
+                    <span
+                        className="w-3.5 h-3.5 rounded-full shadow-inner"
+                        style={{ backgroundColor: COLORS.level1 }}
+                    ></span>
+                    <span className="text-xs font-bold text-slate-600">뻐근함</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span
+                        className="w-3.5 h-3.5 rounded-full shadow-inner"
+                        style={{ backgroundColor: COLORS.level2 }}
+                    ></span>
+                    <span className="text-xs font-bold text-slate-600">근육통</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span
+                        className="w-3.5 h-3.5 rounded-full shadow-inner"
+                        style={{ backgroundColor: COLORS.level3 }}
+                    ></span>
+                    <span className="text-xs font-bold text-slate-600">부상 위험</span>
+                </div>
             </div>
         </div>
     )

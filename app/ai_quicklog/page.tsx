@@ -10,7 +10,7 @@ interface ParsedData {
     overall_summary: string
 }
 
-// --- 위트 있는 로딩 메시지 목록 ---
+// --- 로딩 메시지 목록 ---
 const QUICK_LOG_MESSAGES = [
     "냉장고 속 음식들이 긴장하고 있습니다...",
     "영양 성분표를 돋보기로 분석 중입니다...",
@@ -52,7 +52,7 @@ export default function QuickLogPage() {
     }, [isLoading])
 
     // ==========================================
-    // 🎙️ 오디오 녹음 및 Whisper STT 전송
+    // 🎙오디오 녹음 및 Whisper STT 전송
     // ==========================================
     const startRecording = async () => {
         setError(null)
@@ -103,7 +103,7 @@ export default function QuickLogPage() {
     }
 
     // ==========================================
-    // 🚀 AI 파싱 요청 (Gemini)
+    // AI 파싱 요청 (Gemini)
     // ==========================================
     const handleParse = async () => {
         if (!inputText.trim()) return
@@ -173,7 +173,7 @@ export default function QuickLogPage() {
 
     return (
         <div className="flex-1 w-full h-full flex flex-col items-center px-4 py-4 md:px-8 relative">
-            {/* 🌟 로딩 오버레이 */}
+            {/* 로딩 오버레이 */}
             {isLoading && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-sm w-11/12 text-center transform transition-all scale-100 animate-in zoom-in-95">
@@ -210,7 +210,7 @@ export default function QuickLogPage() {
                     </div>
                 </div>
 
-                {/* 2. 콘텐츠 영역 (flex-1 overflow-y-auto) */}
+                {/* 2. 콘텐츠 영역 */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/50 flex flex-col gap-6">
                     {/* 에러 메시지 */}
                     {error && (
@@ -231,7 +231,7 @@ export default function QuickLogPage() {
                         </div>
                     )}
 
-                    {/* 🌟 파싱 결과 렌더링 영역 (여기서부터 복구된 데이터 렌더링 부분입니다) */}
+                    {/* 파싱 결과 렌더링 영역 */}
                     {parsedData && (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6 pb-4">
                             {/* 코치 아바타 피드백 */}
@@ -249,7 +249,7 @@ export default function QuickLogPage() {
                                 </div>
                             </div>
 
-                            {/* 🍎 식단 기록 카드 */}
+                            {/* 식단 기록 카드 */}
                             {parsedData.diet_logs.length > 0 && (
                                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
                                     <h2 className="flex items-center text-base font-bold text-slate-800 mb-5">
@@ -295,7 +295,7 @@ export default function QuickLogPage() {
                                 </div>
                             )}
 
-                            {/* 🏋️ 운동 기록 카드 */}
+                            {/* 🏋운동 기록 카드 */}
                             {parsedData.workout_logs.length > 0 && (
                                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
                                     <h2 className="flex items-center text-base font-bold text-slate-800 mb-5">
@@ -323,7 +323,7 @@ export default function QuickLogPage() {
                                 </div>
                             )}
 
-                            {/* 💾 저장 버튼 */}
+                            {/* 저장 버튼 */}
                             <button
                                 onClick={handleSaveLog}
                                 disabled={isSaving || saveSuccess}
@@ -362,7 +362,7 @@ export default function QuickLogPage() {
                             {isRecording ? <StopCircle className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
                         </button>
 
-                        <div className="relative flex-1">
+                        <div className="flex-1 flex items-end bg-slate-50 border border-slate-200 rounded-2xl focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-transparent transition-all">
                             <textarea
                                 value={inputText}
                                 onChange={(e) => setInputText(e.target.value)}
@@ -376,14 +376,14 @@ export default function QuickLogPage() {
                                 }}
                                 placeholder={isSttLoading ? "음성 인식 중..." : "오늘의 식단과 운동을 알려주세요"}
                                 disabled={isSttLoading || isLoading || isRecording}
-                                className="block w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-2xl py-3.5 pl-4 pr-12 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none overflow-y-auto min-h-[52px] max-h-32 text-[15px] leading-relaxed"
+                                className="w-full bg-transparent text-slate-800 py-3.5 pl-4 pr-2 outline-none resize-none overflow-y-auto min-h-[52px] max-h-32 text-[15px] leading-relaxed"
                                 rows={1}
                             />
 
                             <button
                                 onClick={handleParse}
                                 disabled={isLoading || inputText.length === 0 || isRecording || isSttLoading}
-                                className="absolute right-1.5 bottom-1.5 w-10 h-10 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white rounded-xl transition-colors flex items-center justify-center"
+                                className="shrink-0 mb-1.5 mr-1.5 w-10 h-10 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white rounded-xl transition-colors flex items-center justify-center"
                             >
                                 <Send className="w-5 h-5 ml-0.5" />
                             </button>

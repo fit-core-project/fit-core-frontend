@@ -41,7 +41,7 @@ export default function WorkoutPlayer() {
         if (savedRoutine) {
             setRoutine(JSON.parse(savedRoutine))
         } else {
-            // 데이터가 없으면 다시 생성 페이지로 쫓아냄
+            // 데이터가 없으면 다시 생성 페이지로
             alert("활성화된 루틴이 없습니다.")
             router.push("/ai_routine")
         }
@@ -109,7 +109,7 @@ export default function WorkoutPlayer() {
     const handleFinishRPE = async (rpeScore: number) => {
         setIsSaving(true)
 
-        // 🌟 여기서 백엔드로 데이터를 전송합니다!
+        // 여기서 백엔드로 데이터를 전송
         const workoutLog = {
             routine_data: routine,
             completed_sets: checkedSets.size,
@@ -182,7 +182,7 @@ export default function WorkoutPlayer() {
 
     return (
         <main className="min-h-screen bg-slate-50 pb-32">
-            {/* 🌟 상단 고정: 프로그레스 바 */}
+            {/* 상단 고정: 프로그레스 바 */}
             <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
                 <div className="flex justify-between items-end mb-2 max-w-2xl mx-auto w-full">
                     <div>
@@ -203,7 +203,7 @@ export default function WorkoutPlayer() {
                 </div>
             </div>
 
-            {/* 🌟 운동 리스트 영역 */}
+            {/* 운동 리스트 영역 */}
             <div className="p-4 max-w-2xl mx-auto w-full space-y-6 mt-4">
                 {routine.exercises.map((ex, exIndex) => (
                     <div
@@ -245,7 +245,7 @@ export default function WorkoutPlayer() {
                                             <div className="font-bold text-lg text-slate-600 w-16">{ex.reps}회</div>
                                         </div>
 
-                                        {/* 🌟 완료 체크 버튼 */}
+                                        {/* 완료 체크 버튼 */}
                                         <button
                                             onClick={() => handleCheckSet(exIndex, setIndex, ex.rest_time_sec)}
                                             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 ${
@@ -268,7 +268,7 @@ export default function WorkoutPlayer() {
                 ))}
             </div>
 
-            {/* 🌟 하단 고정: 쉬는 시간 타이머 오버레이 */}
+            {/* 하단 고정: 쉬는 시간 타이머 오버레이 */}
             {isTimerActive && (
                 <div className="fixed bottom-0 left-0 right-0 bg-slate-900 text-white p-6 rounded-t-3xl shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.3)] z-50 animate-fade-in-up">
                     <div className="max-w-md mx-auto w-full flex items-center justify-between">

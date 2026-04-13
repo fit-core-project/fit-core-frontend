@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, Bot, Loader2, Pill, Sparkles } from "lucide-react"
+// 🌟 Mic, StopCircle 아이콘 추가
+import { Send, Bot, Loader2, Pill, Sparkles, Mic, StopCircle } from "lucide-react"
 
 // --- TypeScript 타입 정의 ---
 interface SourceDetail {
@@ -37,7 +38,13 @@ export default function SupplementChatPage() {
     const [isLoading, setIsLoading] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
-    // 🌟 드래그 스크롤(Drag-to-Scroll)을 위한 상태 및 Ref
+    // 🌟 오디오 녹음(STT) 관련 상태 및 Ref 추가
+    const [isRecording, setIsRecording] = useState(false)
+    const [isSttLoading, setIsSttLoading] = useState(false)
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+    const audioChunksRef = useRef<BlobPart[]>([])
+
+    // 드래그 스크롤(Drag-to-Scroll)을 위한 상태 및 Ref
     const scrollRef = useRef<HTMLDivElement>(null)
     const [isDragging, setIsDragging] = useState(false)
     const [startX, setStartX] = useState(0)
@@ -48,6 +55,71 @@ export default function SupplementChatPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [messages, isLoading])
 
+    // ==========================================
+    // 🎙️ 오디오 녹음 및 Whisper STT 전송 (QuickLog와 동일)
+    // ==========================================
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            const mediaRecorder = new MediaRecorder(stream)
+            mediaRecorderRef.current = mediaRecorder
+            audioChunksRef.current = []
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) audioChunksRef.current.push(event.data)
+            }
+
+            mediaRecorder.onstop = async () => {
+                setIsSttLoading(true)
+                const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" })
+                const formData = new FormData()
+                formData.append("audio_file", audioBlob, "voice_record.webm")
+
+                try {
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/stt`, {
+                        method: "POST",
+                        body: formData,
+                    })
+                    if (!response.ok) throw new Error("STT 변환에 실패했습니다.")
+                    const data = await response.json()
+                    // 기존 텍스트가 있으면 띄어쓰기 후 이어서 작성
+                    if (data.text) setInputText((prev) => (prev ? `${prev} ${data.text}` : data.text))
+                } catch (err: any) {
+                    // 에러 시 챗봇 메시지로 출력
+                    setMessages((prev) => [
+                        ...prev,
+                        {
+                            id: Date.now().toString(),
+                            role: "ai",
+                            content: `⚠️ 음성 인식 중 오류가 발생했습니다: ${err.message}`,
+                        },
+                    ])
+                } finally {
+                    setIsSttLoading(false)
+                    stream.getTracks().forEach((track) => track.stop())
+                }
+            }
+
+            mediaRecorder.start()
+            setIsRecording(true)
+        } catch (err) {
+            setMessages((prev) => [
+                ...prev,
+                { id: Date.now().toString(), role: "ai", content: "⚠️ 마이크 접근 권한이 필요합니다." },
+            ])
+        }
+    }
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop()
+            setIsRecording(false)
+        }
+    }
+
+    // ==========================================
+    // 🚀 메시지 전송 로직
+    // ==========================================
     const handleSendMessage = async (textToSubmit: string = inputText) => {
         if (!textToSubmit.trim() || isLoading) return
 
@@ -88,7 +160,6 @@ export default function SupplementChatPage() {
         }
     }
 
-    // 🌟 PC 환경 마우스 드래그 이벤트 핸들러
     const onDragStart = (e: React.MouseEvent) => {
         if (!scrollRef.current) return
         setIsDragging(true)
@@ -104,7 +175,7 @@ export default function SupplementChatPage() {
         if (!isDragging || !scrollRef.current) return
         e.preventDefault()
         const x = e.pageX - scrollRef.current.offsetLeft
-        const walk = (x - startX) * 1.5 // 드래그 속도 조절
+        const walk = (x - startX) * 1.5
         scrollRef.current.scrollLeft = scrollLeft - walk
     }
 
@@ -169,9 +240,9 @@ export default function SupplementChatPage() {
                     <div ref={messagesEndRef} />
                 </div>
 
-                {/* 3. 하단 입력 영역 */}
+                {/* 3. 하단 입력 영역 (QuickLog 레이아웃과 완벽하게 동일) */}
                 <div className="bg-white border-t border-slate-100 shrink-0 py-4 flex flex-col w-full">
-                    {/* 🌟 추천 질문 칩 (absolute 제거, 일반 흐름으로 변경하여 겹침 완벽 해결) */}
+                    {/* 첫 화면에서만 추천 질문 표시 */}
                     {messages.length === 1 && (
                         <div
                             ref={scrollRef}
@@ -196,38 +267,62 @@ export default function SupplementChatPage() {
                         </div>
                     )}
 
-                    {/* 🌟 텍스트 입력창 및 전송 버튼 */}
-                    <div className="relative px-4 w-full">
-                        <textarea
-                            value={inputText}
-                            onChange={(e) => setInputText(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && !e.shiftKey) {
-                                    e.preventDefault()
-                                    if (!isLoading && inputText.length > 0) {
-                                        handleSendMessage()
-                                    }
-                                }
-                            }}
-                            placeholder="질문을 입력하세요... (Shift+Enter로 줄바꿈)"
-                            // 💡 pr-14로 전송 버튼이 글자를 가리지 않게 안쪽 여백 확보
-                            className="block w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-2xl py-3.5 pl-4 pr-14 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none overflow-y-auto min-h-[52px] max-h-32 text-[15px] leading-relaxed"
-                            rows={1}
-                        />
-                        {/* 💡 right-6 bottom-2: 둥근 모서리와 겹치지 않게 버튼 위치를 살짝 안쪽으로 이동 */}
-                        <button
-                            onClick={() => handleSendMessage()}
-                            disabled={!inputText.trim() || isLoading}
-                            className="absolute right-6 bottom-2 w-10 h-10 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white rounded-xl transition-colors flex items-center justify-center"
-                        >
-                            <Send className="w-5 h-5 ml-0.5" />
-                        </button>
+                    {/* 🌟 텍스트 입력창 및 마이크/전송 버튼 통합 영역 */}
+                    <div className="px-4 w-full">
+                        <div className="flex items-end gap-2">
+                            {/* STT 마이크 버튼 */}
+                            <button
+                                onClick={isRecording ? stopRecording : startRecording}
+                                disabled={isSttLoading || isLoading}
+                                className={`rounded-2xl transition-all shrink-0 border h-[52px] w-[52px] flex items-center justify-center ${
+                                    isRecording
+                                        ? "bg-red-50 text-red-500 border-red-200 animate-pulse"
+                                        : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
+                                }`}
+                            >
+                                {isRecording ? <StopCircle className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+                            </button>
+
+                            <div className="flex-1 flex items-end bg-slate-50 border border-slate-200 rounded-2xl focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-transparent transition-all">
+                                <textarea
+                                    value={inputText}
+                                    onChange={(e) => setInputText(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && !e.shiftKey) {
+                                            e.preventDefault()
+                                            if (!isLoading && inputText.length > 0 && !isRecording && !isSttLoading) {
+                                                handleSendMessage()
+                                            }
+                                        }
+                                    }}
+                                    placeholder={isSttLoading ? "음성 인식 중..." : "오늘의 식단과 운동을 알려주세요"}
+                                    disabled={isSttLoading || isLoading || isRecording}
+                                    className="w-full bg-transparent text-slate-800 py-3.5 pl-4 pr-2 outline-none resize-none overflow-y-auto min-h-[52px] max-h-32 text-[15px] leading-relaxed"
+                                    rows={1}
+                                />
+
+                                <button
+                                    onClick={() => handleSendMessage}
+                                    disabled={isLoading || inputText.length === 0 || isRecording || isSttLoading}
+                                    className="shrink-0 mb-1.5 mr-1.5 w-10 h-10 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white rounded-xl transition-colors flex items-center justify-center"
+                                >
+                                    <Send className="w-5 h-5 ml-0.5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* STT 로딩 텍스트 */}
+                        {isSttLoading && (
+                            <p className="text-[11px] text-center text-emerald-500 mt-2 font-bold animate-pulse">
+                                STT 엔진이 음성을 텍스트로 변환 중입니다...
+                            </p>
+                        )}
                     </div>
 
-                    <p className="text-[10px] text-center text-slate-400 mt-3 px-4 font-medium">
-                        AI의 답변은 의료적 진단을 대체할 수 없습니다. 건강에 관한 중요한 결정은 반드시 전문의 또는
-                        약사와 상담하세요.
-                    </p>
+                    <div className="text-[10px] text-center text-slate-400 mt-3 px-4 font-medium">
+                        <p>AI의 답변은 의료적 진단을 대체할 수 없습니다.</p>
+                        <p>건강에 관한 중요한 결정은 반드시 전문의 또는 약사와 상담하세요.</p>
+                    </div>
                 </div>
             </div>
         </div>

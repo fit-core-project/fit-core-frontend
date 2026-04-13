@@ -2,31 +2,25 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Activity, Clock, Target, Dumbbell, Send, AlertCircle } from "lucide-react"
+import {
+    Activity,
+    Clock,
+    Target,
+    Dumbbell,
+    Send,
+    AlertCircle,
+    ArrowUp,
+    ArrowDown,
+    Shield,
+    RefreshCw,
+} from "lucide-react"
+import AnatomyModel from "@/app/components/AnatomyModel"
 
-type MuscleGroup =
-    | "CHEST_UPPER"
-    | "CHEST_MID_LOWER"
-    | "BACK_LATS"
-    | "BACK_TRAPS"
-    | "BACK_LOWER"
-    | "SHOULDER_FRONT"
-    | "SHOULDER_LATERAL"
-    | "SHOULDER_REAR"
-    | "LEG_QUADS"
-    | "LEG_HAMSTRINGS"
-    | "LEG_GLUTES"
-    | "LEG_CALVES"
-    | "ARM_BICEPS"
-    | "ARM_TRICEPS"
-    | "ARM_FOREARMS"
-    | "CORE_ABS"
-    | "CORE_OBLIQUES"
 type Equipment = "BARBELL" | "DUMBBELL" | "MACHINE" | "CABLE" | "BODYWEIGHT"
 type TrainingGoal = "HYPERTROPHY" | "STRENGTH" | "ENDURANCE"
 
 interface RoutineRequest {
-    target_muscles: MuscleGroup[]
+    target_muscles: string[] // 🌟 AnatomyModel의 부위명(string)을 직접 받도록 수정
     equipment: Equipment[]
     time_available_min: number
     pain_areas: string[]
@@ -47,26 +41,6 @@ const LOADING_MESSAGES = [
     "단백질이 가장 달콤해질 타이밍을 재는 중...",
 ]
 
-const MUSCLES: { label: string; value: MuscleGroup }[] = [
-    { label: "상부 가슴", value: "CHEST_UPPER" },
-    { label: "중/하부 가슴", value: "CHEST_MID_LOWER" },
-    { label: "광배근", value: "BACK_LATS" },
-    { label: "승모/능형근", value: "BACK_TRAPS" },
-    { label: "척추기립근", value: "BACK_LOWER" },
-    { label: "전면 삼각근", value: "SHOULDER_FRONT" },
-    { label: "측면 삼각근", value: "SHOULDER_LATERAL" },
-    { label: "후면 삼각근", value: "SHOULDER_REAR" },
-    { label: "앞벅지", value: "LEG_QUADS" },
-    { label: "뒷벅지", value: "LEG_HAMSTRINGS" },
-    { label: "둔근", value: "LEG_GLUTES" },
-    { label: "종아리", value: "LEG_CALVES" },
-    { label: "이두근", value: "ARM_BICEPS" },
-    { label: "삼두근", value: "ARM_TRICEPS" },
-    { label: "전완근", value: "ARM_FOREARMS" },
-    { label: "복직근", value: "CORE_ABS" },
-    { label: "복사근", value: "CORE_OBLIQUES" },
-]
-
 const EQUIPMENTS: { label: string; value: Equipment }[] = [
     { label: "바벨", value: "BARBELL" },
     { label: "덤벨", value: "DUMBBELL" },
@@ -74,6 +48,13 @@ const EQUIPMENTS: { label: string; value: Equipment }[] = [
     { label: "케이블", value: "CABLE" },
     { label: "맨몸", value: "BODYWEIGHT" },
 ]
+
+const PRESET_GROUPS = {
+    PUSH: ["chest", "front-deltoids", "triceps"],
+    PULL: ["upper-back", "trapezius", "biceps", "forearm", "back-deltoids"],
+    LEGS: ["quadriceps", "hamstring", "gluteal", "calves", "adductor", "abductors"],
+    CORE: ["abs", "lower-back", "obliques"],
+}
 
 export default function RoutineGenerator() {
     const router = useRouter()
@@ -90,6 +71,9 @@ export default function RoutineGenerator() {
         goal: "HYPERTROPHY",
         user_note: "",
     })
+
+    // 🌟 AnatomyModel용 데이터 상태 (선택된 근육은 1점, 아니면 없는 것으로 취급)
+    const [targetModelData, setTargetModelData] = useState<Record<string, number>>({})
 
     useEffect(() => {
         const savedDoms = localStorage.getItem("fitcore_doms_data")
@@ -122,8 +106,49 @@ export default function RoutineGenerator() {
         return () => clearInterval(interval)
     }, [isLoading])
 
+    const handlePresetClick = (groupKey: keyof typeof PRESET_GROUPS) => {
+        const musclesToAdd = PRESET_GROUPS[groupKey]
+
+        setTargetModelData((prev) => {
+            const newData = { ...prev }
+            musclesToAdd.forEach((m) => {
+                newData[m] = 1
+            })
+            return newData
+        })
+
+        setFormData((prev: any) => {
+            const current = new Set(prev.target_muscles)
+            musclesToAdd.forEach((m) => current.add(m)) // Set을 사용해 중복 방지
+            return { ...prev, target_muscles: Array.from(current) }
+        })
+    }
+
+    const handleTargetMuscleClick = (muscleName: string) => {
+        setTargetModelData((prev) => {
+            const newData = { ...prev }
+            if (newData[muscleName]) delete newData[muscleName]
+            else newData[muscleName] = 1
+            return newData
+        })
+
+        setFormData((prev: any) => {
+            const current = prev.target_muscles
+            if (current.includes(muscleName)) {
+                return { ...prev, target_muscles: current.filter((m: string) => m !== muscleName) }
+            } else {
+                return { ...prev, target_muscles: [...current, muscleName] }
+            }
+        })
+    }
+
+    const handleResetClick = () => {
+        setTargetModelData({})
+        setFormData((prev: any) => ({ ...prev, target_muscles: [] }))
+    }
+
     const toggleArrayItem = (key: keyof RoutineRequest, value: string) => {
-        setFormData((prev) => {
+        setFormData((prev: any) => {
             const currentArray = prev[key] as string[]
             if (currentArray.includes(value)) {
                 return { ...prev, [key]: currentArray.filter((item) => item !== value) }
@@ -161,9 +186,8 @@ export default function RoutineGenerator() {
     return (
         <>
             <div className="flex-1 w-full h-full flex flex-col items-center px-4 py-4 md:px-8 relative">
-                {/* 🌟 챗봇들과 완벽히 동일한 '앱 윈도우' 스타일의 메인 카드 */}
                 <div className="w-full max-w-3xl flex-1 min-h-0 flex flex-col bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative">
-                    {/* 1. 상단 고정 헤더 (루틴 테마: 블루) */}
+                    {/* 1. 상단 고정 헤더 */}
                     <div className="bg-blue-50/50 p-5 border-b border-blue-100 flex items-center justify-between shrink-0">
                         <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-md shadow-blue-200">
@@ -178,9 +202,8 @@ export default function RoutineGenerator() {
                         </div>
                     </div>
 
-                    {/* 2. 스크롤 가능한 폼 영역 (flex-1 overflow-y-auto) */}
+                    {/* 2. 폼 영역 */}
                     <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-10 bg-white">
-                        {/* 컨디션 연동 알림 */}
                         {domsSummary && (
                             <div className="bg-blue-50/50 p-4 rounded-xl flex items-start border border-blue-100 animate-in fade-in slide-in-from-top-2">
                                 <AlertCircle className="w-5 h-5 text-blue-500 mr-3 mt-0.5 shrink-0" />
@@ -193,26 +216,78 @@ export default function RoutineGenerator() {
                             </div>
                         )}
 
-                        {/* 타겟 근육 섹션 */}
+                        {/* 🌟 타겟 근육 섹션 교체 */}
                         <section>
                             <h2 className="flex items-center text-base font-bold text-slate-800 mb-4">
                                 <Activity className="w-5 h-5 mr-2 text-blue-500" />
-                                타겟 근육 (다중 선택)
+                                오늘 조질 부위 선택
                             </h2>
-                            <div className="flex flex-wrap gap-2">
-                                {MUSCLES.map((item) => (
-                                    <button
-                                        key={item.value}
-                                        onClick={() => toggleArrayItem("target_muscles", item.value)}
-                                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${
-                                            formData.target_muscles.includes(item.value)
-                                                ? "bg-blue-500 text-white shadow-md shadow-blue-100 border-blue-500"
-                                                : "bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100"
-                                        }`}
-                                    >
-                                        {item.label}
-                                    </button>
-                                ))}
+
+                            {/* 4분할 퀵 프리셋 버튼 + 리셋 버튼*/}
+                            <div className="grid grid-cols-5 gap-1.5 mb-4">
+                                {/* PUSH */}
+                                <button
+                                    onClick={() => handlePresetClick("PUSH")}
+                                    className="flex flex-col items-center justify-center py-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all group active:scale-95"
+                                >
+                                    <ArrowUp className="w-4 h-4 text-slate-400 group-hover:text-blue-500 mb-1" />
+                                    <span className="text-[10px] font-extrabold text-slate-500 group-hover:text-blue-600">
+                                        PUSH
+                                    </span>
+                                </button>
+
+                                {/* PULL */}
+                                <button
+                                    onClick={() => handlePresetClick("PULL")}
+                                    className="flex flex-col items-center justify-center py-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all group active:scale-95"
+                                >
+                                    <ArrowDown className="w-4 h-4 text-slate-400 group-hover:text-blue-500 mb-1" />
+                                    <span className="text-[10px] font-extrabold text-slate-500 group-hover:text-blue-600">
+                                        PULL
+                                    </span>
+                                </button>
+
+                                {/* LEGS */}
+                                <button
+                                    onClick={() => handlePresetClick("LEGS")}
+                                    className="flex flex-col items-center justify-center py-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all group active:scale-95"
+                                >
+                                    <Activity className="w-4 h-4 text-slate-400 group-hover:text-blue-500 mb-1" />
+                                    <span className="text-[10px] font-extrabold text-slate-500 group-hover:text-blue-600">
+                                        LEGS
+                                    </span>
+                                </button>
+
+                                {/* CORE */}
+                                <button
+                                    onClick={() => handlePresetClick("CORE")}
+                                    className="flex flex-col items-center justify-center py-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all group active:scale-95"
+                                >
+                                    <Shield className="w-4 h-4 text-slate-400 group-hover:text-blue-500 mb-1" />
+                                    <span className="text-[10px] font-extrabold text-slate-500 group-hover:text-blue-600">
+                                        CORE
+                                    </span>
+                                </button>
+
+                                {/* RESET */}
+                                <button
+                                    onClick={handleResetClick}
+                                    className="flex flex-col items-center justify-center py-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:bg-red-50 hover:border-red-200 transition-all group active:scale-95"
+                                >
+                                    <RefreshCw className="w-4 h-4 text-slate-400 group-hover:text-red-500 mb-1" />
+                                    <span className="text-[10px] font-extrabold text-slate-500 group-hover:text-red-600">
+                                        RESET
+                                    </span>
+                                </button>
+                            </div>
+
+                            {/* 인체 모형 */}
+                            <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                                <AnatomyModel
+                                    data={targetModelData}
+                                    onMuscleClick={handleTargetMuscleClick}
+                                    mode="target"
+                                />
                             </div>
                         </section>
 
@@ -270,10 +345,10 @@ export default function RoutineGenerator() {
                                     <button
                                         key={item.value}
                                         onClick={() => toggleArrayItem("equipment", item.value)}
-                                        className={`px-4 py-2 rounded-xl border-2 text-sm font-bold transition-all ${
+                                        className={`px-3 py-2 rounded-xl border-2 text-sm font-bold transition-all ${
                                             formData.equipment.includes(item.value)
                                                 ? "border-orange-500 bg-orange-50 text-orange-700"
-                                                : "border-slate-100 bg-white text-slate-400"
+                                                : "border-slate-100 bg-white text-slate-400 hover:bg-slate-50"
                                         }`}
                                     >
                                         {item.label}
@@ -308,7 +383,7 @@ export default function RoutineGenerator() {
                 </div>
             </div>
 
-            {/* 🌟 로딩 오버레이 (기존 유지) */}
+            {/* 로딩 오버레이 */}
             {isLoading && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-sm w-11/12 text-center transform transition-all scale-100 animate-in zoom-in-95">

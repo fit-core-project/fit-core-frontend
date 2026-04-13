@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Activity, ArrowRight } from "lucide-react"
-import AnatomyModel from "@/app/components/AnatomyModel" // 🌟 분리한 컴포넌트 임포트
+import AnatomyModel from "@/app/components/AnatomyModel"
 
 export default function RoutineHome() {
     const router = useRouter()
@@ -38,7 +38,7 @@ export default function RoutineHome() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
-                    {/* 🌟 분리된 컴포넌트 사용 */}
+                    {/* 분리된 컴포넌트 사용 */}
                     <AnatomyModel data={domsData} onMuscleClick={handleMuscleClick} mode="doms" />
                 </div>
 
