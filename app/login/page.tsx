@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import AxiosController from "@/app/common/axios/AxiosController"
+import AxiosController from "@/lib/axios/AxiosController"
 import SocialButton from "@/app/components/SocialButton"
 import { ArrowLeft, UserCircle } from "lucide-react"
 

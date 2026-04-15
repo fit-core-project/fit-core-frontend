@@ -1,6 +1,12 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosRequestHeaders, AxiosResponse } from "axios"
+import axios, {
+    AxiosInstance,
+    AxiosRequestConfig,
+    AxiosRequestHeaders,
+    AxiosRequestTransformer,
+    AxiosResponse,
+} from "axios"
 import qs from "qs"
-import { isNotEmpty } from "@/app/common/utill/DataUtil"
+import { isNotEmpty } from "@/lib/utill/DataUtil"
 
 export interface IAxiosController extends AxiosInstance {
     defaults: any
@@ -67,13 +73,57 @@ const AxiosController: IAxiosController = axios.create({
     paramsSerializer: (params: unknown) => {
         return qs.stringify(params, { arrayFormat: "repeat" })
     },
-    transformRequest: Array.isArray(axios.defaults.transformRequest)
-        ? [dateTransformer, ...axios.defaults.transformRequest]
-        : [dateTransformer, axios.defaults.transformRequest],
+    transformRequest: [
+        dateTransformer,
+        ...(Array.isArray(axios.defaults.transformRequest)
+            ? axios.defaults.transformRequest
+            : ([axios.defaults.transformRequest] as AxiosRequestTransformer[])),
+    ],
     timeout: 500000,
     onUploadProgress: (progressEvent: unknown) => {},
     onDownloadProgress: (progressEvent: unknown) => {},
 })
+
+AxiosController.interceptors.request.use(
+    (config) => {
+        // 토큰 가져옴
+        const authStorage = typeof window !== "undefined" ? localStorage.getItem("auth-storage") : null
+
+        if (authStorage) {
+            try {
+                const parsedStorage = JSON.parse(authStorage)
+                // 구조 확인: parsedStorage.state.token 입니다.
+                const token = parsedStorage.state?.token
+
+                if (token) {
+                    config.headers.Authorization = `Bearer ${token}`
+                }
+            } catch (e) {
+                console.error("토큰 파싱 에러:", e)
+            }
+        }
+
+        return config
+    },
+    (error) => {
+        return Promise.reject(error)
+    }
+)
+
+// [추가] 응답 인터셉터: 401 발생 시 로그아웃 처리
+AxiosController.interceptors.response.use(
+    (response) => response.data, // response.data만 바로 반환하도록 설정하면 편리합니다!
+    async (error) => {
+        if (error.response?.status === 401) {
+            // 토큰 만료 또는 인증 실패 시 로직
+            if (typeof window !== "undefined") {
+                localStorage.removeItem("auth-storage")
+                window.location.href = "/login"
+            }
+        }
+        return Promise.reject(error)
+    }
+)
 
 AxiosController.multipleDelete = async function <T = unknown, R = AxiosResponse<T>, D = unknown>(
     url: string,
