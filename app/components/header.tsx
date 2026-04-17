@@ -18,7 +18,7 @@ export default function Header() {
 
             {/* 로그인 상태에 따른 조건부 렌더링 */}
             <Link
-                href={user ? "/my/profile" : "/login"}
+                href={user ? "/my" : "/login"}
                 className="w-10 h-10 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center overflow-hidden hover:bg-slate-200 shadow-sm transition-colors"
             >
                 {user?.profileImage ? (

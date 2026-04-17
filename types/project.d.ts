@@ -4,10 +4,17 @@ export interface UserResponse {
     name?: string | null
     nickname?: string | null
     profileImageUrl?: string | null
-    gender?: Gender | null // 여기서 정의된 타입을 사용
+    gender?: Gender
     birthDate?: Date | string | null
     status?: UserStatus
     roles: UserRole[]
+    linkedProviders?: string[]
     createdAt?: Date | string
     updatedAt?: Date | string
+}
+
+export interface UserUpdateRequest {
+    nickname?: string | null
+    profileImageUrl?: string | null
+    gender?: Gender
 }

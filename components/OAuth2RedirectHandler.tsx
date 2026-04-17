@@ -1,4 +1,3 @@
-// components/OAuth2RedirectHandler.tsx
 "use client"
 
 import { useEffect } from "react"
@@ -12,20 +11,27 @@ export default function OAuth2RedirectHandler() {
 
     useEffect(() => {
         const token = searchParams.get("token")
+        const mode = searchParams.get("mode")
 
         if (token) {
-            // 1. Zustand 스토어에 토큰 저장 (디코딩 및 로컬스토리지 저장 자동 수행)
             setToken(token)
-            // 2. 홈으로 이동 (뒤로가기 방지를 위해 replace 사용)
-            router.replace("/")
+
+            // 2. 모드에 따라 분기
+            if (mode === "link") {
+                router.replace("/my")
+            } else {
+                // 일반 로그인/신규 가입
+                router.replace("/")
+            }
         } else {
+            // 토큰이 없으면 로그인 실패로 간주
             router.replace("/login")
         }
     }, [searchParams, router, setToken])
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen">
-            <p>로그인 중입니다. 잠시만 기다려주세요...</p>
+            <p className="animate-pulse">로그인 처리 중입니다...</p>
         </div>
     )
 }
