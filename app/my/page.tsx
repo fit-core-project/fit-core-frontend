@@ -33,7 +33,7 @@ export default function Page() {
             return
         }
 
-        ProfileService.getMyProfile(user.email).then(setProfile).catch(logout)
+        ProfileService.getMyProfile().then(setProfile).catch(logout)
     }, [user, logout])
 
     const onSave = async (updatedData: Partial<UserResponse>) => {
@@ -42,7 +42,7 @@ export default function Page() {
             return
         }
 
-        ProfileService.updateMyProfile(profile.email, updatedData)
+        ProfileService.updateMyProfile(updatedData)
             .then((res) => {
                 alert("프로필이 성공적으로 업데이트되었습니다.")
                 setIsEditing(false)

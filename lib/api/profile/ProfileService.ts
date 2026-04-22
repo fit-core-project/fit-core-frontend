@@ -1,12 +1,12 @@
 import AxiosController from "@/lib/axios/AxiosController"
 import { UserResponse, UserUpdateRequest } from "@/types/project"
 
-const prefixUri = `/api/v1/user`
+const prefixUri = `/api/profile`
 
-const getMyProfile = (email: string) => AxiosController.get<UserResponse>(prefixUri + `/my/${email}`)
+const getMyProfile = () => AxiosController.get<UserResponse>(prefixUri + `/me`)
 
-const updateMyProfile = (email: string, userUpdateRequest: UserUpdateRequest) =>
-    AxiosController.put<UserResponse>(prefixUri + `/my/${email}`, userUpdateRequest)
+const updateMyProfile = (userUpdateRequest: UserUpdateRequest) =>
+    AxiosController.put<UserResponse>(prefixUri + `/me`, userUpdateRequest)
 
 const checkNicknameDuplicate = (nickname: string) =>
     AxiosController.get<boolean>(prefixUri + `/check-nickname/${nickname}`)
