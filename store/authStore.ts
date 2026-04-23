@@ -12,6 +12,8 @@ interface UserInfo {
 interface AuthState {
     token: string | null
     user: UserInfo | null
+    isLoading: boolean // 추가: 초기화 여부 체크
+    setIsLoading: (loading: boolean) => void
     setToken: (token: string) => void
     logout: () => void
 }
@@ -21,6 +23,8 @@ export const useAuthStore = create<AuthState>()(
         (set) => ({
             token: null,
             user: null,
+            isLoading: true, // 처음엔 true로 설정 (초기화 중)
+            setIsLoading: (loading) => set({ isLoading: loading }),
             setToken: (token: string) => {
                 const decoded: any = jwtDecode(token)
                 set({
@@ -34,6 +38,11 @@ export const useAuthStore = create<AuthState>()(
             },
             logout: () => set({ token: null, user: null }),
         }),
-        { name: "auth-storage", storage: createJSONStorage(() => localStorage) }
+        {
+            name: "auth-storage",
+            storage: createJSONStorage(() => localStorage),
+            // 초기화 시점에 isLoading을 true로 유지하기 위해 부분적으로만 저장할 수도 있음
+            partialize: (state) => ({ token: state.token, user: state.user }),
+        }
     )
 )

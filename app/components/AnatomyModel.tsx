@@ -4,7 +4,7 @@ import Model, { IExerciseData, Muscle } from "react-body-highlighter"
 interface AnatomyModelProps {
     data: Record<string, number>
     onMuscleClick: (muscle: string) => void
-    mode: "doms" | "target"
+    mode: "doms" | "target" | "injury"
 }
 
 const COLORS = {
@@ -20,7 +20,7 @@ export default function AnatomyModel({ data, onMuscleClick, mode }: AnatomyModel
     const targetMuscles = Object.keys(data).filter((k) => data[k] > 0) as Muscle[]
 
     // 🌟 타겟 모드 (루틴 생성기)
-    if (mode === "target") {
+    if (mode === "target" || mode === "injury") {
         const targetData: IExerciseData[] = [{ name: "Target", muscles: targetMuscles }]
         return (
             <div className="flex flex-col items-center w-full select-none">
@@ -35,7 +35,7 @@ export default function AnatomyModel({ data, onMuscleClick, mode }: AnatomyModel
                                 data={targetData}
                                 style={{ width: "100%" }}
                                 onClick={(e) => onMuscleClick(e.muscle)}
-                                highlightedColors={["#3b82f6"]}
+                                highlightedColors={[mode === "injury" ? "#FF0000" : "#3b82f6"]}
                             />
                         </div>
                     </div>
@@ -47,7 +47,7 @@ export default function AnatomyModel({ data, onMuscleClick, mode }: AnatomyModel
                                 data={targetData}
                                 style={{ width: "100%" }}
                                 onClick={(e) => onMuscleClick(e.muscle)}
-                                highlightedColors={["#3b82f6"]}
+                                highlightedColors={[mode === "injury" ? "#FF0000" : "#3b82f6"]}
                             />
                         </div>
                     </div>
