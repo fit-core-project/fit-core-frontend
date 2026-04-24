@@ -1,13 +1,26 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Activity, ArrowRight } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
+import { getUserCondition } from "@/services/userDataService"
 
 export default function RoutineHome() {
     const router = useRouter()
     const [domsData, setDomsData] = useState<Record<string, number>>({})
+
+    useEffect(() => {
+        getUserCondition().then((condition) => {
+            const initial: Record<string, number> = { ...condition.doms }
+            condition.painAreas.forEach((area) => {
+                initial[area] = 3
+            })
+            setDomsData(initial)
+        }).catch(() => {
+            // 서비스 실패 시 사용자가 직접 입력하도록 빈 상태 유지
+        })
+    }, [])
 
     const handleMuscleClick = (muscleName: string) => {
         setDomsData((prev) => {
