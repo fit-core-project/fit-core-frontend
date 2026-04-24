@@ -27,7 +27,7 @@ export interface UserResponse {
     equipmentAccess: string[]
     unpreferredExerciseIds: string[]
     preferredExerciseIds: string[]
-    painAreas: Record<string, unknown>[] // List<Map<String, Object>> 매핑
+    painAreas: PainArea[] // List<Map<String, Object>> 매핑
     strengthBaseline: Record<string, unknown> // Map<String, Object> 매핑
 
     profileVersion: number
@@ -57,4 +57,10 @@ export interface UserUpdateRequest {
     preferredExerciseIds?: string[]
     painAreas?: Record<string, unknown>[]
     strengthBaseline?: Record<string, unknown>
+}
+
+export interface PainArea {
+    area: string
+    painLevel: string
+    note: string
 }
