@@ -15,19 +15,11 @@ import {
     RefreshCw,
 } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
+import { RoutineFormState, assembleRoutineRequest } from "@/utils/requestAssembler"
+import { getUserPreferences } from "@/services/userDataService"
+import { generateRoutine } from "@/services/aiRoutineService"
 
 type Equipment = "BARBELL" | "DUMBBELL" | "MACHINE" | "CABLE" | "BODYWEIGHT"
-type TrainingGoal = "HYPERTROPHY" | "STRENGTH" | "ENDURANCE"
-
-interface RoutineRequest {
-    target_muscles: string[] // 🌟 AnatomyModel의 부위명(string)을 직접 받도록 수정
-    equipment: Equipment[]
-    time_available_min: number
-    pain_areas: string[]
-    doms_data: Record<string, number>
-    goal: TrainingGoal
-    user_note: string
-}
 
 const LOADING_MESSAGES = [
     "근육들이 긴급 회의를 소집했습니다...",
@@ -56,20 +48,29 @@ const PRESET_GROUPS = {
     CORE: ["abs", "lower-back", "obliques"],
 }
 
+const GOAL_MAP: Record<string, RoutineFormState["goal"]> = {
+    strength: "STRENGTH",
+    hypertrophy: "HYPERTROPHY",
+    fatLoss: "ENDURANCE",
+    recomposition: "ENDURANCE",
+    generalFitness: "ENDURANCE",
+}
+
 export default function RoutineGenerator() {
     const router = useRouter()
     const [isLoading, setIsLoading] = useState(false)
+    const [isPrefsLoading, setIsPrefsLoading] = useState(true)
     const [loadingMsgIndex, setLoadingMsgIndex] = useState(0)
     const [domsSummary, setDomsSummary] = useState<string>("")
 
-    const [formData, setFormData] = useState<RoutineRequest>({
-        target_muscles: [],
+    const [formData, setFormData] = useState<RoutineFormState>({
+        targetMuscles: [],
         equipment: ["BODYWEIGHT"],
-        time_available_min: 60,
-        pain_areas: [],
-        doms_data: {},
+        timeAvailable: 60,
+        painAreas: [],
+        domsData: {},
         goal: "HYPERTROPHY",
-        user_note: "",
+        userNote: "",
     })
 
     // 🌟 AnatomyModel용 데이터 상태 (선택된 근육은 1점, 아니면 없는 것으로 취급)
@@ -77,21 +78,34 @@ export default function RoutineGenerator() {
 
     useEffect(() => {
         const savedDoms = localStorage.getItem("fitcore_doms_data")
-        if (savedDoms) {
-            const parsedDoms = JSON.parse(savedDoms)
-            const painfulAreas = Object.keys(parsedDoms).filter((key) => parsedDoms[key] === 3)
+        const parsedDoms: Record<string, number> = savedDoms ? JSON.parse(savedDoms) : {}
+        const painfulAreas = Object.keys(parsedDoms).filter((key) => parsedDoms[key] === 3)
+        const partsCount = Object.keys(parsedDoms).length
 
-            setFormData((prev) => ({
-                ...prev,
-                doms_data: parsedDoms,
-                pain_areas: painfulAreas,
-            }))
-
-            const partsCount = Object.keys(parsedDoms).length
-            setDomsSummary(
-                partsCount > 0 ? `현재 ${partsCount}개 부위에 피로도가 감지되었습니다.` : "최상의 컨디션입니다!"
-            )
+        if (partsCount > 0) {
+            setDomsSummary(`현재 ${partsCount}개 부위에 피로도가 감지되었습니다.`)
         }
+
+        getUserPreferences()
+            .then((prefs) => {
+                setFormData((prev) => ({
+                    ...prev,
+                    domsData: parsedDoms,
+                    painAreas: painfulAreas,
+                    timeAvailable: prefs.timeAvailable,
+                    equipment: prefs.equipment as RoutineFormState["equipment"],
+                    goal: GOAL_MAP[prefs.goal] ?? "HYPERTROPHY",
+                }))
+            })
+            .catch(() => {
+                // preferences 로드 실패 시 DOMS 데이터만 반영
+                setFormData((prev) => ({
+                    ...prev,
+                    domsData: parsedDoms,
+                    painAreas: painfulAreas,
+                }))
+            })
+            .finally(() => setIsPrefsLoading(false))
     }, [])
 
     useEffect(() => {
@@ -118,9 +132,9 @@ export default function RoutineGenerator() {
         })
 
         setFormData((prev: any) => {
-            const current = new Set(prev.target_muscles)
-            musclesToAdd.forEach((m) => current.add(m)) // Set을 사용해 중복 방지
-            return { ...prev, target_muscles: Array.from(current) }
+            const current = new Set(prev.targetMuscles)
+            musclesToAdd.forEach((m) => current.add(m))
+            return { ...prev, targetMuscles: Array.from(current) }
         })
     }
 
@@ -133,21 +147,21 @@ export default function RoutineGenerator() {
         })
 
         setFormData((prev: any) => {
-            const current = prev.target_muscles
+            const current = prev.targetMuscles
             if (current.includes(muscleName)) {
-                return { ...prev, target_muscles: current.filter((m: string) => m !== muscleName) }
+                return { ...prev, targetMuscles: current.filter((m: string) => m !== muscleName) }
             } else {
-                return { ...prev, target_muscles: [...current, muscleName] }
+                return { ...prev, targetMuscles: [...current, muscleName] }
             }
         })
     }
 
     const handleResetClick = () => {
         setTargetModelData({})
-        setFormData((prev: any) => ({ ...prev, target_muscles: [] }))
+        setFormData((prev: any) => ({ ...prev, targetMuscles: [] }))
     }
 
-    const toggleArrayItem = (key: keyof RoutineRequest, value: string) => {
+    const toggleArrayItem = (key: keyof RoutineFormState, value: string) => {
         setFormData((prev: any) => {
             const currentArray = prev[key] as string[]
             if (currentArray.includes(value)) {
@@ -161,26 +175,11 @@ export default function RoutineGenerator() {
     const handleSubmit = async () => {
         setIsLoading(true)
 
-        try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/generate-routine`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
-            })
-
-            if (!response.ok) {
-                throw new Error(`서버 에러: ${response.status}`)
-            }
-
-            const routineData = await response.json()
-
-            localStorage.setItem("fitcore_active_routine", JSON.stringify(routineData))
-            router.push("/ai_routine/player")
-        } catch (error) {
-            console.error("❌ 통신 에러:", error)
-            alert("AI 코치와 연결할 수 없습니다. 서버 상태를 확인해 주세요.")
-            setIsLoading(false)
-        }
+        const payload = assembleRoutineRequest(formData)
+        // generateRoutine never throws — fallback is returned on any error
+        const routineDraft = await generateRoutine(payload)
+        localStorage.setItem("fitcore_active_routine", JSON.stringify(routineDraft))
+        router.push("/routine/draft")
     }
 
     return (
@@ -204,13 +203,18 @@ export default function RoutineGenerator() {
 
                     {/* 2. 폼 영역 */}
                     <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-10 bg-white">
-                        {domsSummary && (
-                            <div className="bg-blue-50/50 p-4 rounded-xl flex items-start border border-blue-100 animate-in fade-in slide-in-from-top-2">
+                        {isPrefsLoading && (
+                            <div className="flex items-center justify-center py-6 text-slate-400 text-sm font-medium animate-pulse">
+                                사용자 설정을 불러오는 중...
+                            </div>
+                        )}
+                        {!isPrefsLoading && domsSummary && (
+                            <div className="bg-blue-50/50 p-4 rounded-xl flex items-start border border-blue-100 animate-in fade-in slide-in-from-top-2 duration-300">
                                 <AlertCircle className="w-5 h-5 text-blue-500 mr-3 mt-0.5 shrink-0" />
                                 <div>
                                     <p className="text-sm font-bold text-blue-900">홈 화면에서 연동된 컨디션</p>
                                     <p className="text-xs text-blue-700 mt-1 leading-relaxed">
-                                        {domsSummary} AI가 이를 반영하여 부상 부위의 볼륨을 조절합니다.
+                                        {domsSummary} AI가 이를 반영하여 피로/부상 부위의 볼륨을 조절합니다.
                                     </p>
                                 </div>
                             </div>
@@ -220,7 +224,7 @@ export default function RoutineGenerator() {
                         <section>
                             <h2 className="flex items-center text-base font-bold text-slate-800 mb-4">
                                 <Activity className="w-5 h-5 mr-2 text-blue-500" />
-                                오늘 조질 부위 선택
+                                오늘 운동 부위 선택
                             </h2>
 
                             {/* 4분할 퀵 프리셋 버튼 + 리셋 버튼*/}
@@ -295,8 +299,7 @@ export default function RoutineGenerator() {
                         <section>
                             <h2 className="flex items-center text-base font-bold text-slate-800 mb-4">
                                 <Clock className="w-5 h-5 mr-2 text-emerald-500" />
-                                가용 시간:{" "}
-                                <span className="text-emerald-600 ml-1.5">{formData.time_available_min}분</span>
+                                가용 시간: <span className="text-emerald-600 ml-1.5">{formData.timeAvailable}분</span>
                             </h2>
                             <div className="px-2">
                                 <input
@@ -304,9 +307,9 @@ export default function RoutineGenerator() {
                                     min="30"
                                     max="120"
                                     step="15"
-                                    value={formData.time_available_min}
+                                    value={formData.timeAvailable}
                                     onChange={(e) =>
-                                        setFormData({ ...formData, time_available_min: parseInt(e.target.value) })
+                                        setFormData({ ...formData, timeAvailable: parseInt(e.target.value) })
                                     }
                                     className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                                 />
@@ -325,7 +328,9 @@ export default function RoutineGenerator() {
                             </h2>
                             <select
                                 value={formData.goal}
-                                onChange={(e) => setFormData({ ...formData, goal: e.target.value as TrainingGoal })}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, goal: e.target.value as RoutineFormState["goal"] })
+                                }
                                 className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold text-slate-700 text-sm"
                             >
                                 <option value="HYPERTROPHY">근비대 (근육 크기 증가)</option>
@@ -361,8 +366,8 @@ export default function RoutineGenerator() {
                         <section className="pb-4">
                             <h2 className="text-base font-bold text-slate-800 mb-4">AI 코치에게 남길 말 (선택)</h2>
                             <textarea
-                                value={formData.user_note}
-                                onChange={(e) => setFormData({ ...formData, user_note: e.target.value })}
+                                value={formData.userNote}
+                                onChange={(e) => setFormData({ ...formData, userNote: e.target.value })}
                                 placeholder="예: 무릎이 안 좋으니 스쿼트는 빼주세요."
                                 className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl h-28 resize-none outline-none focus:ring-2 focus:ring-blue-500 text-sm leading-relaxed"
                             />
@@ -373,7 +378,7 @@ export default function RoutineGenerator() {
                     <div className="p-4 bg-white border-t border-slate-100 shrink-0">
                         <button
                             onClick={handleSubmit}
-                            disabled={isLoading || formData.target_muscles.length === 0}
+                            disabled={isLoading || formData.targetMuscles.length === 0}
                             className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
                         >
                             <Send className="w-5 h-5 mr-2" />

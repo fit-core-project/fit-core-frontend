@@ -1,13 +1,14 @@
-import { RoutineDraft, RoutineBlock, GenerationStatus, StatusReasonCode } from "../types/routine"
+import { RoutineDraft, RoutineBlock, SetPrescription, GenerationStatus, StatusReasonCode } from "../types/routine"
 
-// AI가 뱉어낼 것으로 기대하는 날것(Raw)의 JSON 형태
+// 백엔드가 to_camel 적용 후 내려주는 camelCase 응답 형태
 interface RawAiResponse {
-    total_estimated_time?: number
-    overall_feedback?: string
-    exercises?: any[] // LLM이 배열이 아닌 객체를 뱉을 위험에 대비해 any 처리
+    totalEstimatedTime?: number
+    summaryTitle?: string
+    rationaleSummary?: string | string[]
+    warnings?: string[]
+    exercises?: any[]
 }
 
-// API 호출부에서 파악한 메타데이터 (타임아웃 여부 등)
 interface AdapterContext {
     draftId?: string
     isFallback?: boolean
@@ -15,42 +16,60 @@ interface AdapterContext {
     reasonCode?: StatusReasonCode
 }
 
-/**
- * AI의 불안정한 Raw 응답을 안전한 Frontend Domain Type으로 변환합니다.
- */
 export function normalizeRoutineResponse(rawData: any, context: AdapterContext = {}): RoutineDraft {
-    // 1. 상태 메타데이터 기본값 세팅 (API 호출 레이어에서 주입받음)
     const isFallback = context.isFallback ?? false
     const generationStatus = context.status ?? (isFallback ? "FALLBACK" : "SUCCESS")
     const reasonCode = context.reasonCode ?? "OK"
     const draftId = context.draftId ?? `draft_${crypto.randomUUID().slice(0, 8)}`
 
-    // 2. 방어적 파싱: rawData가 null이거나 엉뚱한 타입일 경우를 대비
     const safeData = typeof rawData === "object" && rawData !== null ? (rawData as RawAiResponse) : {}
 
-    // exercises가 배열이 아니면 빈 배열로 강제 초기화
     const rawExercises = Array.isArray(safeData.exercises) ? safeData.exercises : []
 
-    // 3. 루틴 블록 매핑 (UI용 고유 ID 부여 및 누락 필드 안전 처리)
-    const routineBlocks: RoutineBlock[] = rawExercises.map((ex, index) => ({
-        id: `blk_${crypto.randomUUID().slice(0, 8)}_${index}`, // UI 리스트 드래그/수정을 위한 고유키
-        exercise_name: String(ex?.exercise_name || "이름 없는 기본 운동"),
-        target_weight: typeof ex?.target_weight === "number" ? ex.target_weight : null,
-        reps: Number(ex?.reps) || 10,
-        sets: Number(ex?.sets) || 3,
-        rest_time_sec: Number(ex?.rest_time_sec) || 60,
-        coach_tip: String(ex?.coach_tip || "안전한 자세로 수행하세요."),
-    }))
+    const routineBlocks: RoutineBlock[] = rawExercises.map((ex, index) => {
+        const rawPrescription = Array.isArray(ex?.prescription) ? ex.prescription : []
 
-    // 4. 최종 Domain Type으로 조립 (키 이름 매핑 포함)
+        const prescription: SetPrescription[] = rawPrescription.length > 0
+            ? rawPrescription.map((p: any, i: number) => ({
+                setIndex: Number(p?.setIndex ?? i),
+                targetReps: Number(p?.targetReps) || 10,
+                targetWeightKg: typeof p?.targetWeightKg === "number" ? p.targetWeightKg : null,
+                targetRir: Number(p?.targetRir ?? 2),
+                targetRestSec: Number(p?.targetRestSec) || 60,
+            }))
+            : [{
+                setIndex: 0,
+                targetReps: 10,
+                targetWeightKg: null,
+                targetRir: 2,
+                targetRestSec: 60,
+            }]
+
+        return {
+            id: `blk_${crypto.randomUUID().slice(0, 8)}_${index}`,
+            exerciseName: String(ex?.exerciseName || "이름 없는 기본 운동"),
+            exerciseRationale: String(ex?.exerciseRationale || "안전한 자세로 수행하세요."),
+            prescription,
+        }
+    })
+
+    // rationaleSummary: 백엔드가 string 또는 string[]로 올 수 있으므로 항상 배열로 정규화
+    const rawRationale = safeData.rationaleSummary
+    const rationaleSummary: string[] = Array.isArray(rawRationale)
+        ? rawRationale.map(String)
+        : rawRationale
+        ? [String(rawRationale)]
+        : ["AI 코멘트를 불러올 수 없습니다."]
+
     return {
-        routine_draft_id: draftId,
-        generation_status: generationStatus,
-        status_reason_code: reasonCode,
-        is_fallback: isFallback,
-        total_estimated_time: Number(safeData.total_estimated_time) || 0,
-        // 파이썬의 overall_feedback을 프론트의 rationale_summary로 이름 변경
-        rationale_summary: String(safeData.overall_feedback || "AI 코멘트를 불러올 수 없습니다."),
-        routine_blocks: routineBlocks,
+        routineDraftId: draftId,
+        generationStatus,
+        statusReasonCode: reasonCode,
+        isFallback,
+        totalEstimatedTime: Number(safeData.totalEstimatedTime) || 0,
+        summaryTitle: String(safeData.summaryTitle || "오늘의 루틴"),
+        rationaleSummary,
+        warnings: Array.isArray(safeData.warnings) ? safeData.warnings.map(String) : [],
+        routineBlocks,
     }
 }

@@ -4,6 +4,14 @@ const nextConfig: NextConfig = {
     images: {
         remotePatterns: [
             {
+                protocol: "http",
+                hostname: "*.kakaocdn.net",
+            },
+            {
+                protocol: "https",
+                hostname: "*.kakaocdn.net",
+            },
+            {
                 protocol: "https",
                 hostname: "www.gstatic.com", // 구글 로고
             },

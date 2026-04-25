@@ -2,62 +2,40 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Check, Timer, X, Play, Flame, Trophy, Dumbbell } from "lucide-react"
-
-// --- 타입 정의 ---
-interface Exercise {
-    exercise_name: string
-    target_weight: number | null
-    sets: number
-    reps: number
-    rest_time_sec: number
-    coach_tip: string
-}
-
-interface RoutineData {
-    exercises: Exercise[]
-    total_estimated_time: number
-    overall_feedback: string
-}
+import { Check, Timer, X, Play, Flame, Trophy } from "lucide-react"
+import { RoutineDraft } from "@/types/routine"
 
 export default function WorkoutPlayer() {
     const router = useRouter()
 
-    // 상태 관리
-    const [routine, setRoutine] = useState<RoutineData | null>(null)
-    const [checkedSets, setCheckedSets] = useState<Set<string>>(new Set()) // '운동인덱스-세트인덱스' 형태로 저장
+    const [routine, setRoutine] = useState<RoutineDraft | null>(null)
+    const [checkedSets, setCheckedSets] = useState<Set<string>>(new Set()) // 'blockIndex-setIndex' 형태
 
-    // 타이머 상태
     const [isTimerActive, setIsTimerActive] = useState(false)
     const [timeLeft, setTimeLeft] = useState(0)
 
-    // 화면 전환 상태
     const [isWorkoutComplete, setIsWorkoutComplete] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
 
-    // 1. 컴포넌트 마운트 시 로컬 스토리지에서 루틴 데이터 불러오기
+    // 1. localStorage에서 RoutineDraft 구조로 불러오기
     useEffect(() => {
         const savedRoutine = localStorage.getItem("fitcore_active_routine")
         if (savedRoutine) {
-            setRoutine(JSON.parse(savedRoutine))
+            setRoutine(JSON.parse(savedRoutine) as RoutineDraft)
         } else {
-            // 데이터가 없으면 다시 생성 페이지로
             alert("활성화된 루틴이 없습니다.")
             router.push("/ai_routine")
         }
     }, [router])
 
-    // 2. 타이머 카운트다운 로직
+    // 2. 타이머 카운트다운
     useEffect(() => {
         let interval: NodeJS.Timeout
         if (isTimerActive && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft((prev) => prev - 1)
-            }, 1000)
+            interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000)
         } else if (timeLeft === 0 && isTimerActive) {
-            // 타이머 종료
             setIsTimerActive(false)
-            // TODO: 띠링~ 하는 완료 효과음 재생 (웹 오디오 API)
+            // TODO: 완료 효과음 (웹 오디오 API)
         }
         return () => clearInterval(interval)
     }, [isTimerActive, timeLeft])
@@ -70,31 +48,27 @@ export default function WorkoutPlayer() {
         )
     }
 
-    // 전체 세트 수 및 진행률 계산
-    const totalSets = routine.exercises.reduce((acc, ex) => acc + ex.sets, 0)
-    const progressPercent = Math.round((checkedSets.size / totalSets) * 100)
+    // 3. 전체 세트 수 = 모든 블록의 prescription.length 합산
+    const totalSets = routine.routineBlocks.reduce((acc, block) => acc + block.prescription.length, 0)
+    const progressPercent = totalSets === 0 ? 0 : Math.round((checkedSets.size / totalSets) * 100)
 
-    // --- 핸들러 함수 ---
-    const handleCheckSet = (exIndex: number, setIndex: number, restTime: number) => {
-        const key = `${exIndex}-${setIndex}`
+    const handleCheckSet = (blockIndex: number, setArrayIndex: number, restSec: number) => {
+        const key = `${blockIndex}-${setArrayIndex}`
         const newChecked = new Set(checkedSets)
 
         if (newChecked.has(key)) {
-            // 이미 체크된 걸 푸는 경우 (실수 방지)
             newChecked.delete(key)
             setCheckedSets(newChecked)
         } else {
-            // 새로 체크하는 경우
             newChecked.add(key)
             setCheckedSets(newChecked)
 
-            // 모든 세트를 다 했는지 검사
             if (newChecked.size === totalSets) {
                 setIsTimerActive(false)
-                setIsWorkoutComplete(true) // 🌟 운동 완료! RPE 화면으로 전환
+                setIsWorkoutComplete(true)
             } else {
-                // 아직 남았으면 타이머 시작
-                setTimeLeft(restTime)
+                // 세트별 targetRestSec을 타이머에 정확히 연결
+                setTimeLeft(restSec)
                 setIsTimerActive(true)
             }
         }
@@ -109,29 +83,35 @@ export default function WorkoutPlayer() {
     const handleFinishRPE = async (rpeScore: number) => {
         setIsSaving(true)
 
-        // 여기서 백엔드로 데이터를 전송
-        const workoutLog = {
-            routine_data: routine,
-            completed_sets: checkedSets.size,
-            rpe_score: rpeScore, // 1: 너무 쉬움, 2: 적당함, 3: 죽을 것 같음
-            timestamp: new Date().toISOString(),
+        const finalWorkoutData = {
+            routineDraftId: routine.routineDraftId,
+            completedAt: new Date().toISOString(),
+            rpeScore,
+            totalSetsCompleted: checkedSets.size,
+            exerciseResults: routine.routineBlocks.map((block, blockIndex) => ({
+                exerciseName: block.exerciseName,
+                setsCompleted: block.prescription.filter((_, si) =>
+                    checkedSets.has(`${blockIndex}-${si}`)
+                ).length,
+                sets: block.prescription.map((set, si) => ({
+                    setIndex: si,
+                    completed: checkedSets.has(`${blockIndex}-${si}`),
+                    targetWeightKg: set.targetWeightKg,
+                    targetReps: set.targetReps,
+                })),
+            })),
         }
+        console.log("Saved to DB:", finalWorkoutData)
 
-        console.log("백엔드에 저장할 운동 일지:", workoutLog)
-
-        // API 호출 흉내 (1초 대기)
         await new Promise((resolve) => setTimeout(resolve, 1000))
 
-        // 데이터 초기화 및 홈으로 이동
         localStorage.removeItem("fitcore_active_routine")
         localStorage.removeItem("fitcore_doms_data")
         alert("오늘의 운동 기록이 성공적으로 저장되었습니다! 🎉")
         router.push("/ai_routine")
     }
 
-    // ==========================================
-    // VIEW 2: 운동 완료 화면 (RPE 수집)
-    // ==========================================
+    // ── VIEW 2: 운동 완료 (RPE 수집) ─────────────────────────────────────────
     if (isWorkoutComplete) {
         return (
             <main className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 animate-fade-in-up">
@@ -180,15 +160,16 @@ export default function WorkoutPlayer() {
         )
     }
 
+    // ── VIEW 1: 운동 진행 화면 ────────────────────────────────────────────────
     return (
         <main className="min-h-screen bg-slate-50 pb-32">
-            {/* 상단 고정: 프로그레스 바 */}
+            {/* 상단 고정: 제목 + 진행 바 */}
             <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
                 <div className="flex justify-between items-end mb-2 max-w-2xl mx-auto w-full">
                     <div>
                         <h1 className="font-extrabold text-xl text-slate-900 flex items-center">
                             <Flame className="w-5 h-5 text-orange-500 mr-2" />
-                            오늘의 루틴
+                            {routine.summaryTitle || "오늘의 루틴"}
                         </h1>
                     </div>
                     <div className="text-sm font-bold text-blue-600">
@@ -203,51 +184,60 @@ export default function WorkoutPlayer() {
                 </div>
             </div>
 
-            {/* 운동 리스트 영역 */}
+            {/* 운동 블록 리스트 */}
             <div className="p-4 max-w-2xl mx-auto w-full space-y-6 mt-4">
-                {routine.exercises.map((ex, exIndex) => (
+                {/* 외부 루프: routineBlocks */}
+                {routine.routineBlocks.map((block, blockIndex) => (
                     <div
-                        key={exIndex}
+                        key={block.id}
                         className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden"
                     >
-                        {/* 헤더 */}
+                        {/* 카드 헤더 */}
                         <div className="p-5 border-b border-gray-50 bg-slate-900 text-white">
                             <h2 className="text-xl font-bold flex items-center">
-                                <span className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-sm mr-3">
-                                    {exIndex + 1}
+                                <span className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-sm mr-3 shrink-0">
+                                    {blockIndex + 1}
                                 </span>
-                                {ex.exercise_name}
+                                {block.exerciseName}
                             </h2>
-                            <p className="text-slate-400 text-sm mt-2 ml-11">💡 {ex.coach_tip}</p>
+                            {block.exerciseRationale && (
+                                <p className="text-slate-400 text-sm mt-2 ml-11 leading-relaxed">
+                                    💡 {block.exerciseRationale}
+                                </p>
+                            )}
                         </div>
 
-                        {/* 세트 리스트 */}
+                        {/* 내부 루프: prescription 배열 직접 매핑 */}
                         <div className="p-2">
-                            {Array.from({ length: ex.sets }).map((_, setIndex) => {
-                                const isChecked = checkedSets.has(`${exIndex}-${setIndex}`)
+                            {block.prescription.map((set, setArrayIndex) => {
+                                const isChecked = checkedSets.has(`${blockIndex}-${setArrayIndex}`)
                                 return (
                                     <div
-                                        key={setIndex}
+                                        key={setArrayIndex}
                                         className={`flex items-center justify-between p-4 my-1 rounded-2xl transition-all ${
                                             isChecked ? "bg-blue-50/50 opacity-60" : "hover:bg-gray-50"
                                         }`}
                                     >
-                                        {/* 세트 정보 */}
+                                        {/* 세트 정보: 번호 / 중량 / 횟수 */}
                                         <div className="flex items-center space-x-6">
                                             <div
                                                 className={`font-bold w-12 text-center ${isChecked ? "text-blue-400" : "text-slate-400"}`}
                                             >
-                                                {setIndex + 1} Set
+                                                {set.setIndex + 1} Set
                                             </div>
                                             <div className="font-extrabold text-xl w-20 text-slate-800">
-                                                {ex.target_weight ? `${ex.target_weight}kg` : "맨몸"}
+                                                {set.targetWeightKg !== null ? `${set.targetWeightKg}kg` : "맨몸"}
                                             </div>
-                                            <div className="font-bold text-lg text-slate-600 w-16">{ex.reps}회</div>
+                                            <div className="font-bold text-lg text-slate-600 w-16">
+                                                {set.targetReps}회
+                                            </div>
                                         </div>
 
-                                        {/* 완료 체크 버튼 */}
+                                        {/* 완료 체크 — targetRestSec을 타이머에 정확히 전달 */}
                                         <button
-                                            onClick={() => handleCheckSet(exIndex, setIndex, ex.rest_time_sec)}
+                                            onClick={() =>
+                                                handleCheckSet(blockIndex, setArrayIndex, set.targetRestSec)
+                                            }
                                             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 ${
                                                 isChecked
                                                     ? "bg-blue-500 text-white shadow-inner"
@@ -268,7 +258,7 @@ export default function WorkoutPlayer() {
                 ))}
             </div>
 
-            {/* 하단 고정: 쉬는 시간 타이머 오버레이 */}
+            {/* 하단 고정: 휴식 타이머 오버레이 */}
             {isTimerActive && (
                 <div className="fixed bottom-0 left-0 right-0 bg-slate-900 text-white p-6 rounded-t-3xl shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.3)] z-50 animate-fade-in-up">
                     <div className="max-w-md mx-auto w-full flex items-center justify-between">
