@@ -30,6 +30,7 @@ export interface UserResponse {
     painAreas: PainArea[] // List<Map<String, Object>> 매핑
     strengthBaseline: Record<string, unknown> // Map<String, Object> 매핑
 
+    bodyCompositionSnapshot?: BodyComposition[]
     profileVersion: number
     createdAt?: string
     updatedAt?: string
@@ -55,12 +56,27 @@ export interface UserUpdateRequest {
     equipmentAccess?: string[]
     unpreferredExerciseIds?: string[]
     preferredExerciseIds?: string[]
-    painAreas?: Record<string, unknown>[]
+    painAreas?: PainArea[]
     strengthBaseline?: Record<string, unknown>
+    bodyCompositionSnapshot?: BodyComposition[]
 }
 
 export interface PainArea {
     area: string
     painLevel: string
     note: string
+}
+
+export interface BodyComposition {
+    /** YYYY-MM-DD 형식 */
+    measuredAt?: string
+    source?: string
+    sourceVendor?: string
+    bodyWeightKg?: number
+    skeletalMuscleMassKg?: number
+    bodyFatMassKg?: number
+    bodyFatPct?: number
+    fatFreeMassKg?: number
+    waistHipRatio?: number
+    visceralFatLevel?: number
 }

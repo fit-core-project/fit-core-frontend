@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { UserResponse } from "@/types/project"
+import { UserResponse, UserUpdateRequest } from "@/types/project"
 import { GoalType, SplitType, ExperienceLevel, Gender } from "@/types/enums"
 import ProfileService from "@/lib/api/profile/ProfileService"
 import { Activity, Bandage, Calendar, ChevronDown, Dumbbell, User } from "lucide-react"
@@ -81,7 +81,7 @@ const PAIN_AREA_LABELS: Record<string, string> = {
 
 interface ProfileEditFormProps {
     initialProfile: UserResponse | null
-    onSave: (updateProfile: any) => void
+    onSave: (updateProfile: Partial<UserResponse>) => void
     onCancel: () => void
 }
 

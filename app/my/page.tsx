@@ -4,16 +4,17 @@ import { useCallback, useEffect, useState } from "react"
 import { User, ClipboardList, Settings, Trophy, Dumbbell } from "lucide-react"
 import Profile from "@/app/my/profile/Profile"
 import ProfileEditForm from "@/app/my/profile/ProfileEditForm"
-import { UserResponse } from "@/types/project"
+import { BodyComposition, UserResponse, UserUpdateRequest } from "@/types/project"
 import { useAuthStore } from "@/store/authStore"
 import ProfileService from "@/lib/api/profile/ProfileService"
+import BodyCompositionPage from "@/app/my/body-composition/BodyComposition"
 
 export default function Page() {
     const tabs = [
         { id: "profile", label: "프로필", icon: <User size={18} /> },
+        { id: "stats", label: "체성분", icon: <Trophy size={18} /> },
         { id: "routine", label: "루틴", icon: <Dumbbell size={18} /> },
         { id: "history", label: "운동이력", icon: <ClipboardList size={18} /> },
-        { id: "stats", label: "통계", icon: <Trophy size={18} /> },
         { id: "settings", label: "설정", icon: <Settings size={18} /> },
     ]
 
@@ -21,6 +22,10 @@ export default function Page() {
     const [activeTab, setActiveTab] = useState("profile") // 탭 상태 관리: 'profile', 'history', 'stats', 'settings'
     const user = useAuthStore((state) => state.user)
     const [profile, setProfile] = useState<UserResponse | null>(null)
+
+    useEffect(() => {
+        console.log(profile)
+    }, [profile])
 
     const logout = useCallback(() => {
         useAuthStore.getState().logout()
@@ -42,7 +47,7 @@ export default function Page() {
             return
         }
 
-        ProfileService.updateMyProfile(updatedData)
+        ProfileService.updateMyProfile(updatedData as UserUpdateRequest)
             .then((res) => {
                 alert("프로필이 성공적으로 업데이트되었습니다.")
                 setIsEditing(false)
@@ -51,6 +56,26 @@ export default function Page() {
             .catch((error) => {
                 alert("프로필 업데이트 중 오류가 발생했습니다.")
             })
+    }
+
+    const onBodyCompositionSave = async (formData: BodyComposition): Promise<boolean> => {
+        const existingSnapshots = profile?.bodyCompositionSnapshot || []
+        const updatedSnapshots = [...existingSnapshots, formData]
+        console.log(formData)
+        try {
+            const res = await ProfileService.updateMyProfile({
+                ...profile,
+                bodyCompositionSnapshot: updatedSnapshots,
+            } as UserUpdateRequest)
+
+            alert("프로필이 성공적으로 업데이트되었습니다.")
+            setProfile(res)
+            return true // 성공 시 true 리턴
+        } catch (error) {
+            console.error("Update Error:", error)
+            alert("프로필 업데이트 중 오류가 발생했습니다.")
+            return false // 실패 시 false 리턴
+        }
     }
 
     return (
@@ -85,12 +110,10 @@ export default function Page() {
                     ) : (
                         <Profile profile={profile} logout={logout} onEdit={() => setIsEditing(true)} />
                     ))}
+                {activeTab === "stats" && <BodyCompositionPage profile={profile} onSave={onBodyCompositionSave} />}
                 {activeTab === "routine" && <div className="text-center py-10">루틴이 여기에 표시됩니다.</div>}
                 {activeTab === "history" && (
                     <div className="text-center py-10">운동 이력 리스트가 여기에 표시됩니다.</div>
-                )}
-                {activeTab === "stats" && (
-                    <div className="text-center py-10">운동 통계 데이터가 여기에 표시됩니다.</div>
                 )}
                 {activeTab === "settings" && (
                     <div className="text-center py-10">계정 설정 메뉴가 여기에 표시됩니다.</div>

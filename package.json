@@ -19,7 +19,9 @@
         "react": "19.2.4",
         "react-big-calendar": "^1.19.4",
         "react-body-highlighter": "^2.0.5",
+        "react-bootstrap": "^2.10.10",
         "react-dom": "19.2.4",
+        "recharts": "^3.8.1",
         "zustand": "^5.0.12"
     },
     "devDependencies": {
