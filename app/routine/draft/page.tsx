@@ -6,6 +6,7 @@ import { AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, X, Info, Search }
 import { RoutineDraft, RoutineBlock, SetPrescription } from "@/types/routine"
 import { getExerciseCatalog, getRecentRecord } from "@/services/exerciseService"
 import { ExerciseCatalogItem } from "@/services/mockDataFactory"
+import AxiosController from "@/lib/axios/AxiosController"
 
 // ── applyWeightToAllSets ─────────────────────────────────────────────────────
 // exerciseId로 최근 기록을 조회해 블록의 모든 세트에 중량/횟수를 일괄 적용한다.
@@ -27,6 +28,7 @@ export default function RoutineReviewPage() {
     const router = useRouter()
     const [draft, setDraft] = useState<RoutineDraft | null>(null)
     const [loading, setLoading] = useState(true)
+    const [isFinalizing, setIsFinalizing] = useState(false)
     const initialDraftRef = useRef<RoutineDraft | null>(null)
 
     // ── Exercise swap state ─────────────────────────────────────────────────
@@ -197,10 +199,23 @@ export default function RoutineReviewPage() {
         [catalog, swapQuery]
     )
 
-    // ── 4. Save final routine and navigate to player ────────────────────────
-    const handleFinalize = () => {
-        if (!draft) return
+    // ── 4. Hidden Finalize: save draft → call finalize API → navigate to player
+    const handleFinalize = async () => {
+        if (!draft || isFinalizing) return
+        setIsFinalizing(true)
+
         localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))
+
+        try {
+            const result = await AxiosController.post<{ routineFinalId: string }>(
+                `/api/routines/drafts/${draft.routineDraftId}/finalize`
+            )
+            localStorage.setItem("fitcore_routine_final_id", result.routineFinalId)
+        } catch (err) {
+            console.error("[draft] finalize failed — navigating without finalId:", err)
+            localStorage.removeItem("fitcore_routine_final_id")
+        }
+
         router.push("/ai_routine/player")
     }
 
@@ -303,9 +318,10 @@ export default function RoutineReviewPage() {
             <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100">
                 <button
                     onClick={handleFinalize}
-                    className="w-full max-w-2xl mx-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-center gap-2 transition-transform active:scale-[0.98] block"
+                    disabled={isFinalizing}
+                    className="w-full max-w-2xl mx-auto bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-center gap-2 transition-transform active:scale-[0.98] block"
                 >
-                    <Save className="w-5 h-5" /> 운동 시작
+                    <Save className="w-5 h-5" /> {isFinalizing ? "준비 중..." : "운동 시작"}
                 </button>
             </div>
 

@@ -108,7 +108,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
         if (!initialProfile?.painAreas) return {}
         return initialProfile.painAreas.reduce(
             (acc, curr) => {
-                acc[curr.area] = Number(curr.painLevel)
+                acc[curr.area] = 1
                 return acc
             },
             {} as Record<string, number>
@@ -241,7 +241,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                 const cleanList = prev.painAreas.filter((p) => p.area !== muscleName)
                 return {
                     ...prev,
-                    painAreas: [...cleanList, { area: muscleName, painLevel: "1", note: "" }],
+                    painAreas: [...cleanList, { area: muscleName, note: "" }],
                 }
             }
         })

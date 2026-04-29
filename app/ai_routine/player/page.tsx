@@ -4,11 +4,13 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Check, Timer, X, Play, Flame, Trophy } from "lucide-react"
 import { RoutineDraft } from "@/types/routine"
+import AxiosController from "@/lib/axios/AxiosController"
 
 export default function WorkoutPlayer() {
     const router = useRouter()
 
     const [routine, setRoutine] = useState<RoutineDraft | null>(null)
+    const [routineFinalId, setRoutineFinalId] = useState<string | null>(null)
     const [checkedSets, setCheckedSets] = useState<Set<string>>(new Set()) // 'blockIndex-setIndex' 형태
 
     const [isTimerActive, setIsTimerActive] = useState(false)
@@ -17,15 +19,17 @@ export default function WorkoutPlayer() {
     const [isWorkoutComplete, setIsWorkoutComplete] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
 
-    // 1. localStorage에서 RoutineDraft 구조로 불러오기
+    // 1. localStorage에서 RoutineDraft 및 routineFinalId 로드
     useEffect(() => {
         const savedRoutine = localStorage.getItem("fitcore_active_routine")
+        const savedFinalId = localStorage.getItem("fitcore_routine_final_id")
         if (savedRoutine) {
             setRoutine(JSON.parse(savedRoutine) as RoutineDraft)
         } else {
             alert("활성화된 루틴이 없습니다.")
             router.push("/ai_routine")
         }
+        if (savedFinalId) setRoutineFinalId(savedFinalId)
     }, [router])
 
     // 2. 타이머 카운트다운
@@ -84,6 +88,7 @@ export default function WorkoutPlayer() {
         setIsSaving(true)
 
         const finalWorkoutData = {
+            sourceRoutineFinalId: routineFinalId,
             routineDraftId: routine.routineDraftId,
             completedAt: new Date().toISOString(),
             rpeScore,
@@ -101,12 +106,17 @@ export default function WorkoutPlayer() {
                 })),
             })),
         }
-        console.log("Saved to DB:", finalWorkoutData)
 
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        try {
+            await AxiosController.post("/api/workouts", finalWorkoutData)
+        } catch (err) {
+            console.error("[player] POST /api/workouts failed:", err)
+        }
 
         localStorage.removeItem("fitcore_active_routine")
         localStorage.removeItem("fitcore_doms_data")
+        localStorage.removeItem("fitcore_pain_areas")
+        localStorage.removeItem("fitcore_routine_final_id")
         alert("오늘의 운동 기록이 성공적으로 저장되었습니다! 🎉")
         router.push("/ai_routine")
     }

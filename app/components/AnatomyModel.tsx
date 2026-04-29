@@ -10,11 +10,9 @@ interface AnatomyModelProps {
 const COLORS = {
     level1: "#FFD600",
     level2: "#FF6600",
-    level3: "#FF0000",
 }
 
 export default function AnatomyModel({ data, onMuscleClick, mode }: AnatomyModelProps) {
-    const muscles3 = Object.keys(data).filter((k) => data[k] === 3) as Muscle[]
     const muscles2 = Object.keys(data).filter((k) => data[k] === 2) as Muscle[]
     const muscles1 = Object.keys(data).filter((k) => data[k] === 1) as Muscle[]
     const targetMuscles = Object.keys(data).filter((k) => data[k] > 0) as Muscle[]
@@ -97,17 +95,6 @@ export default function AnatomyModel({ data, onMuscleClick, mode }: AnatomyModel
                                 />
                             </div>
                         )}
-                        {muscles3.length > 0 && (
-                            <div className="absolute top-0 left-0 w-full h-full z-30 pointer-events-none mix-blend-multiply">
-                                <Model
-                                    type="anterior"
-                                    data={[{ name: "3", muscles: muscles3 }]}
-                                    style={{ width: "100%" }}
-                                    highlightedColors={[COLORS.level3]}
-                                    bodyColor="transparent"
-                                />
-                            </div>
-                        )}
                     </div>
                 </div>
 
@@ -147,17 +134,6 @@ export default function AnatomyModel({ data, onMuscleClick, mode }: AnatomyModel
                                 />
                             </div>
                         )}
-                        {muscles3.length > 0 && (
-                            <div className="absolute top-0 left-0 w-full h-full z-30 pointer-events-none mix-blend-multiply">
-                                <Model
-                                    type="posterior"
-                                    data={[{ name: "3", muscles: muscles3 }]}
-                                    style={{ width: "100%" }}
-                                    highlightedColors={[COLORS.level3]}
-                                    bodyColor="transparent"
-                                />
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
@@ -181,13 +157,6 @@ export default function AnatomyModel({ data, onMuscleClick, mode }: AnatomyModel
                         style={{ backgroundColor: COLORS.level2 }}
                     ></span>
                     <span className="text-xs font-bold text-slate-600">근육통</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span
-                        className="w-3.5 h-3.5 rounded-full shadow-inner"
-                        style={{ backgroundColor: COLORS.level3 }}
-                    ></span>
-                    <span className="text-xs font-bold text-slate-600">부상 위험</span>
                 </div>
             </div>
         </div>

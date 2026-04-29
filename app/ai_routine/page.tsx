@@ -9,14 +9,12 @@ import { getUserCondition } from "@/services/userDataService"
 export default function RoutineHome() {
     const router = useRouter()
     const [domsData, setDomsData] = useState<Record<string, number>>({})
+    const [painAreas, setPainAreas] = useState<string[]>([])
 
     useEffect(() => {
         getUserCondition().then((condition) => {
-            const initial: Record<string, number> = { ...condition.doms }
-            condition.painAreas.forEach((area) => {
-                initial[area] = 3
-            })
-            setDomsData(initial)
+            setDomsData({ ...condition.doms } as Record<string, number>)
+            setPainAreas(condition.painAreas)
         }).catch(() => {
             // 서비스 실패 시 사용자가 직접 입력하도록 빈 상태 유지
         })
@@ -25,7 +23,7 @@ export default function RoutineHome() {
     const handleMuscleClick = (muscleName: string) => {
         setDomsData((prev) => {
             const current = prev[muscleName] || 0
-            const next = (current + 1) % 4
+            const next = (current + 1) % 3  // 0(정상) → 1(뻐근함) → 2(근육통) → 0
             const newData = { ...prev }
             if (next === 0) delete newData[muscleName]
             else newData[muscleName] = next
@@ -35,6 +33,7 @@ export default function RoutineHome() {
 
     const handleNext = () => {
         localStorage.setItem("fitcore_doms_data", JSON.stringify(domsData))
+        localStorage.setItem("fitcore_pain_areas", JSON.stringify(painAreas))
         router.push("/ai_routine/generator")
     }
 

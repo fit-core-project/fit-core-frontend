@@ -63,7 +63,6 @@ export interface UserUpdateRequest {
 
 export interface PainArea {
     area: string
-    painLevel: string
     note: string
 }
 

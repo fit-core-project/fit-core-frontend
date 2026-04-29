@@ -78,8 +78,9 @@ export default function RoutineGenerator() {
 
     useEffect(() => {
         const savedDoms = localStorage.getItem("fitcore_doms_data")
+        const savedPainAreas = localStorage.getItem("fitcore_pain_areas")
         const parsedDoms: Record<string, number> = savedDoms ? JSON.parse(savedDoms) : {}
-        const painfulAreas = Object.keys(parsedDoms).filter((key) => parsedDoms[key] === 3)
+        const parsedPainAreas: string[] = savedPainAreas ? JSON.parse(savedPainAreas) : []
         const partsCount = Object.keys(parsedDoms).length
 
         if (partsCount > 0) {
@@ -91,7 +92,7 @@ export default function RoutineGenerator() {
                 setFormData((prev) => ({
                     ...prev,
                     domsData: parsedDoms,
-                    painAreas: painfulAreas,
+                    painAreas: parsedPainAreas,
                     timeAvailable: prefs.timeAvailable,
                     equipment: prefs.equipment as RoutineFormState["equipment"],
                     goal: GOAL_MAP[prefs.goal] ?? "HYPERTROPHY",
@@ -102,7 +103,7 @@ export default function RoutineGenerator() {
                 setFormData((prev) => ({
                     ...prev,
                     domsData: parsedDoms,
-                    painAreas: painfulAreas,
+                    painAreas: parsedPainAreas,
                 }))
             })
             .finally(() => setIsPrefsLoading(false))
