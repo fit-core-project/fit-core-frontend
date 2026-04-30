@@ -100,15 +100,13 @@ export default function WorkoutPlayer() {
 
         const sets = routine.routineBlocks.flatMap((block, blockIndex) =>
             block.prescription.map((set, si) => ({
-                exerciseName: block.exerciseName,
+                exerciseNameSnapshot: block.exerciseName,
                 setIndex: set.setIndex,
                 completed: checkedSets.has(`${blockIndex}-${si}`),
-                targetWeightKg: set.targetWeightKg,
-                actualWeightKg: set.targetWeightKg,
-                targetReps: set.targetReps,
-                actualReps: set.targetReps,
-                targetRir: set.targetRir,
-                targetRestSec: set.targetRestSec,
+                weightKg: set.targetWeightKg,
+                reps: set.targetReps,
+                rir: set.targetRir,
+                restSec: set.targetRestSec,
             }))
         )
 
@@ -118,7 +116,7 @@ export default function WorkoutPlayer() {
             sourceRoutineFinalId: routineFinalId,
             timeAvailableMin: routine.totalEstimatedTime,
             durationMin,
-            readinessLevel: null,
+            readinessLevel: "normal",
             currentPainAreas: painAreas,
             currentDoms,
             unavailableEquipment: [],

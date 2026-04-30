@@ -213,7 +213,7 @@ export default function RoutineReviewPage() {
             targetWorkoutDate: new Date().toISOString().split("T")[0],
             finalRoutinePayload: draft,
             acceptedWithoutEdits,
-            userEditSummary: acceptedWithoutEdits ? "수정 없이 시작" : "사용자가 루틴을 수정 후 시작",
+            userEditSummary: acceptedWithoutEdits ? ["수정 없이 시작"] : ["사용자가 루틴을 수정 후 시작"],
         }
 
         try {
