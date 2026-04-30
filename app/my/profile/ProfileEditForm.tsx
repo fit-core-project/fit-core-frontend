@@ -1,8 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { UserResponse, UserUpdateRequest } from "@/types/project"
-import { GoalType, SplitType, ExperienceLevel, Gender } from "@/types/enums"
+import { UserResponse } from "@/types/project"
 import ProfileService from "@/lib/api/profile/ProfileService"
 import { Activity, Bandage, Calendar, ChevronDown, Dumbbell, User } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
