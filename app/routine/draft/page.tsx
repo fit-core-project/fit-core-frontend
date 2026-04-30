@@ -206,11 +206,25 @@ export default function RoutineReviewPage() {
 
         localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))
 
+        const acceptedWithoutEdits =
+            JSON.stringify(draft.routineBlocks) === JSON.stringify(initialDraftRef.current?.routineBlocks)
+
+        const payload = {
+            targetWorkoutDate: new Date().toISOString().split("T")[0],
+            finalRoutinePayload: draft,
+            acceptedWithoutEdits,
+            userEditSummary: acceptedWithoutEdits ? "수정 없이 시작" : "사용자가 루틴을 수정 후 시작",
+        }
+
         try {
-            const result = await AxiosController.post<{ routineFinalId: string }>(
-                `/api/routines/drafts/${draft.routineDraftId}/finalize`
+            // Golden Standard: { routineFinalId, routineDraftId, finalRoutinePayload, savedAt }
+            // Backend 현재 응답: { id, ... } — routineFinalId로 통일 전까지 id를 fallback으로 읽음
+            const result = await AxiosController.post<{ routineFinalId?: string; id?: string }>(
+                `/api/routines/drafts/${draft.routineDraftId}/finalize`,
+                payload
             )
-            localStorage.setItem("fitcore_routine_final_id", result.routineFinalId)
+            const finalId = result.routineFinalId ?? result.id
+            if (finalId) localStorage.setItem("fitcore_routine_final_id", finalId)
         } catch (err) {
             console.error("[draft] finalize failed — navigating without finalId:", err)
             localStorage.removeItem("fitcore_routine_final_id")

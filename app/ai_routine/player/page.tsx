@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Check, Timer, X, Play, Flame, Trophy } from "lucide-react"
 import { RoutineDraft } from "@/types/routine"
@@ -18,6 +18,7 @@ export default function WorkoutPlayer() {
 
     const [isWorkoutComplete, setIsWorkoutComplete] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
+    const workoutStartTime = useRef<number>(Date.now())
 
     // 1. localStorage에서 RoutineDraft 및 routineFinalId 로드
     useEffect(() => {
@@ -87,24 +88,41 @@ export default function WorkoutPlayer() {
     const handleFinishRPE = async (rpeScore: number) => {
         setIsSaving(true)
 
-        const finalWorkoutData = {
-            sourceRoutineFinalId: routineFinalId,
-            routineDraftId: routine.routineDraftId,
-            completedAt: new Date().toISOString(),
-            rpeScore,
-            totalSetsCompleted: checkedSets.size,
-            exerciseResults: routine.routineBlocks.map((block, blockIndex) => ({
+        const workoutDate = new Date().toISOString().split("T")[0]
+        const durationMin = Math.max(1, Math.round((Date.now() - workoutStartTime.current) / 60_000))
+
+        const DOMS_LEVEL_MAP: Record<number, string> = { 1: "mild", 2: "moderate", 3: "severe" }
+        const painAreas: string[] = JSON.parse(localStorage.getItem("fitcore_pain_areas") || "[]")
+        const domsRaw: Record<string, number> = JSON.parse(localStorage.getItem("fitcore_doms_data") || "{}")
+        const currentDoms = Object.entries(domsRaw)
+            .filter(([, v]) => DOMS_LEVEL_MAP[v] !== undefined)
+            .map(([bodyPart, v]) => ({ bodyPart, level: DOMS_LEVEL_MAP[v] }))
+
+        const sets = routine.routineBlocks.flatMap((block, blockIndex) =>
+            block.prescription.map((set, si) => ({
                 exerciseName: block.exerciseName,
-                setsCompleted: block.prescription.filter((_, si) =>
-                    checkedSets.has(`${blockIndex}-${si}`)
-                ).length,
-                sets: block.prescription.map((set, si) => ({
-                    setIndex: si,
-                    completed: checkedSets.has(`${blockIndex}-${si}`),
-                    targetWeightKg: set.targetWeightKg,
-                    targetReps: set.targetReps,
-                })),
-            })),
+                setIndex: set.setIndex,
+                completed: checkedSets.has(`${blockIndex}-${si}`),
+                targetWeightKg: set.targetWeightKg,
+                actualWeightKg: set.targetWeightKg,
+                targetReps: set.targetReps,
+                actualReps: set.targetReps,
+                targetRir: set.targetRir,
+                targetRestSec: set.targetRestSec,
+            }))
+        )
+
+        const finalWorkoutData = {
+            workoutDate,
+            splitLabel: routine.summaryTitle,
+            sourceRoutineFinalId: routineFinalId,
+            timeAvailableMin: routine.totalEstimatedTime,
+            durationMin,
+            readinessLevel: null,
+            currentPainAreas: painAreas,
+            currentDoms,
+            unavailableEquipment: [],
+            sets,
         }
 
         try {

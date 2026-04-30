@@ -1,6 +1,7 @@
 import { RoutineDraft } from "@/types/routine"
 import { RoutineGenerateRequest } from "@/utils/requestAssembler"
 import { normalizeRoutineResponse } from "@/utils/routineAdapter"
+import AxiosController from "@/lib/axios/AxiosController"
 
 const TIMEOUT_MS = 60_000
 
@@ -171,13 +172,7 @@ export async function generateRoutine(requestPayload: RoutineGenerateRequest): P
 
     // Backend proxy mode
     try {
-        const res = await fetch("/api/routines/generate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestPayload),
-        })
-        if (!res.ok) throw new Error(`Backend error: ${res.status}`)
-        const rawData = await res.json()
+        const rawData = await AxiosController.post("/api/routines/generate", requestPayload)
         return normalizeRoutineResponse(rawData, { status: "SUCCESS", isFallback: false })
     } catch (err) {
         console.error("[aiRoutineService] Backend call failed — using fallback:", err)
