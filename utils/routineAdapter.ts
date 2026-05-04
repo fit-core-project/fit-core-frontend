@@ -48,7 +48,7 @@ export function normalizeRoutineResponse(rawData: any, context: AdapterContext =
         : []
 
     const routineBlocks: RoutineBlock[] = rawBlocks.map((ex, index) => ({
-        id: ex?.id ?? `blk_${crypto.randomUUID().slice(0, 8)}_${index}`,
+        exerciseId: ex?.exerciseId ?? `blk_${crypto.randomUUID().slice(0, 8)}_${index}`,
         exerciseName: String(ex?.exerciseName || "이름 없는 기본 운동"),
         exerciseRationale: String(ex?.exerciseRationale || "안전한 자세로 수행하세요."),
         prescription: normalizePrescription(Array.isArray(ex?.prescription) ? ex.prescription : []),

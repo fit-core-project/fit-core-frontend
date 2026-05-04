@@ -99,11 +99,16 @@ export default function WorkoutPlayer() {
             .map(([bodyPart, v]) => ({ bodyPart, level: DOMS_LEVEL_MAP[v] }))
 
         const sets = routine.routineBlocks.flatMap((block) =>
-            block.prescription.map((set) => ({
+            block.prescription.map((set, index) => ({
+                exerciseId: block.exerciseId,
                 exerciseNameSnapshot: block.exerciseName,
+                setIndex: index + 1,
+                setType: "working",
+                trackingMode: "weightReps",
                 weightKg: set.targetWeightKg,
                 reps: set.targetReps,
                 rir: set.targetRir,
+                isFailure: false,
                 restSec: set.targetRestSec,
             }))
         )
@@ -213,7 +218,7 @@ export default function WorkoutPlayer() {
                 {/* 외부 루프: routineBlocks */}
                 {routine.routineBlocks.map((block, blockIndex) => (
                     <div
-                        key={block.id}
+                        key={block.exerciseId}
                         className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden"
                     >
                         {/* 카드 헤더 */}

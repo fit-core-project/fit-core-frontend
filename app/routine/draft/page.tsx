@@ -80,7 +80,7 @@ export default function RoutineReviewPage() {
         setDraft({
             ...draft,
             routineBlocks: draft.routineBlocks.map((block) =>
-                block.id !== blockId
+                block.exerciseId !== blockId
                     ? block
                     : {
                           ...block,
@@ -97,7 +97,7 @@ export default function RoutineReviewPage() {
         setDraft({
             ...draft,
             routineBlocks: draft.routineBlocks.map((block) => {
-                if (block.id !== blockId) return block
+                if (block.exerciseId !== blockId) return block
                 const last = block.prescription[block.prescription.length - 1]
                 const newSet: SetPrescription = last
                     ? { ...last, setIndex: block.prescription.length }
@@ -113,7 +113,7 @@ export default function RoutineReviewPage() {
         setDraft({
             ...draft,
             routineBlocks: draft.routineBlocks.map((block) => {
-                if (block.id !== blockId) return block
+                if (block.exerciseId !== blockId) return block
                 const updated = block.prescription.filter((_, i) => i !== arrayIndex)
                 return { ...block, prescription: updated.map((s, i) => ({ ...s, setIndex: i })) }
             }),
@@ -123,7 +123,7 @@ export default function RoutineReviewPage() {
     const deleteBlock = (blockId: string) => {
         if (!draft) return
         if (!confirm("이 운동을 루틴에서 삭제할까요?")) return
-        setDraft({ ...draft, routineBlocks: draft.routineBlocks.filter((b) => b.id !== blockId) })
+        setDraft({ ...draft, routineBlocks: draft.routineBlocks.filter((b) => b.exerciseId !== blockId) })
     }
 
     const updateRestTime = (blockId: string, arrayIndex: number, value: number) => {
@@ -134,7 +134,7 @@ export default function RoutineReviewPage() {
         if (!draft) return
         const newId = `block_${Date.now()}`
         const newBlock: RoutineBlock = {
-            id: newId,
+            exerciseId: newId,
             exerciseName: "",
             exerciseRationale: "",
             prescription: [{ setIndex: 0, targetReps: 10, targetWeightKg: null, targetRir: 2, targetRestSec: 90 }],
@@ -149,11 +149,12 @@ export default function RoutineReviewPage() {
         if (!draft) return
         setSwapLoading(true)
         try {
-            const currentBlock = draft.routineBlocks.find((b) => b.id === blockId)
+            const currentBlock = draft.routineBlocks.find((b) => b.exerciseId === blockId)
             if (!currentBlock) return
 
             const baseBlock: RoutineBlock = {
                 ...currentBlock,
+                exerciseId: item.id,
                 exerciseName: item.nameKr,
                 exerciseRationale: `${item.primaryMuscle} 주 자극 운동 (${item.equipment})`,
             }
@@ -164,7 +165,7 @@ export default function RoutineReviewPage() {
                 return {
                     ...prev,
                     routineBlocks: prev.routineBlocks.map((b) =>
-                        b.id !== blockId ? b : enrichedBlock
+                        b.exerciseId !== blockId ? b : enrichedBlock
                     ),
                 }
             })
@@ -306,7 +307,7 @@ export default function RoutineReviewPage() {
             <section className="space-y-4">
                 {draft.routineBlocks.map((block) => (
                     <ExerciseCard
-                        key={block.id}
+                        key={block.exerciseId}
                         block={block}
                         onUpdateSet={updateSet}
                         onUpdateRestTime={updateRestTime}
@@ -424,7 +425,7 @@ function ExerciseCard({ block, onUpdateSet, onUpdateRestTime, onAddSet, onDelete
     return (
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative">
             <button
-                onClick={() => onDeleteBlock(block.id)}
+                onClick={() => onDeleteBlock(block.exerciseId)}
                 className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 transition-colors"
             >
                 <Trash2 className="w-5 h-5" />
@@ -453,7 +454,7 @@ function ExerciseCard({ block, onUpdateSet, onUpdateRestTime, onAddSet, onDelete
                         key={arrayIndex}
                         set={set}
                         arrayIndex={arrayIndex}
-                        blockId={block.id}
+                        blockId={block.exerciseId}
                         onUpdate={onUpdateSet}
                         onUpdateRest={onUpdateRestTime}
                         onDelete={onDeleteSet}
@@ -463,14 +464,14 @@ function ExerciseCard({ block, onUpdateSet, onUpdateRestTime, onAddSet, onDelete
             </div>
 
             <button
-                onClick={() => onAddSet(block.id)}
+                onClick={() => onAddSet(block.exerciseId)}
                 className="w-full mt-3 py-2 border-2 border-dashed border-slate-100 rounded-xl text-xs text-slate-400 font-bold hover:bg-slate-50 hover:border-blue-200 hover:text-blue-500 transition-colors flex items-center justify-center gap-1"
             >
                 <Plus className="w-3.5 h-3.5" /> 세트 추가
             </button>
 
             <button
-                onClick={() => onSwapRequest(block.id)}
+                onClick={() => onSwapRequest(block.exerciseId)}
                 className="w-full mt-2 py-2 border-2 border-dashed border-slate-100 rounded-xl text-xs text-slate-400 font-bold hover:bg-slate-50 hover:border-purple-200 hover:text-purple-500 transition-colors"
             >
                 다른 운동으로 교체하기

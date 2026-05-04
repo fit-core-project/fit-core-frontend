@@ -21,7 +21,7 @@ const FALLBACK_ROUTINE: RoutineDraft = {
     warnings: ["AI 응답 실패 — 기본 루틴으로 대체됨"],
     routineBlocks: [
         {
-            id: "blk_fb_01",
+            exerciseId: "barbell_squat",
             exerciseName: "바벨 스쿼트",
             exerciseRationale: "하체 주요 근육을 고르게 자극하는 복합 운동입니다.",
             prescription: [
@@ -31,7 +31,7 @@ const FALLBACK_ROUTINE: RoutineDraft = {
             ],
         },
         {
-            id: "blk_fb_02",
+            exerciseId: "barbell_bench_press",
             exerciseName: "벤치프레스",
             exerciseRationale: "가슴·삼두·전면 삼각근을 동시에 자극하는 상체 핵심 운동입니다.",
             prescription: [
@@ -41,7 +41,7 @@ const FALLBACK_ROUTINE: RoutineDraft = {
             ],
         },
         {
-            id: "blk_fb_03",
+            exerciseId: "barbell_row",
             exerciseName: "바벨 로우",
             exerciseRationale: "등 근육 전반과 이두근을 자극하는 당기기 복합 운동입니다.",
             prescription: [

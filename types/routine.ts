@@ -10,7 +10,7 @@ export interface SetPrescription {
 }
 
 export interface RoutineBlock {
-    id: string
+    exerciseId: string
     exerciseName: string
     exerciseRationale: string
     prescription: SetPrescription[]
