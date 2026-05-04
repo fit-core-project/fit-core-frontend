@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Check, Timer, X, Play, Flame, Trophy } from "lucide-react"
 import { RoutineDraft } from "@/types/routine"
-import AxiosController from "@/lib/axios/AxiosController"
+import workoutApiClient, { WorkoutSaveRequest } from "@/lib/api/workout/workoutApiClient"
 
 export default function WorkoutPlayer() {
     const router = useRouter()
@@ -113,7 +113,7 @@ export default function WorkoutPlayer() {
             }))
         )
 
-        const finalWorkoutData = {
+        const finalWorkoutData: WorkoutSaveRequest = {
             workoutDate,
             splitLabel: routine.summaryTitle,
             sourceRoutineFinalId: routineFinalId,
@@ -127,7 +127,7 @@ export default function WorkoutPlayer() {
         }
 
         try {
-            await AxiosController.post("/api/workouts", finalWorkoutData)
+            await workoutApiClient.save(finalWorkoutData)
         } catch (err) {
             console.error("[player] POST /api/workouts failed:", err)
         }

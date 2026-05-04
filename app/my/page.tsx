@@ -6,7 +6,7 @@ import Profile from "@/app/my/profile/Profile"
 import ProfileEditForm from "@/app/my/profile/ProfileEditForm"
 import { BodyComposition, UserResponse, UserUpdateRequest } from "@/types/project"
 import { useAuthStore } from "@/store/authStore"
-import ProfileService from "@/lib/api/profile/ProfileService"
+import profileApiClient from "@/lib/api/profile/profileApiClient"
 import BodyCompositionPage from "@/app/my/body-composition/BodyComposition"
 import WorkoutList from "@/app/my/workout/WorkoutList"
 
@@ -39,7 +39,7 @@ export default function Page() {
             return
         }
 
-        ProfileService.getMyProfile().then(setProfile).catch(logout)
+        profileApiClient.getMe().then(setProfile).catch(logout)
     }, [user, logout])
 
     const onSave = async (updatedData: Partial<UserResponse>) => {
@@ -48,7 +48,7 @@ export default function Page() {
             return
         }
 
-        ProfileService.updateMyProfile(updatedData as UserUpdateRequest)
+        profileApiClient.updateMe(updatedData as UserUpdateRequest)
             .then((res) => {
                 alert("프로필이 성공적으로 업데이트되었습니다.")
                 setIsEditing(false)
@@ -64,7 +64,7 @@ export default function Page() {
         const updatedSnapshots = [...existingSnapshots, formData]
         console.log(formData)
         try {
-            const res = await ProfileService.updateMyProfile({
+            const res = await profileApiClient.updateMe({
                 ...profile,
                 bodyCompositionSnapshot: updatedSnapshots,
             } as UserUpdateRequest)

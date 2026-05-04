@@ -2,7 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query"
 import { useInView } from "react-intersection-observer"
 import { useEffect } from "react"
 import { Page, WorkoutSessionResponse } from "@/types/project"
-import WorkoutService from "@/lib/api/workout/WorkoutService"
+import workoutApiClient from "@/lib/api/workout/workoutApiClient"
 
 export default function WorkoutList() {
     const { ref, inView } = useInView()
@@ -12,7 +12,7 @@ export default function WorkoutList() {
     >({
         queryKey: ["recentWorkouts"],
         queryFn: async ({ pageParam = 0 }) => {
-            return await WorkoutService.getRecentWorkouts(pageParam as number, 10)
+            return await workoutApiClient.getRecent(pageParam as number, 10)
         },
         getNextPageParam: (lastPage) => {
             // 2. lastPage는 이제 PageResponse 타입이므로 타입 안정성이 보장됩니다.

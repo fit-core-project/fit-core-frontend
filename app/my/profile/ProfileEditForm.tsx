@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react"
 import { UserResponse } from "@/types/project"
-import ProfileService from "@/lib/api/profile/ProfileService"
+import profileApiClient from "@/lib/api/profile/profileApiClient"
 import { Activity, Bandage, Calendar, ChevronDown, Dumbbell, User } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
 
@@ -131,7 +131,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
             setNicknameStatus("checking")
             try {
                 // API 호출 시에도 trim된 값을 보내는 것이 더 안전합니다
-                const res = await ProfileService.checkNicknameDuplicate(trimmedNickname)
+                const res = await profileApiClient.checkNickname(trimmedNickname)
                 setNicknameStatus(res ? "duplicate" : "available")
             } catch (error) {
                 setNicknameStatus("idle")
@@ -153,7 +153,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
         // 2. 닉네임이 변경된 경우에만 최종 중복 체크
         if (formData.nickname !== initialProfile?.nickname) {
             try {
-                const res = await ProfileService.checkNicknameDuplicate(formData.nickname)
+                const res = await profileApiClient.checkNickname(formData.nickname)
                 if (res) {
                     setNicknameStatus("duplicate")
                     alert("이미 사용 중인 닉네임입니다. 다시 확인해 주세요.")

@@ -4,7 +4,7 @@ import { useEffect } from "react"
 import { useAuthStore } from "@/store/authStore"
 import { jwtDecode } from "jwt-decode"
 import { AxiosError } from "axios"
-import ProfileService from "@/lib/api/profile/ProfileService"
+import profileApiClient from "@/lib/api/profile/profileApiClient"
 
 export default function AuthInitializer() {
     const { token, logout, setIsLoading } = useAuthStore()
@@ -28,7 +28,7 @@ export default function AuthInitializer() {
                 }
 
                 // 3. 서버에 현재 내 프로필 정보 요청 (토큰 유효성 최종 검증)
-                await ProfileService.getMyProfile()
+                await profileApiClient.getMe()
 
                 // 성공 시엔 별도 로직 필요 없음 (이미 Zustand에 유저 정보가 저장되어 있다면 유지)
             } catch (error: unknown) {

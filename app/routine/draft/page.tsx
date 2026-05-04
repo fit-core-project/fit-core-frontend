@@ -6,7 +6,7 @@ import { AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, X, Info, Search }
 import { RoutineDraft, RoutineBlock, SetPrescription } from "@/types/routine"
 import { getExerciseCatalog, getRecentRecord } from "@/services/exerciseService"
 import { ExerciseCatalogItem } from "@/services/mockDataFactory"
-import AxiosController from "@/lib/axios/AxiosController"
+import routineApiClient from "@/lib/api/routine/routineApiClient"
 
 // ── applyWeightToAllSets ─────────────────────────────────────────────────────
 // exerciseId로 최근 기록을 조회해 블록의 모든 세트에 중량/횟수를 일괄 적용한다.
@@ -218,13 +218,7 @@ export default function RoutineReviewPage() {
         }
 
         try {
-            // Golden Standard: { routineFinalId, routineDraftId, finalRoutinePayload, savedAt }
-            // Backend 현재 응답: { id, ... } — routineFinalId로 통일 전까지 id를 fallback으로 읽음
-            const result = await AxiosController.post<{ routineFinalId?: string; id?: string }>(
-                `/api/routines/drafts/${draft.routineDraftId}/finalize`,
-                payload
-            )
-            const finalId = result.routineFinalId ?? result.id
+            const finalId = await routineApiClient.finalize(draft.routineDraftId, payload)
             if (finalId) localStorage.setItem("fitcore_routine_final_id", finalId)
         } catch (err) {
             console.error("[draft] finalize failed — navigating without finalId:", err)
