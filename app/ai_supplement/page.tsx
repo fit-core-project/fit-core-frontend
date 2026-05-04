@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-// 🌟 Mic, StopCircle 아이콘 추가
 import { Send, Bot, Loader2, Pill, Sparkles, Mic, StopCircle } from "lucide-react"
+import AxiosController from "@/lib/axios/AxiosController"
 
 // --- TypeScript 타입 정의 ---
 interface SourceDetail {
@@ -76,16 +76,9 @@ export default function SupplementChatPage() {
                 formData.append("audio_file", audioBlob, "voice_record.webm")
 
                 try {
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/stt`, {
-                        method: "POST",
-                        body: formData,
-                    })
-                    if (!response.ok) throw new Error("STT 변환에 실패했습니다.")
-                    const data = await response.json()
-                    // 기존 텍스트가 있으면 띄어쓰기 후 이어서 작성
+                    const data = await AxiosController.post<{ text: string }>("/api/ai/stt", formData)
                     if (data.text) setInputText((prev) => (prev ? `${prev} ${data.text}` : data.text))
                 } catch (err: any) {
-                    // 에러 시 챗봇 메시지로 출력
                     setMessages((prev) => [
                         ...prev,
                         {
@@ -129,18 +122,10 @@ export default function SupplementChatPage() {
         setIsLoading(true)
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/supplement-chat`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question: textToSubmit }),
-            })
-
-            if (!response.ok) {
-                const errorData = await response.json()
-                throw new Error(errorData.detail || "서버 응답 에러")
-            }
-
-            const data = await response.json()
+            const data = await AxiosController.post<{ answer: string; sources?: SourceDetail[] }>(
+                "/api/ai/supplement-chat",
+                { question: textToSubmit }
+            )
             const newAiMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: "ai",
@@ -152,7 +137,7 @@ export default function SupplementChatPage() {
             const errorMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: "ai",
-                content: `⚠️ 오류가 발생했습니다: ${error.message}\n잠시 후 다시 시도해 주세요.`,
+                content: `⚠️ 오류가 발생했습니다: ${error.response?.data?.detail ?? error.message}\n잠시 후 다시 시도해 주세요.`,
             }
             setMessages((prev) => [...prev, errorMsg])
         } finally {

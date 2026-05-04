@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Send, Sparkles, Mic, Bot, StopCircle, AlertCircle, Activity, Save, Apple, Dumbbell } from "lucide-react"
+import AxiosController from "@/lib/axios/AxiosController"
 
 // --- TypeScript 타입 정의 ---
 interface ParsedData {
@@ -73,12 +74,7 @@ export default function QuickLogPage() {
                 formData.append("audio_file", audioBlob, "voice_record.webm")
 
                 try {
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/stt`, {
-                        method: "POST",
-                        body: formData,
-                    })
-                    if (!response.ok) throw new Error("STT 변환에 실패했습니다.")
-                    const data = await response.json()
+                    const data = await AxiosController.post<{ text: string }>("/api/ai/stt", formData)
                     if (data.text) setInputText((prev) => (prev ? `${prev} ${data.text}` : data.text))
                 } catch (err: any) {
                     setError("음성 인식 중 오류가 발생했습니다. 다시 말씀해 주세요.")
@@ -114,23 +110,14 @@ export default function QuickLogPage() {
         setSaveSuccess(false)
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/parse-log`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: inputText }),
-            })
-
-            if (!response.ok) {
-                const errorData = await response.json()
-                if (response.status === 503 || response.status === 500) {
-                    throw new Error("AI 서버가 현재 붐비고 있습니다. 잠시 후 다시 시도해 주세요.")
-                }
-                throw new Error(errorData.detail || "분석 중 오류가 발생했습니다.")
-            }
-
-            const data = await response.json()
+            const data = await AxiosController.post<ParsedData>("/api/ai/parse-log", { text: inputText })
             setParsedData(data)
         } catch (err: any) {
+            if (err.response?.status === 503 || err.response?.status === 500) {
+                err.message = "AI 서버가 현재 붐비고 있습니다. 잠시 후 다시 시도해 주세요."
+            } else {
+                err.message = err.response?.data?.detail || err.message || "분석 중 오류가 발생했습니다."
+            }
             console.error(err)
             setError(err.message)
         } finally {
