@@ -1,5 +1,6 @@
 import AxiosController from "@/lib/axios/AxiosController"
 import { Page, WorkoutSessionResponse } from "@/types/project"
+import { guardWorkoutSaveRequest } from "@/utils/responseGuard"
 
 export interface WorkoutSetSaveRequest {
     exerciseId: string
@@ -28,8 +29,10 @@ export interface WorkoutSaveRequest {
 }
 
 const workoutApiClient = {
-    save: (request: WorkoutSaveRequest): Promise<void> =>
-        AxiosController.post("/api/workouts", request),
+    save: (request: WorkoutSaveRequest): Promise<void> => {
+        guardWorkoutSaveRequest(request)
+        return AxiosController.post("/api/workouts", request)
+    },
 
     getRecent: (page: number = 0, size: number = 10): Promise<Page<WorkoutSessionResponse>> =>
         AxiosController.get<Page<WorkoutSessionResponse>>(`/api/workouts/recent?page=${page}&size=${size}`),

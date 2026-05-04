@@ -1,6 +1,7 @@
 import AxiosController from "@/lib/axios/AxiosController"
 import { RoutineDraft } from "@/types/routine"
 import { RoutineGenerateRequest } from "@/utils/requestAssembler"
+import { guardGenerateResponse, guardFinalizeResponse } from "@/utils/responseGuard"
 
 export interface FinalizePayload {
     targetWorkoutDate: string
@@ -10,15 +11,20 @@ export interface FinalizePayload {
 }
 
 const routineApiClient = {
-    generate: (request: RoutineGenerateRequest): Promise<RoutineDraft> =>
-        AxiosController.post<RoutineDraft>("/api/routines/generate", request),
+    generate: async (request: RoutineGenerateRequest): Promise<RoutineDraft> => {
+        const data = await AxiosController.post<unknown>("/api/routines/generate", request)
+        guardGenerateResponse(data)
+        return data
+    },
 
-    finalize: async (draftId: string, payload: FinalizePayload): Promise<string | null> => {
+    finalize: async (draftId: string, payload: FinalizePayload): Promise<string> => {
         const result = await AxiosController.post<{ routineFinalId?: string; id?: string }>(
             `/api/routines/drafts/${draftId}/finalize`,
             payload
         )
-        return result.routineFinalId ?? result.id ?? null
+        const finalId = result.routineFinalId ?? result.id ?? null
+        guardFinalizeResponse(finalId)
+        return finalId
     },
 }
 
