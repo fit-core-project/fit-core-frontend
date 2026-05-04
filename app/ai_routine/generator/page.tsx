@@ -79,8 +79,20 @@ export default function RoutineGenerator() {
     useEffect(() => {
         const savedDoms = localStorage.getItem("fitcore_doms_data")
         const savedPainAreas = localStorage.getItem("fitcore_pain_areas")
-        const parsedDoms: Record<string, number> = savedDoms ? JSON.parse(savedDoms) : {}
-        const parsedPainAreas: string[] = savedPainAreas ? JSON.parse(savedPainAreas) : []
+
+        // 1. "undefined" 문자열과 파싱 에러를 막아주는 안전망 함수
+        const safeParse = <T,>(value: string | null, fallback: T): T => {
+            if (!value || value === "undefined") return fallback
+            try {
+                return JSON.parse(value) as T
+            } catch (error) {
+                return fallback
+            }
+        }
+
+        // 2. 안전망 함수를 통과시켜서 파싱
+        const parsedDoms = safeParse<Record<string, number>>(savedDoms, {})
+        const parsedPainAreas = safeParse<string[]>(savedPainAreas, [])
         const partsCount = Object.keys(parsedDoms).length
 
         if (partsCount > 0) {
@@ -94,7 +106,7 @@ export default function RoutineGenerator() {
                     domsData: parsedDoms,
                     painAreas: parsedPainAreas,
                     timeAvailable: prefs.timeAvailable,
-                    equipment: prefs.equipment as RoutineFormState["equipment"],
+                    equipment: (prefs.equipment || []) as RoutineFormState["equipment"],
                     goal: GOAL_MAP[prefs.goal] ?? "HYPERTROPHY",
                 }))
             })
@@ -352,7 +364,7 @@ export default function RoutineGenerator() {
                                         key={item.value}
                                         onClick={() => toggleArrayItem("equipment", item.value)}
                                         className={`px-3 py-2 rounded-xl border-2 text-sm font-bold transition-all ${
-                                            formData.equipment.includes(item.value)
+                                            formData.equipment?.includes(item.value)
                                                 ? "border-orange-500 bg-orange-50 text-orange-700"
                                                 : "border-slate-100 bg-white text-slate-400 hover:bg-slate-50"
                                         }`}

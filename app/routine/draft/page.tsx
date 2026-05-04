@@ -54,8 +54,8 @@ export default function RoutineReviewPage() {
                 // 카탈로그에서 exerciseName → exerciseId 매핑 후 전 세트 중량 일괄 적용
                 const enrichedBlocks = await Promise.all(
                     data.routineBlocks.map((block) => {
-                        const item = catalogData.find((c) => c.nameKr === block.exerciseName)
-                        return item ? applyWeightToAllSets(block, item.id) : Promise.resolve(block)
+                        // 백엔드가 준 exerciseId를 그대로 직행시킵니다! (카탈로그 검색 불필요)
+                        return block.exerciseId ? applyWeightToAllSets(block, block.exerciseId) : Promise.resolve(block)
                     })
                 )
                 setDraft({ ...data, routineBlocks: enrichedBlocks })
@@ -70,12 +70,7 @@ export default function RoutineReviewPage() {
 
     // ── Set / Block mutations (keep existing logic) ─────────────────────────
 
-    const updateSet = (
-        blockId: string,
-        arrayIndex: number,
-        field: keyof SetPrescription,
-        value: number | null
-    ) => {
+    const updateSet = (blockId: string, arrayIndex: number, field: keyof SetPrescription, value: number | null) => {
         if (!draft) return
         setDraft({
             ...draft,
@@ -101,7 +96,13 @@ export default function RoutineReviewPage() {
                 const last = block.prescription[block.prescription.length - 1]
                 const newSet: SetPrescription = last
                     ? { ...last, setIndex: block.prescription.length }
-                    : { setIndex: block.prescription.length, targetReps: 10, targetWeightKg: null, targetRir: 2, targetRestSec: 60 }
+                    : {
+                          setIndex: block.prescription.length,
+                          targetReps: 10,
+                          targetWeightKg: null,
+                          targetRir: 2,
+                          targetRestSec: 60,
+                      }
                 const updated = [...block.prescription, newSet]
                 return { ...block, prescription: updated.map((s, i) => ({ ...s, setIndex: i })) }
             }),
@@ -164,9 +165,7 @@ export default function RoutineReviewPage() {
                 if (!prev) return prev
                 return {
                     ...prev,
-                    routineBlocks: prev.routineBlocks.map((b) =>
-                        b.exerciseId !== blockId ? b : enrichedBlock
-                    ),
+                    routineBlocks: prev.routineBlocks.map((b) => (b.exerciseId !== blockId ? b : enrichedBlock)),
                 }
             })
         } finally {
@@ -180,8 +179,7 @@ export default function RoutineReviewPage() {
 
     const totalTime = useMemo(() => {
         if (!draft || !initialDraftRef.current) return 0
-        const isModified =
-            JSON.stringify(draft.routineBlocks) !== JSON.stringify(initialDraftRef.current.routineBlocks)
+        const isModified = JSON.stringify(draft.routineBlocks) !== JSON.stringify(initialDraftRef.current.routineBlocks)
         if (!isModified) return initialDraftRef.current.totalEstimatedTime
         return draft.routineBlocks.reduce((acc, block) => {
             const totalRestSec = block.prescription.reduce((s, p) => s + p.targetRestSec, 0)
@@ -191,10 +189,11 @@ export default function RoutineReviewPage() {
 
     const filteredCatalog = useMemo(
         () =>
-            catalog.filter(
+            // catalog가 진짜 배열(Array)일 때만 filter를 돌리고, 아니면 빈 배열([])을 반환합니다.
+            (Array.isArray(catalog) ? catalog : []).filter(
                 (item) =>
-                    item.nameKr.includes(swapQuery) ||
-                    item.nameEn.toLowerCase().includes(swapQuery.toLowerCase()) ||
+                    item.nameKr?.includes(swapQuery) ||
+                    item.nameEn?.toLowerCase().includes(swapQuery.toLowerCase()) ||
                     item.primaryMuscle.includes(swapQuery)
             ),
         [catalog, swapQuery]
@@ -233,23 +232,18 @@ export default function RoutineReviewPage() {
 
     return (
         <div className="flex flex-col w-full max-w-2xl mx-auto p-4 space-y-6 pb-32">
-
             {/* ── Fallback warning badge ── */}
             {draft.isFallback && (
                 <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-300 rounded-2xl animate-in fade-in slide-in-from-top-2">
                     <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-                    <p className="text-sm font-bold text-amber-800">
-                        AI 연결 지연으로 기본 루틴을 제공합니다
-                    </p>
+                    <p className="text-sm font-bold text-amber-800">AI 연결 지연으로 기본 루틴을 제공합니다</p>
                 </div>
             )}
 
             {/* ── Status badge + estimated time ── */}
             <div
                 className={`p-4 rounded-2xl flex items-center justify-between ${
-                    draft.isFallback
-                        ? "bg-amber-50 border border-amber-100"
-                        : "bg-blue-50 border border-blue-100"
+                    draft.isFallback ? "bg-amber-50 border border-amber-100" : "bg-blue-50 border border-blue-100"
                 }`}
             >
                 <div className="flex items-center space-x-3">
@@ -262,9 +256,7 @@ export default function RoutineReviewPage() {
                         <h2 className="font-bold text-slate-800 text-sm">
                             {draft.isFallback ? "대체 루틴 (AI 연결 지연)" : "AI 추천 루틴"}
                         </h2>
-                        <p className="text-[10px] text-slate-400 uppercase font-mono">
-                            {draft.statusReasonCode}
-                        </p>
+                        <p className="text-[10px] text-slate-400 uppercase font-mono">{draft.statusReasonCode}</p>
                     </div>
                 </div>
                 <span className="text-blue-600 font-bold flex items-center gap-1">
@@ -281,7 +273,9 @@ export default function RoutineReviewPage() {
                         <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
                         <ul className="space-y-0.5">
                             {draft.warnings.map((w, i) => (
-                                <li key={i} className="text-xs text-amber-700 font-medium">{w}</li>
+                                <li key={i} className="text-xs text-amber-700 font-medium">
+                                    {w}
+                                </li>
                             ))}
                         </ul>
                     </div>
@@ -291,7 +285,9 @@ export default function RoutineReviewPage() {
                     <Info className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
                     <ul className="space-y-1">
                         {draft.rationaleSummary.map((line, i) => (
-                            <li key={i} className="text-xs text-slate-600 leading-relaxed">{line}</li>
+                            <li key={i} className="text-xs text-slate-600 leading-relaxed">
+                                {line}
+                            </li>
                         ))}
                     </ul>
                 </div>
@@ -371,9 +367,7 @@ export default function RoutineReviewPage() {
                                     최근 기록을 불러오는 중...
                                 </div>
                             ) : filteredCatalog.length === 0 ? (
-                                <div className="p-10 text-center text-slate-400 text-sm">
-                                    검색 결과가 없습니다.
-                                </div>
+                                <div className="p-10 text-center text-slate-400 text-sm">검색 결과가 없습니다.</div>
                             ) : (
                                 filteredCatalog.map((item) => (
                                     <button
@@ -415,7 +409,15 @@ interface ExerciseCardProps {
     onSwapRequest: (blockId: string) => void
 }
 
-function ExerciseCard({ block, onUpdateSet, onUpdateRestTime, onAddSet, onDeleteSet, onDeleteBlock, onSwapRequest }: ExerciseCardProps) {
+function ExerciseCard({
+    block,
+    onUpdateSet,
+    onUpdateRestTime,
+    onAddSet,
+    onDeleteSet,
+    onDeleteBlock,
+    onSwapRequest,
+}: ExerciseCardProps) {
     return (
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative">
             <button
@@ -490,7 +492,10 @@ function SetRow({ set, arrayIndex, blockId, onUpdate, onUpdateRest, onDelete, is
     const weightDisplay = set.targetWeightKg === null ? "" : String(set.targetWeightKg)
 
     const handleWeightChange = (raw: string) => {
-        if (raw === "") { onUpdate(blockId, arrayIndex, "targetWeightKg", null); return }
+        if (raw === "") {
+            onUpdate(blockId, arrayIndex, "targetWeightKg", null)
+            return
+        }
         const num = parseFloat(raw)
         if (!isNaN(num) && num >= 0) onUpdate(blockId, arrayIndex, "targetWeightKg", num)
     }
