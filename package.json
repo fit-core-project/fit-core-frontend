@@ -10,6 +10,7 @@
         "lint": "eslint"
     },
     "dependencies": {
+        "@tanstack/react-query": "^5.100.9",
         "axios": "^1.15.0",
         "jwt-decode": "^4.0.0",
         "lucide-react": "^1.8.0",
@@ -21,6 +22,7 @@
         "react-body-highlighter": "^2.0.5",
         "react-bootstrap": "^2.10.10",
         "react-dom": "19.2.4",
+        "react-intersection-observer": "^10.0.3",
         "recharts": "^3.8.1",
         "zustand": "^5.0.12"
     },

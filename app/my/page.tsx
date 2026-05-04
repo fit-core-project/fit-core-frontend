@@ -8,13 +8,14 @@ import { BodyComposition, UserResponse, UserUpdateRequest } from "@/types/projec
 import { useAuthStore } from "@/store/authStore"
 import ProfileService from "@/lib/api/profile/ProfileService"
 import BodyCompositionPage from "@/app/my/body-composition/BodyComposition"
+import WorkoutList from "@/app/my/workout/WorkoutList"
 
 export default function Page() {
     const tabs = [
         { id: "profile", label: "프로필", icon: <User size={18} /> },
         { id: "stats", label: "체성분", icon: <Trophy size={18} /> },
         { id: "routine", label: "루틴", icon: <Dumbbell size={18} /> },
-        { id: "history", label: "운동이력", icon: <ClipboardList size={18} /> },
+        { id: "workout", label: "운동이력", icon: <ClipboardList size={18} /> },
         { id: "settings", label: "설정", icon: <Settings size={18} /> },
     ]
 
@@ -112,9 +113,7 @@ export default function Page() {
                     ))}
                 {activeTab === "stats" && <BodyCompositionPage profile={profile} onSave={onBodyCompositionSave} />}
                 {activeTab === "routine" && <div className="text-center py-10">루틴이 여기에 표시됩니다.</div>}
-                {activeTab === "history" && (
-                    <div className="text-center py-10">운동 이력 리스트가 여기에 표시됩니다.</div>
-                )}
+                {activeTab === "workout" && <WorkoutList />}
                 {activeTab === "settings" && (
                     <div className="text-center py-10">계정 설정 메뉴가 여기에 표시됩니다.</div>
                 )}

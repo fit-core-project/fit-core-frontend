@@ -16,6 +16,7 @@ interface AuthState {
     setIsLoading: (loading: boolean) => void
     setToken: (token: string) => void
     logout: () => void
+    clearToken: () => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -37,6 +38,7 @@ export const useAuthStore = create<AuthState>()(
                 })
             },
             logout: () => set({ token: null, user: null }),
+            clearToken: () => set({ token: null }),
         }),
         {
             name: "auth-storage",

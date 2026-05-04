@@ -79,3 +79,60 @@ export interface BodyComposition {
     waistHipRatio?: number
     visceralFatLevel?: number
 }
+
+export interface Page<T> {
+    content: T[]
+    last: boolean
+    totalPages: number
+    totalElements: number
+    size: number
+    number: number
+    first: boolean
+    numberOfElements: number
+    empty: boolean
+}
+
+export interface Doms {
+    bodyPart?: string
+    level?: string
+}
+
+export interface WorkoutSetResponse {
+    id: string
+    exerciseOrder: number
+    exerciseId: string
+    exerciseNameSnapshot: string
+    setIndex: number
+    setType: "working" | "warmup" | "drop" | "failure" // 서버의 Enum이나 문자열 값에 맞춤
+    trackingMode: string
+    weightKg: number // BigDecimal -> number
+    reps: number
+    rpe: number // BigDecimal -> number
+    rir: number // BigDecimal -> number
+    isFailure: boolean
+    restSec: number
+    setNote: string
+}
+
+export interface WorkoutSessionResponse {
+    id: string
+    userId: string
+    workoutDate: string | Date // ISO 8601 Date (YYYY-MM-DD)
+    splitLabel: string
+    sourceRoutineFinalId: string
+    timeAvailableMin: number // Short -> number
+    durationMin: number
+    readinessLevel: string
+
+    // JSON 필드 (배열 처리)
+    currentPainAreas: string[]
+    doms: Doms[]
+    unavailableEquipment: string[]
+
+    sessionNote: string
+    createdAt: string | Date // ISO 8601 DateTime
+    updatedAt: string | Date
+
+    // 연관된 세트 리스트
+    sets: WorkoutSetResponse[]
+}
