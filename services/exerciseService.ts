@@ -1,4 +1,5 @@
 import { getMockExerciseCatalog, getMockRecentRecord, ExerciseCatalogItem, RecentRecord } from "./mockDataFactory"
+import AxiosController from "@/lib/axios/AxiosController"
 
 const IS_MOCK = process.env.NEXT_PUBLIC_DATA_SOURCE === "mock"
 
@@ -11,9 +12,7 @@ export async function getExerciseCatalog(): Promise<ExerciseCatalogItem[]> {
         await delay(500)
         return getMockExerciseCatalog()
     }
-    const res = await fetch("/api/exercises/catalog")
-    if (!res.ok) throw new Error(`getExerciseCatalog failed: ${res.status}`)
-    return res.json()
+    return AxiosController.get<ExerciseCatalogItem[]>("/api/exercises/catalog")
 }
 
 export async function getRecentRecord(exerciseId: string): Promise<RecentRecord | null> {
@@ -21,8 +20,10 @@ export async function getRecentRecord(exerciseId: string): Promise<RecentRecord 
         await delay(300)
         return getMockRecentRecord(exerciseId)
     }
-    const res = await fetch(`/api/exercises/${exerciseId}/recent-record`)
-    if (res.status === 404) return null
-    if (!res.ok) throw new Error(`getRecentRecord failed: ${res.status}`)
-    return res.json()
+    try {
+        return await AxiosController.get<RecentRecord>(`/api/exercises/${exerciseId}/recent-record`)
+    } catch (err: any) {
+        if (err.response?.status === 404) return null
+        throw err
+    }
 }

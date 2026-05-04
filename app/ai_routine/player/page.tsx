@@ -98,11 +98,9 @@ export default function WorkoutPlayer() {
             .filter(([, v]) => DOMS_LEVEL_MAP[v] !== undefined)
             .map(([bodyPart, v]) => ({ bodyPart, level: DOMS_LEVEL_MAP[v] }))
 
-        const sets = routine.routineBlocks.flatMap((block, blockIndex) =>
-            block.prescription.map((set, si) => ({
+        const sets = routine.routineBlocks.flatMap((block) =>
+            block.prescription.map((set) => ({
                 exerciseNameSnapshot: block.exerciseName,
-                setIndex: set.setIndex,
-                completed: checkedSets.has(`${blockIndex}-${si}`),
                 weightKg: set.targetWeightKg,
                 reps: set.targetReps,
                 rir: set.targetRir,

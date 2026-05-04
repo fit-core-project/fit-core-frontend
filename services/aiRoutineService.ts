@@ -170,10 +170,9 @@ export async function generateRoutine(requestPayload: RoutineGenerateRequest): P
         }
     }
 
-    // Backend proxy mode
+    // Backend proxy mode — zero transformation: routineDraftId and routineBlocks accepted as-is
     try {
-        const rawData = await AxiosController.post("/api/routines/generate", requestPayload)
-        return normalizeRoutineResponse(rawData, { status: "SUCCESS", isFallback: false })
+        return await AxiosController.post<RoutineDraft>("/api/routines/generate", requestPayload)
     } catch (err) {
         console.error("[aiRoutineService] Backend call failed — using fallback:", err)
         return makeFallback()
