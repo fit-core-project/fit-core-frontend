@@ -7,6 +7,7 @@ import { RoutineDraft, RoutineBlock, SetPrescription } from "@/types/routine"
 import { getExerciseCatalog, getRecentRecord } from "@/services/exerciseService"
 import { ExerciseCatalogItem } from "@/services/mockDataFactory"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
+import { generateEditSummary } from "@/utils/routineDiff"
 
 // ── applyWeightToAllSets ─────────────────────────────────────────────────────
 // exerciseId로 최근 기록을 조회해 블록의 모든 세트에 중량/횟수를 일괄 적용한다.
@@ -206,18 +207,17 @@ export default function RoutineReviewPage() {
 
         localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))
 
-        const acceptedWithoutEdits =
-            JSON.stringify(draft.routineBlocks) === JSON.stringify(initialDraftRef.current?.routineBlocks)
+        const userEditSummary = generateEditSummary(
+            initialDraftRef.current?.routineBlocks ?? [],
+            draft.routineBlocks
+        )
+        const acceptedWithoutEdits = userEditSummary.length === 0
 
-        // Golden 계약 기준 payload 조립:
-        // - finalRoutinePayload: 전체 draft가 아닌 { routineBlocks } clean payload
-        // - userEditSummary: string[] (수정 없으면 빈 배열, diff 로직은 추후 구현)
-        // - acceptedWithoutEdits: userEditSummary.length === 0 과 동일
         const payload = {
             targetWorkoutDate: new Date().toISOString().split("T")[0],
             finalRoutinePayload: { routineBlocks: draft.routineBlocks },
             acceptedWithoutEdits,
-            userEditSummary: [] as string[],
+            userEditSummary,
         }
 
         try {
