@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Check, Timer, X, Play, Flame, Trophy } from "lucide-react"
+import { Check, Timer, X, Play, Pause, Flame, Trophy, SkipForward } from "lucide-react"
 import { RoutineDraft } from "@/types/routine"
 import workoutApiClient, { WorkoutSaveRequest } from "@/lib/api/workout/workoutApiClient"
 
@@ -11,10 +11,12 @@ export default function WorkoutPlayer() {
 
     const [routine, setRoutine] = useState<RoutineDraft | null>(null)
     const [routineFinalId, setRoutineFinalId] = useState<string | null>(null)
-    const [checkedSets, setCheckedSets] = useState<Set<string>>(new Set()) // 'blockIndex-setIndex' 형태
+    const [checkedSets, setCheckedSets] = useState<Set<string>>(new Set())
 
     const [isTimerActive, setIsTimerActive] = useState(false)
+    const [isPaused, setIsPaused] = useState(false)
     const [timeLeft, setTimeLeft] = useState(0)
+    const [focusedKey, setFocusedKey] = useState<string | null>(null)
 
     const [isWorkoutComplete, setIsWorkoutComplete] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
@@ -22,7 +24,13 @@ export default function WorkoutPlayer() {
     const pendingPayload = useRef<WorkoutSaveRequest | null>(null)
     const workoutStartTime = useRef<number>(Date.now())
 
-    // 1. localStorage에서 RoutineDraft 및 routineFinalId 로드
+    // ── Timer refs ──────────────────────────────────────────────────────────────
+    const endTimeRef = useRef<number>(0)       // 절대 종료 시각 (ms)
+    const pausedAtRef = useRef<number>(0)      // 일시정지 시작 시각 (ms)
+    const nextKeyRef = useRef<string | null>(null)
+    const setRowRefs = useRef<Map<string, HTMLElement>>(new Map())
+
+    // 1. Load routine + routineFinalId from localStorage
     useEffect(() => {
         const savedRoutine = localStorage.getItem("fitcore_active_routine")
         const savedFinalId = localStorage.getItem("fitcore_routine_final_id")
@@ -35,17 +43,53 @@ export default function WorkoutPlayer() {
         if (savedFinalId) setRoutineFinalId(savedFinalId)
     }, [router])
 
-    // 2. 타이머 카운트다운
-    useEffect(() => {
-        let interval: NodeJS.Timeout
-        if (isTimerActive && timeLeft > 0) {
-            interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000)
-        } else if (timeLeft === 0 && isTimerActive) {
-            setIsTimerActive(false)
-            // TODO: 완료 효과음 (웹 오디오 API)
+    // ── 타이머 종료의 단일 진입점 ───────────────────────────────────────────────
+    // tick→0, skip, visibilitychange 세 경로 모두 여기로 수렴
+    const finishRest = useCallback(() => {
+        setIsTimerActive(false)
+        setIsPaused(false)
+        setTimeLeft(0)
+        const key = nextKeyRef.current
+        if (key) {
+            setFocusedKey(key)
+            // 다음 세트로 자동 스크롤
+            setTimeout(() => {
+                setRowRefs.current.get(key)?.scrollIntoView({ behavior: "smooth", block: "center" })
+            }, 50)
         }
-        return () => clearInterval(interval)
-    }, [isTimerActive, timeLeft])
+    }, [])
+
+    // 2. Timestamp 기반 카운트다운 (500ms 간격으로 tick)
+    useEffect(() => {
+        if (!isTimerActive || isPaused) return
+
+        const tick = () => {
+            const remaining = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000))
+            setTimeLeft(remaining)
+            if (remaining === 0) finishRest()
+        }
+
+        const id = setInterval(tick, 500)
+        return () => clearInterval(id)
+    }, [isTimerActive, isPaused, finishRest])
+
+    // 3. visibilitychange: 백그라운드 복귀 시 즉시 재보정
+    useEffect(() => {
+        const onVisibilityChange = () => {
+            if (document.visibilityState !== "visible") return
+            if (!isTimerActive || isPaused) return   // 일시정지 중엔 재보정 하지 않음
+
+            const remaining = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000))
+            if (remaining === 0) {
+                finishRest()
+            } else {
+                setTimeLeft(remaining)
+            }
+        }
+
+        document.addEventListener("visibilitychange", onVisibilityChange)
+        return () => document.removeEventListener("visibilitychange", onVisibilityChange)
+    }, [isTimerActive, isPaused, finishRest])
 
     if (!routine) {
         return (
@@ -55,9 +99,16 @@ export default function WorkoutPlayer() {
         )
     }
 
-    // 3. 전체 세트 수 = 모든 블록의 prescription.length 합산
     const totalSets = routine.routineBlocks.reduce((acc, block) => acc + block.prescription.length, 0)
     const progressPercent = totalSets === 0 ? 0 : Math.round((checkedSets.size / totalSets) * 100)
+
+    // 순서 기반 다음 세트 키 계산 (수동 체크 순서가 뒤섞인 경우 이미 체크된 세트일 수 있음)
+    const computeNextKey = (blockIndex: number, setArrayIndex: number): string | null => {
+        const block = routine.routineBlocks[blockIndex]
+        if (setArrayIndex + 1 < block.prescription.length) return `${blockIndex}-${setArrayIndex + 1}`
+        if (blockIndex + 1 < routine.routineBlocks.length) return `${blockIndex + 1}-0`
+        return null
+    }
 
     const handleCheckSet = (blockIndex: number, setArrayIndex: number, restSec: number) => {
         const key = `${blockIndex}-${setArrayIndex}`
@@ -74,12 +125,28 @@ export default function WorkoutPlayer() {
                 setIsTimerActive(false)
                 setIsWorkoutComplete(true)
             } else {
-                // 세트별 targetRestSec을 타이머에 정확히 연결
+                nextKeyRef.current = computeNextKey(blockIndex, setArrayIndex)
+                endTimeRef.current = Date.now() + restSec * 1000
                 setTimeLeft(restSec)
+                setIsPaused(false)
+                setFocusedKey(null)
                 setIsTimerActive(true)
             }
         }
     }
+
+    const handlePause = () => {
+        pausedAtRef.current = Date.now()
+        setIsPaused(true)
+    }
+
+    const handleResume = () => {
+        // 일시정지된 시간만큼 종료 시각을 앞으로 미룸
+        endTimeRef.current += Date.now() - pausedAtRef.current
+        setIsPaused(false)
+    }
+
+    const handleSkip = () => finishRest()
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60)
@@ -139,7 +206,6 @@ export default function WorkoutPlayer() {
         setSaveFailed(false)
         try {
             await workoutApiClient.save(payload)
-            // Success: clean up all session keys including any prior failure backup
             localStorage.removeItem("fitcore_active_routine")
             localStorage.removeItem("fitcore_doms_data")
             localStorage.removeItem("fitcore_pain_areas")
@@ -160,7 +226,6 @@ export default function WorkoutPlayer() {
     }
 
     const handleSaveLater = () => {
-        // Leave fitcore_failed_workout_save intact for later recovery
         localStorage.removeItem("fitcore_active_routine")
         localStorage.removeItem("fitcore_doms_data")
         localStorage.removeItem("fitcore_pain_areas")
@@ -180,7 +245,6 @@ export default function WorkoutPlayer() {
                 <p className="text-slate-500 text-sm text-center mb-10">
                     데이터는 안전하게 보관되어 있습니다.
                 </p>
-
                 <div className="w-full max-w-md space-y-3">
                     <button
                         onClick={handleRetry}
@@ -211,7 +275,6 @@ export default function WorkoutPlayer() {
 
                 <div className="bg-slate-800 p-8 rounded-3xl w-full max-w-md shadow-2xl border border-slate-700">
                     <h2 className="text-xl font-bold mb-6 text-center">오늘 루틴 강도는 어땠나요?</h2>
-
                     <div className="space-y-4">
                         <button
                             onClick={() => handleFinishRPE(1)}
@@ -241,7 +304,6 @@ export default function WorkoutPlayer() {
                             <span className="text-slate-400 text-sm">볼륨 감소 필요</span>
                         </button>
                     </div>
-
                     {isSaving && (
                         <p className="text-center text-blue-400 mt-6 animate-pulse">DB에 일지를 기록 중입니다...</p>
                     )}
@@ -256,12 +318,10 @@ export default function WorkoutPlayer() {
             {/* 상단 고정: 제목 + 진행 바 */}
             <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
                 <div className="flex justify-between items-end mb-2 max-w-2xl mx-auto w-full">
-                    <div>
-                        <h1 className="font-extrabold text-xl text-slate-900 flex items-center">
-                            <Flame className="w-5 h-5 text-orange-500 mr-2" />
-                            {routine.summaryTitle || "오늘의 루틴"}
-                        </h1>
-                    </div>
+                    <h1 className="font-extrabold text-xl text-slate-900 flex items-center">
+                        <Flame className="w-5 h-5 text-orange-500 mr-2" />
+                        {routine.summaryTitle || "오늘의 루틴"}
+                    </h1>
                     <div className="text-sm font-bold text-blue-600">
                         {checkedSets.size} <span className="text-gray-400 font-normal">/ {totalSets} 세트</span>
                     </div>
@@ -276,13 +336,11 @@ export default function WorkoutPlayer() {
 
             {/* 운동 블록 리스트 */}
             <div className="p-4 max-w-2xl mx-auto w-full space-y-6 mt-4">
-                {/* 외부 루프: routineBlocks */}
                 {routine.routineBlocks.map((block, blockIndex) => (
                     <div
                         key={block.exerciseId}
                         className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden"
                     >
-                        {/* 카드 헤더 */}
                         <div className="p-5 border-b border-gray-50 bg-slate-900 text-white">
                             <h2 className="text-xl font-bold flex items-center">
                                 <span className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-sm mr-3 shrink-0">
@@ -297,21 +355,29 @@ export default function WorkoutPlayer() {
                             )}
                         </div>
 
-                        {/* 내부 루프: prescription 배열 직접 매핑 */}
                         <div className="p-2">
                             {block.prescription.map((set, setArrayIndex) => {
-                                const isChecked = checkedSets.has(`${blockIndex}-${setArrayIndex}`)
+                                const key = `${blockIndex}-${setArrayIndex}`
+                                const isChecked = checkedSets.has(key)
+                                const isFocused = focusedKey === key
                                 return (
                                     <div
                                         key={setArrayIndex}
+                                        ref={(el) => {
+                                            if (el) setRowRefs.current.set(key, el)
+                                            else setRowRefs.current.delete(key)
+                                        }}
                                         className={`flex items-center justify-between p-4 my-1 rounded-2xl transition-all ${
-                                            isChecked ? "bg-blue-50/50 opacity-60" : "hover:bg-gray-50"
+                                            isChecked
+                                                ? "bg-blue-50/50 opacity-60"
+                                                : isFocused
+                                                  ? "bg-blue-50 ring-2 ring-blue-400 ring-offset-1 animate-pulse"
+                                                  : "hover:bg-gray-50"
                                         }`}
                                     >
-                                        {/* 세트 정보: 번호 / 중량 / 횟수 */}
                                         <div className="flex items-center space-x-6">
                                             <div
-                                                className={`font-bold w-12 text-center ${isChecked ? "text-blue-400" : "text-slate-400"}`}
+                                                className={`font-bold w-12 text-center ${isChecked ? "text-blue-400" : isFocused ? "text-blue-600" : "text-slate-400"}`}
                                             >
                                                 {set.setIndex + 1} Set
                                             </div>
@@ -323,15 +389,14 @@ export default function WorkoutPlayer() {
                                             </div>
                                         </div>
 
-                                        {/* 완료 체크 — targetRestSec을 타이머에 정확히 전달 */}
                                         <button
-                                            onClick={() =>
-                                                handleCheckSet(blockIndex, setArrayIndex, set.targetRestSec)
-                                            }
+                                            onClick={() => handleCheckSet(blockIndex, setArrayIndex, set.targetRestSec)}
                                             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 ${
                                                 isChecked
                                                     ? "bg-blue-500 text-white shadow-inner"
-                                                    : "bg-gray-100 text-gray-400 border-2 border-gray-200 hover:border-blue-300"
+                                                    : isFocused
+                                                      ? "bg-blue-500 text-white border-2 border-blue-500 shadow-md shadow-blue-200"
+                                                      : "bg-gray-100 text-gray-400 border-2 border-gray-200 hover:border-blue-300"
                                             }`}
                                         >
                                             {isChecked ? (
@@ -348,32 +413,64 @@ export default function WorkoutPlayer() {
                 ))}
             </div>
 
-            {/* 하단 고정: 휴식 타이머 오버레이 */}
+            {/* 하단 고정: 휴식 타이머 패널 */}
             {isTimerActive && (
-                <div className="fixed bottom-0 left-0 right-0 bg-slate-900 text-white p-6 rounded-t-3xl shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.3)] z-50 animate-fade-in-up">
-                    <div className="max-w-md mx-auto w-full flex items-center justify-between">
-                        <div className="flex items-center">
-                            <div className="w-14 h-14 bg-slate-800 rounded-full flex items-center justify-center mr-4">
-                                <Timer
-                                    className={`w-7 h-7 ${timeLeft <= 10 ? "text-red-400 animate-pulse" : "text-blue-400"}`}
-                                />
-                            </div>
-                            <div>
-                                <p className="text-slate-400 text-sm font-bold mb-1">휴식 시간</p>
-                                <div
-                                    className={`text-4xl font-mono font-extrabold tracking-tighter ${timeLeft <= 10 ? "text-red-400" : "text-white"}`}
-                                >
-                                    {formatTime(timeLeft)}
+                <div className="fixed bottom-0 left-0 right-0 bg-slate-900 text-white p-5 rounded-t-3xl shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.3)] z-50 animate-fade-in-up">
+                    <div className="max-w-md mx-auto w-full space-y-4">
+                        {/* 타이머 표시 */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                                <div className="w-14 h-14 bg-slate-800 rounded-full flex items-center justify-center mr-4 shrink-0">
+                                    <Timer
+                                        className={`w-7 h-7 ${timeLeft <= 10 && !isPaused ? "text-red-400 animate-pulse" : "text-blue-400"}`}
+                                    />
+                                </div>
+                                <div>
+                                    <p className="text-slate-400 text-sm font-bold mb-0.5">
+                                        {isPaused ? "일시정지" : "휴식 시간"}
+                                    </p>
+                                    <div
+                                        className={`text-4xl font-mono font-extrabold tracking-tighter ${
+                                            isPaused
+                                                ? "text-slate-400"
+                                                : timeLeft <= 10
+                                                  ? "text-red-400"
+                                                  : "text-white"
+                                        }`}
+                                    >
+                                        {formatTime(timeLeft)}
+                                    </div>
                                 </div>
                             </div>
+
+                            {/* 건너뛰기 */}
+                            <button
+                                onClick={handleSkip}
+                                className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-3 rounded-2xl font-bold flex items-center gap-1.5 transition-colors text-sm"
+                            >
+                                <SkipForward className="w-4 h-4" />
+                                건너뛰기
+                            </button>
                         </div>
 
+                        {/* 일시정지 / 재개 버튼 */}
                         <button
-                            onClick={() => setIsTimerActive(false)}
-                            className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-4 rounded-2xl font-bold flex items-center transition-colors"
+                            onClick={isPaused ? handleResume : handlePause}
+                            className={`w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors ${
+                                isPaused
+                                    ? "bg-blue-600 hover:bg-blue-500 text-white"
+                                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                            }`}
                         >
-                            <X className="w-5 h-5 mr-2" />
-                            건너뛰기
+                            {isPaused ? (
+                                <>
+                                    <Play className="w-4 h-4" /> 재개
+                                </>
+                            ) : (
+                                <>
+                                    <Pause className="w-4 h-4" /> 일시정지
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>
