@@ -1,43 +1,49 @@
 {
-    "name": "fit-core-frontend",
-    "version": "0.1.0",
-    "private": true,
-    "scripts": {
-        "predev": "npm install",
-        "dev": "next dev",
-        "build": "next build",
-        "start": "next start",
-        "lint": "eslint"
-    },
-    "dependencies": {
-        "@tanstack/react-query": "^5.100.9",
-        "axios": "^1.15.0",
-        "jwt-decode": "^4.0.0",
-        "lucide-react": "^1.8.0",
-        "moment": "^2.30.1",
-        "next": "16.2.3",
-        "qs": "^6.15.1",
-        "react": "19.2.4",
-        "react-big-calendar": "^1.19.4",
-        "react-body-highlighter": "^2.0.5",
-        "react-bootstrap": "^2.10.10",
-        "react-dom": "19.2.4",
-        "react-intersection-observer": "^10.0.3",
-        "recharts": "^3.8.1",
-        "zustand": "^5.0.12"
-    },
-    "devDependencies": {
-        "@tailwindcss/postcss": "^4",
-        "@types/node": "^20",
-        "@types/qs": "^6.15.0",
-        "@types/react": "^19",
-        "@types/react-big-calendar": "^1.16.3",
-        "@types/react-dom": "^19",
-        "eslint": "^9",
-        "eslint-config-next": "16.2.2",
-        "eslint-config-prettier": "^10.1.8",
-        "prettier": "^3.8.1",
-        "tailwindcss": "^4",
-        "typescript": "^5"
-    }
+  "name": "fit-core-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "npm install",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.100.9",
+    "axios": "^1.15.0",
+    "jwt-decode": "^4.0.0",
+    "lucide-react": "^1.8.0",
+    "moment": "^2.30.1",
+    "next": "16.2.3",
+    "qs": "^6.15.1",
+    "react": "19.2.4",
+    "react-big-calendar": "^1.19.4",
+    "react-body-highlighter": "^2.0.5",
+    "react-bootstrap": "^2.10.10",
+    "react-dom": "19.2.4",
+    "react-intersection-observer": "^10.0.3",
+    "recharts": "^3.8.1",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/qs": "^6.15.0",
+    "@types/react": "^19",
+    "@types/react-big-calendar": "^1.16.3",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.2",
+    "eslint-config-prettier": "^10.1.8",
+    "msw": "^2.14.3",
+    "prettier": "^3.8.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
 }

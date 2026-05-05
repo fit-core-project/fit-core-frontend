@@ -4,24 +4,31 @@ import "./globals.css"
 import Header from "./components/header"
 import AuthInitializer from "@/app/components/AuthInitializer"
 import Providers from "@/components/Providers"
+import MSWProvider from "@/app/components/MSWProvider"
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
 
 export const metadata: Metadata = { title: "Fit Core" }
 
+const isDev = process.env.NODE_ENV === "development"
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+    const content = (
+        <Providers>
+            <AuthInitializer />
+            <Header />
+            <div className="flex-1 flex flex-col relative w-full min-h-0 overflow-y-auto">{children}</div>
+        </Providers>
+    )
+
     return (
         <html lang="ko" className="h-[100dvh]">
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-100 flex justify-center h-[100dvh]`}
             >
                 <main className="w-full max-w-[480px] h-full bg-slate-50 shadow-2xl relative flex flex-col overflow-hidden">
-                    <Providers>
-                        <AuthInitializer />
-                        <Header />
-                        <div className="flex-1 flex flex-col relative w-full min-h-0 overflow-y-auto">{children}</div>
-                    </Providers>
+                    {isDev ? <MSWProvider>{content}</MSWProvider> : content}
                 </main>
             </body>
         </html>
