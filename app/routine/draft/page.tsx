@@ -188,6 +188,23 @@ export default function RoutineReviewPage() {
         }, 0)
     }, [draft?.routineBlocks])
 
+    // ── Validation: gate finalize when any set violates bounds ─────────────────
+    const isRoutineValid = useMemo(() => {
+        if (!draft) return false
+        return draft.routineBlocks.every(
+            (block) =>
+                block.prescription.length > 0 &&
+                block.prescription.every(
+                    (s) =>
+                        s.targetReps >= 1 &&
+                        s.targetReps <= 100 &&
+                        (s.targetWeightKg === null || s.targetWeightKg > 0) &&
+                        s.targetRestSec >= 0 &&
+                        s.targetRestSec <= 300
+                )
+        )
+    }, [draft?.routineBlocks])
+
     const filteredCatalog = useMemo(
         () =>
             // catalog가 진짜 배열(Array)일 때만 filter를 돌리고, 아니면 빈 배열([])을 반환합니다.
@@ -325,10 +342,15 @@ export default function RoutineReviewPage() {
 
             {/* ── Bottom action bar ── */}
             <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100">
+                {!isRoutineValid && (
+                    <p className="text-center text-xs text-red-500 font-bold mb-2">
+                        입력값을 확인해 주세요 (횟수 1–100, 무게 0 초과, 휴식 0–300초)
+                    </p>
+                )}
                 <button
                     onClick={handleFinalize}
-                    disabled={isFinalizing}
-                    className="w-full max-w-2xl mx-auto bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-center gap-2 transition-transform active:scale-[0.98] block"
+                    disabled={isFinalizing || !isRoutineValid}
+                    className="w-full max-w-2xl mx-auto bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-center gap-2 transition-transform active:scale-[0.98] block"
                 >
                     <Save className="w-5 h-5" /> {isFinalizing ? "준비 중..." : "운동 시작"}
                 </button>
@@ -501,16 +523,16 @@ function SetRow({ set, arrayIndex, blockId, onUpdate, onUpdateRest, onDelete, is
             return
         }
         const num = parseFloat(raw)
-        if (!isNaN(num) && num >= 0) onUpdate(blockId, arrayIndex, "targetWeightKg", num)
+        if (!isNaN(num) && num > 0) onUpdate(blockId, arrayIndex, "targetWeightKg", num)
     }
 
     const handleRepsChange = (raw: string) => {
         const num = parseInt(raw)
-        if (!isNaN(num) && num >= 1) onUpdate(blockId, arrayIndex, "targetReps", num)
+        if (!isNaN(num) && num >= 1 && num <= 100) onUpdate(blockId, arrayIndex, "targetReps", num)
     }
 
     const handleRestStep = (delta: number) => {
-        const next = Math.max(0, set.targetRestSec + delta)
+        const next = Math.min(300, Math.max(0, set.targetRestSec + delta))
         onUpdateRest(blockId, arrayIndex, next)
     }
 
@@ -520,7 +542,7 @@ function SetRow({ set, arrayIndex, blockId, onUpdate, onUpdateRest, onDelete, is
 
             <input
                 type="number"
-                min={0}
+                min={0.5}
                 step={0.5}
                 value={weightDisplay}
                 onChange={(e) => handleWeightChange(e.target.value)}
