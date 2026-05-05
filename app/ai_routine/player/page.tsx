@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Check, Timer, X, Play, Pause, Flame, Trophy, SkipForward } from "lucide-react"
 import { RoutineDraft } from "@/types/routine"
 import workoutApiClient, { WorkoutSaveRequest } from "@/lib/api/workout/workoutApiClient"
+import { WorkoutState } from "@/types/state"
 
 export default function WorkoutPlayer() {
     const router = useRouter()
@@ -18,9 +19,7 @@ export default function WorkoutPlayer() {
     const [timeLeft, setTimeLeft] = useState(0)
     const [focusedKey, setFocusedKey] = useState<string | null>(null)
 
-    const [isWorkoutComplete, setIsWorkoutComplete] = useState(false)
-    const [isSaving, setIsSaving] = useState(false)
-    const [saveFailed, setSaveFailed] = useState(false)
+    const [workoutStatus, setWorkoutStatus] = useState<WorkoutState>("idle")
     const pendingPayload = useRef<WorkoutSaveRequest | null>(null)
     const workoutStartTime = useRef<number>(Date.now())
 
@@ -36,6 +35,7 @@ export default function WorkoutPlayer() {
         const savedFinalId = localStorage.getItem("fitcore_routine_final_id")
         if (savedRoutine) {
             setRoutine(JSON.parse(savedRoutine) as RoutineDraft)
+            setWorkoutStatus("inProgress")
         } else {
             alert("활성화된 루틴이 없습니다.")
             router.push("/ai_routine")
@@ -91,7 +91,7 @@ export default function WorkoutPlayer() {
         return () => document.removeEventListener("visibilitychange", onVisibilityChange)
     }, [isTimerActive, isPaused, finishRest])
 
-    if (!routine) {
+    if (workoutStatus === "idle" || !routine) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
                 <span className="animate-pulse font-bold text-slate-500">루틴을 불러오는 중...</span>
@@ -100,7 +100,10 @@ export default function WorkoutPlayer() {
     }
 
     const totalSets = routine.routineBlocks.reduce((acc, block) => acc + block.prescription.length, 0)
+    const allSetsComplete = totalSets > 0 && checkedSets.size === totalSets
     const progressPercent = totalSets === 0 ? 0 : Math.round((checkedSets.size / totalSets) * 100)
+    // workoutStatus 타입 좁힘이 각 조기 리턴 블록 안에서 interference하지 않도록 미리 추출
+    const isSaving = workoutStatus === "saving"
 
     // 순서 기반 다음 세트 키 계산 (수동 체크 순서가 뒤섞인 경우 이미 체크된 세트일 수 있음)
     const computeNextKey = (blockIndex: number, setArrayIndex: number): string | null => {
@@ -123,7 +126,6 @@ export default function WorkoutPlayer() {
 
             if (newChecked.size === totalSets) {
                 setIsTimerActive(false)
-                setIsWorkoutComplete(true)
             } else {
                 nextKeyRef.current = computeNextKey(blockIndex, setArrayIndex)
                 endTimeRef.current = Date.now() + restSec * 1000
@@ -156,8 +158,7 @@ export default function WorkoutPlayer() {
 
     const handleFinishRPE = async (rpeScore: number) => {
         if (!routine) return
-        setIsSaving(true)
-        setSaveFailed(false)
+        setWorkoutStatus("saving")
 
         const workoutDate = new Date().toISOString().split("T")[0]
         const durationMin = Math.max(1, Math.round((Date.now() - workoutStartTime.current) / 60_000))
@@ -202,8 +203,7 @@ export default function WorkoutPlayer() {
     }
 
     const trySave = async (payload: WorkoutSaveRequest) => {
-        setIsSaving(true)
-        setSaveFailed(false)
+        setWorkoutStatus("saving")
         try {
             await workoutApiClient.save(payload)
             localStorage.removeItem("fitcore_active_routine")
@@ -211,13 +211,12 @@ export default function WorkoutPlayer() {
             localStorage.removeItem("fitcore_pain_areas")
             localStorage.removeItem("fitcore_routine_final_id")
             localStorage.removeItem("fitcore_failed_workout_save")
+            setWorkoutStatus("saved")
             router.push("/ai_routine")
         } catch (err) {
             console.error("[player] POST /api/workouts failed:", err)
             localStorage.setItem("fitcore_failed_workout_save", JSON.stringify(payload))
-            setSaveFailed(true)
-        } finally {
-            setIsSaving(false)
+            setWorkoutStatus("saveFailed")
         }
     }
 
@@ -234,7 +233,7 @@ export default function WorkoutPlayer() {
     }
 
     // ── VIEW 2b: 저장 실패 ───────────────────────────────────────────────────
-    if (isWorkoutComplete && saveFailed) {
+    if (workoutStatus === "saveFailed") {
         return (
             <main className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6">
                 <div className="text-5xl mb-6">⚠️</div>
@@ -266,7 +265,7 @@ export default function WorkoutPlayer() {
     }
 
     // ── VIEW 2: 운동 완료 (RPE 수집) ─────────────────────────────────────────
-    if (isWorkoutComplete) {
+    if (allSetsComplete) {
         return (
             <main className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 animate-fade-in-up">
                 <Trophy className="w-24 h-24 text-yellow-400 mb-6" />

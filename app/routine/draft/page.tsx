@@ -8,6 +8,7 @@ import { getExerciseCatalog, getRecentRecord } from "@/services/exerciseService"
 import { ExerciseCatalogItem } from "@/services/mockDataFactory"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
 import { generateEditSummary } from "@/utils/routineDiff"
+import { FinalizeState } from "@/types/state"
 
 // ── applyWeightToAllSets ─────────────────────────────────────────────────────
 // exerciseId로 최근 기록을 조회해 블록의 모든 세트에 중량/횟수를 일괄 적용한다.
@@ -28,8 +29,8 @@ async function applyWeightToAllSets(block: RoutineBlock, exerciseId: string): Pr
 export default function RoutineReviewPage() {
     const router = useRouter()
     const [draft, setDraft] = useState<RoutineDraft | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [isFinalizing, setIsFinalizing] = useState(false)
+    const [finalizeStatus, setFinalizeStatus] = useState<FinalizeState>("loading")
+    const [displayUnit, setDisplayUnit] = useState<"kg" | "lbs">("kg")
     const initialDraftRef = useRef<RoutineDraft | null>(null)
 
     // ── Exercise swap state ─────────────────────────────────────────────────
@@ -63,7 +64,7 @@ export default function RoutineReviewPage() {
             } catch (err) {
                 console.error("루틴 로드 실패:", err)
             } finally {
-                setLoading(false)
+                setFinalizeStatus("idle")
             }
         }
         init()
@@ -230,8 +231,8 @@ export default function RoutineReviewPage() {
 
     // ── 4. Hidden Finalize: save draft → call finalize API → navigate to player
     const handleFinalize = async () => {
-        if (!draft || isFinalizing) return
-        setIsFinalizing(true)
+        if (!draft || finalizeStatus === "loading") return
+        setFinalizeStatus("loading")
 
         localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))
 
@@ -251,15 +252,17 @@ export default function RoutineReviewPage() {
         try {
             const finalId = await routineApiClient.finalize(draft.routineDraftId, payload)
             if (finalId) localStorage.setItem("fitcore_routine_final_id", finalId)
+            setFinalizeStatus("finalized")
         } catch (err) {
             console.error("[draft] finalize failed — navigating without finalId:", err)
             localStorage.removeItem("fitcore_routine_final_id")
+            setFinalizeStatus("failed")
         }
 
         router.push("/ai_routine/player")
     }
 
-    if (loading) return <div className="p-10 text-center text-slate-500">루틴을 불러오는 중...</div>
+    if (finalizeStatus === "loading" && !draft) return <div className="p-10 text-center text-slate-500">루틴을 불러오는 중...</div>
     if (!draft) return <div className="p-10 text-center text-slate-500">저장된 루틴이 없습니다.</div>
 
     return (
@@ -293,9 +296,34 @@ export default function RoutineReviewPage() {
                         <p className="text-[10px] text-slate-400 uppercase font-mono">{draft.statusReasonCode}</p>
                     </div>
                 </div>
-                <span className="text-blue-600 font-bold flex items-center gap-1">
-                    <Clock className="w-4 h-4" /> {totalTime}분
-                </span>
+                <div className="flex items-center gap-3">
+                    {/* kg / lbs 단위 토글 */}
+                    <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                        <button
+                            onClick={() => setDisplayUnit("kg")}
+                            className={`px-2.5 py-1 rounded-md text-xs font-black transition-all ${
+                                displayUnit === "kg"
+                                    ? "bg-white text-slate-800 shadow-sm"
+                                    : "text-slate-400 hover:text-slate-600"
+                            }`}
+                        >
+                            kg
+                        </button>
+                        <button
+                            onClick={() => setDisplayUnit("lbs")}
+                            className={`px-2.5 py-1 rounded-md text-xs font-black transition-all ${
+                                displayUnit === "lbs"
+                                    ? "bg-white text-slate-800 shadow-sm"
+                                    : "text-slate-400 hover:text-slate-600"
+                            }`}
+                        >
+                            lbs
+                        </button>
+                    </div>
+                    <span className="text-blue-600 font-bold flex items-center gap-1">
+                        <Clock className="w-4 h-4" /> {totalTime}분
+                    </span>
+                </div>
             </div>
 
             {/* ── Routine summary card (title + rationale) ── */}
@@ -333,6 +361,7 @@ export default function RoutineReviewPage() {
                     <ExerciseCard
                         key={block.exerciseId}
                         block={block}
+                        displayUnit={displayUnit}
                         onUpdateSet={updateSet}
                         onUpdateRestTime={updateRestTime}
                         onAddSet={addSet}
@@ -362,10 +391,10 @@ export default function RoutineReviewPage() {
                 )}
                 <button
                     onClick={handleFinalize}
-                    disabled={isFinalizing || !isRoutineValid}
+                    disabled={finalizeStatus === "loading" || !isRoutineValid}
                     className="w-full max-w-2xl mx-auto bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-center gap-2 transition-transform active:scale-[0.98] block"
                 >
-                    <Save className="w-5 h-5" /> {isFinalizing ? "준비 중..." : "운동 시작"}
+                    <Save className="w-5 h-5" /> {finalizeStatus === "loading" ? "준비 중..." : "운동 시작"}
                 </button>
             </div>
 
@@ -475,6 +504,7 @@ const REST_OPTIONS = [30, 60, 90, 120, 150, 180]
 
 interface ExerciseCardProps {
     block: RoutineBlock
+    displayUnit: "kg" | "lbs"
     onUpdateSet: (blockId: string, arrayIndex: number, field: keyof SetPrescription, value: number | null) => void
     onUpdateRestTime: (blockId: string, arrayIndex: number, value: number) => void
     onAddSet: (blockId: string) => void
@@ -485,6 +515,7 @@ interface ExerciseCardProps {
 
 function ExerciseCard({
     block,
+    displayUnit,
     onUpdateSet,
     onUpdateRestTime,
     onAddSet,
@@ -511,7 +542,7 @@ function ExerciseCard({
             {/* Set table header */}
             <div className="grid grid-cols-[1.5rem_1fr_1fr_3.5rem_1.5rem] gap-x-2 mb-2 px-1">
                 <span className="text-[10px] font-black text-slate-400 uppercase text-center">SET</span>
-                <span className="text-[10px] font-black text-slate-400 uppercase text-center">KG</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase text-center">{displayUnit.toUpperCase()}</span>
                 <span className="text-[10px] font-black text-slate-400 uppercase text-center">REPS</span>
                 <span className="text-[10px] font-black text-slate-400 uppercase text-center">REST</span>
                 <span />
@@ -525,6 +556,7 @@ function ExerciseCard({
                         set={set}
                         arrayIndex={arrayIndex}
                         blockId={block.exerciseId}
+                        displayUnit={displayUnit}
                         onUpdate={onUpdateSet}
                         onUpdateRest={onUpdateRestTime}
                         onDelete={onDeleteSet}
@@ -556,14 +588,21 @@ interface SetRowProps {
     set: SetPrescription
     arrayIndex: number
     blockId: string
+    displayUnit: "kg" | "lbs"
     onUpdate: (blockId: string, arrayIndex: number, field: keyof SetPrescription, value: number | null) => void
     onUpdateRest: (blockId: string, arrayIndex: number, value: number) => void
     onDelete: (blockId: string, arrayIndex: number) => void
     isOnly: boolean
 }
 
-function SetRow({ set, arrayIndex, blockId, onUpdate, onUpdateRest, onDelete, isOnly }: SetRowProps) {
-    const weightDisplay = set.targetWeightKg === null ? "" : String(set.targetWeightKg)
+function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest, onDelete, isOnly }: SetRowProps) {
+    // View: kg(Model) → 화면 표시값. Model은 항상 kg로만 유지.
+    const weightDisplay =
+        set.targetWeightKg === null
+            ? ""
+            : displayUnit === "lbs"
+              ? String(Math.round(set.targetWeightKg * 2.20462))
+              : String(set.targetWeightKg)
 
     const handleWeightChange = (raw: string) => {
         if (raw === "") {
@@ -571,7 +610,11 @@ function SetRow({ set, arrayIndex, blockId, onUpdate, onUpdateRest, onDelete, is
             return
         }
         const num = parseFloat(raw)
-        if (!isNaN(num) && num > 0) onUpdate(blockId, arrayIndex, "targetWeightKg", num)
+        if (!isNaN(num) && num > 0) {
+            // lbs 입력 → kg으로 역산하여 Model에 저장
+            const kg = displayUnit === "lbs" ? Math.round(num / 2.20462) : num
+            onUpdate(blockId, arrayIndex, "targetWeightKg", kg)
+        }
     }
 
     const handleRepsChange = (raw: string) => {
@@ -590,8 +633,8 @@ function SetRow({ set, arrayIndex, blockId, onUpdate, onUpdateRest, onDelete, is
 
             <input
                 type="number"
-                min={0.5}
-                step={0.5}
+                min={displayUnit === "lbs" ? 1 : 0.5}
+                step={displayUnit === "lbs" ? 1 : 0.5}
                 value={weightDisplay}
                 onChange={(e) => handleWeightChange(e.target.value)}
                 placeholder="BW"

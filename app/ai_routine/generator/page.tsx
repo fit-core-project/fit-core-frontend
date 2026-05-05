@@ -18,6 +18,7 @@ import AnatomyModel from "@/app/components/AnatomyModel"
 import { RoutineFormState, assembleRoutineRequest } from "@/utils/requestAssembler"
 import { getUserPreferences } from "@/services/userDataService"
 import { generateRoutine } from "@/services/aiRoutineService"
+import { GenerateState } from "@/types/state"
 
 type Equipment = "BARBELL" | "DUMBBELL" | "MACHINE" | "CABLE" | "BODYWEIGHT"
 
@@ -58,11 +59,10 @@ const GOAL_MAP: Record<string, RoutineFormState["goal"]> = {
 
 export default function RoutineGenerator() {
     const router = useRouter()
-    const [isLoading, setIsLoading] = useState(false)
+    const [status, setStatus] = useState<GenerateState>("idle")
     const [isPrefsLoading, setIsPrefsLoading] = useState(true)
     const [loadingMsgIndex, setLoadingMsgIndex] = useState(0)
     const [domsSummary, setDomsSummary] = useState<string>("")
-    const [generateError, setGenerateError] = useState<string | null>(null)
 
     const [formData, setFormData] = useState<RoutineFormState>({
         targetMuscles: [],
@@ -124,7 +124,7 @@ export default function RoutineGenerator() {
 
     useEffect(() => {
         let interval: NodeJS.Timeout
-        if (isLoading) {
+        if (status === "loading") {
             interval = setInterval(() => {
                 setLoadingMsgIndex((prev) => (prev + 1) % LOADING_MESSAGES.length)
             }, 1800)
@@ -132,7 +132,7 @@ export default function RoutineGenerator() {
             setLoadingMsgIndex(0)
         }
         return () => clearInterval(interval)
-    }, [isLoading])
+    }, [status])
 
     const handlePresetClick = (groupKey: keyof typeof PRESET_GROUPS) => {
         const musclesToAdd = PRESET_GROUPS[groupKey]
@@ -187,16 +187,15 @@ export default function RoutineGenerator() {
     }
 
     const handleSubmit = async () => {
-        setIsLoading(true)
-        setGenerateError(null)
+        setStatus("loading")
         try {
             const payload = assembleRoutineRequest(formData)
             const routineDraft = await generateRoutine(payload)
             localStorage.setItem("fitcore_active_routine", JSON.stringify(routineDraft))
+            setStatus(routineDraft.isFallback ? "fallback" : "success")
             router.push("/routine/draft")
         } catch {
-            setGenerateError("서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.")
-            setIsLoading(false)
+            setStatus("retryableFailed")
         }
     }
 
@@ -396,7 +395,7 @@ export default function RoutineGenerator() {
                     <div className="p-4 bg-white border-t border-slate-100 shrink-0">
                         <button
                             onClick={handleSubmit}
-                            disabled={isLoading || formData.targetMuscles.length === 0}
+                            disabled={status === "loading" || formData.targetMuscles.length === 0}
                             className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
                         >
                             <Send className="w-5 h-5 mr-2" />
@@ -407,14 +406,16 @@ export default function RoutineGenerator() {
             </div>
 
             {/* 에러 오버레이 */}
-            {generateError && (
+            {status === "retryableFailed" && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-sm w-11/12 text-center">
                         <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6">
                             <AlertCircle className="w-8 h-8 text-red-500" />
                         </div>
                         <h3 className="text-xl font-extrabold text-slate-900 mb-2">연결 오류</h3>
-                        <p className="text-slate-500 font-medium mb-6 leading-relaxed">{generateError}</p>
+                        <p className="text-slate-500 font-medium mb-6 leading-relaxed">
+                            서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.
+                        </p>
                         <button
                             onClick={handleSubmit}
                             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
@@ -427,7 +428,7 @@ export default function RoutineGenerator() {
             )}
 
             {/* 로딩 오버레이 */}
-            {isLoading && (
+            {status === "loading" && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-sm w-11/12 text-center transform transition-all scale-100 animate-in zoom-in-95">
                         <div className="relative mb-6">
