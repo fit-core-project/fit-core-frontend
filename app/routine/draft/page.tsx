@@ -209,11 +209,15 @@ export default function RoutineReviewPage() {
         const acceptedWithoutEdits =
             JSON.stringify(draft.routineBlocks) === JSON.stringify(initialDraftRef.current?.routineBlocks)
 
+        // Golden 계약 기준 payload 조립:
+        // - finalRoutinePayload: 전체 draft가 아닌 { routineBlocks } clean payload
+        // - userEditSummary: string[] (수정 없으면 빈 배열, diff 로직은 추후 구현)
+        // - acceptedWithoutEdits: userEditSummary.length === 0 과 동일
         const payload = {
             targetWorkoutDate: new Date().toISOString().split("T")[0],
-            finalRoutinePayload: draft,
+            finalRoutinePayload: { routineBlocks: draft.routineBlocks },
             acceptedWithoutEdits,
-            userEditSummary: acceptedWithoutEdits ? ["수정 없이 시작"] : ["사용자가 루틴을 수정 후 시작"],
+            userEditSummary: [] as string[],
         }
 
         try {

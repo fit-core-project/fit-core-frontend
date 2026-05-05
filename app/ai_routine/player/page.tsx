@@ -98,6 +98,11 @@ export default function WorkoutPlayer() {
             .filter(([, v]) => DOMS_LEVEL_MAP[v] !== undefined)
             .map(([bodyPart, v]) => ({ bodyPart, level: DOMS_LEVEL_MAP[v] }))
 
+        // Golden 계약 기준으로 sets[] 조립:
+        // - exerciseNameSnapshot: 화면 표시용 이름 스냅샷
+        // - weightKg: bodyweight 운동은 null 허용
+        // - rpe: 내부 targetRir 값을 public rpe 필드로 매핑
+        // - setIndex: 1-based
         const sets = routine.routineBlocks.flatMap((block) =>
             block.prescription.map((set, index) => ({
                 exerciseId: block.exerciseId,
@@ -107,7 +112,7 @@ export default function WorkoutPlayer() {
                 trackingMode: "weightReps",
                 weightKg: set.targetWeightKg,
                 reps: set.targetReps,
-                rir: set.targetRir,
+                rpe: set.targetRir,    // internal targetRir → public rpe
                 isFailure: false,
                 restSec: set.targetRestSec,
             }))

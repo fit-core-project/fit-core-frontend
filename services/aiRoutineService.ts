@@ -100,7 +100,11 @@ function buildPrompt(req: RoutineGenerateRequest): string {
 }`
 }
 
-// ─── Gemini direct call ──────────────────────────────────────────────────────
+// ─── Gemini direct call (dev/direct mode only) ───────────────────────────────
+// NEXT_PUBLIC_AI_ROUTE=direct 일 때만 진입.
+// fetch는 외부 Gemini API(https://generativelanguage.googleapis.com)로 가는 호출이며,
+// 우리 백엔드 상대경로 fetch가 아니다. AxiosController 대상이 아님.
+// 백엔드 경로는 아래 generateRoutine()의 else 분기에서 routineApiClient → AxiosController로 처리.
 
 async function callGeminiDirect(req: RoutineGenerateRequest): Promise<RoutineDraft> {
     const controller = new AbortController()
@@ -115,7 +119,6 @@ async function callGeminiDirect(req: RoutineGenerateRequest): Promise<RoutineDra
             throw new Error("API Key is empty or undefined")
         }
 
-        // 호환성이 가장 좋은 1.5-flash-latest 모델 사용
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`
 
         const res = await fetch(endpoint, {

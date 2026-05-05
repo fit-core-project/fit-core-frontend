@@ -10,7 +10,7 @@ export interface WorkoutSetSaveRequest {
     trackingMode: string
     weightKg: number | null
     reps: number
-    rir: number
+    rpe: number        // Golden 기준: rpe (내부 SetPrescription의 targetRir에서 매핑)
     isFailure: boolean
     restSec: number
 }

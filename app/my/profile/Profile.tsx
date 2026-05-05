@@ -3,7 +3,7 @@ import React, { useState } from "react"
 import { UserResponse } from "@/types/project"
 import { CalendarIcon, Edit3, User, X } from "lucide-react"
 import SocialButton from "@/app/components/SocialButton"
-import AxiosController from "@/lib/axios/AxiosController"
+import profileApiClient from "@/lib/api/profile/profileApiClient"
 
 interface ProfileProps {
     profile: UserResponse | null
@@ -20,8 +20,8 @@ export default function Profile({ profile, logout, onEdit }: ProfileProps) {
     }
 
     const handleSocialLogin = async (provider: string) => {
-        const baseUrl = AxiosController.defaults.baseURL
-        await AxiosController.post("http://localhost:8080/api/v1/auth/set-link-mode")
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+        await profileApiClient.setLinkMode()
         window.location.href = `${baseUrl}/oauth2/authorization/${provider}`
     }
 

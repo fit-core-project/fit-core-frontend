@@ -1,11 +1,16 @@
 import AxiosController from "@/lib/axios/AxiosController"
-import { RoutineDraft } from "@/types/routine"
+import { RoutineDraft, RoutineBlock } from "@/types/routine"
 import { RoutineGenerateRequest } from "@/utils/requestAssembler"
 import { guardGenerateResponse, guardFinalizeResponse } from "@/utils/responseGuard"
 
+// Golden 계약 기준: finalRoutinePayload는 전체 draft가 아닌 routineBlocks 중심 clean payload
+export interface FinalizeCleanPayload {
+    routineBlocks: RoutineBlock[]
+}
+
 export interface FinalizePayload {
     targetWorkoutDate: string
-    finalRoutinePayload: RoutineDraft
+    finalRoutinePayload: FinalizeCleanPayload
     acceptedWithoutEdits: boolean
     userEditSummary: string[]
 }

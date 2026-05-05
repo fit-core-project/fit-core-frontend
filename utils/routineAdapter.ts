@@ -1,15 +1,18 @@
 import { RoutineDraft, RoutineBlock, SetPrescription, GenerationStatus, StatusReasonCode } from "../types/routine"
 
-// Golden response: routineDraftId + routineBlocks 직접 포함
-// Legacy fallback: exercises 배열 (Gemini direct 또는 구형 백엔드)
+// Path A (Golden): 백엔드가 render-ready routineBlocks[]를 내려줄 때의 응답 shape
+// Path B (Legacy): Gemini direct 또는 구형 백엔드의 exercises[] 응답 shape
 interface RawAiResponse {
-    routineDraftId?: string
+    routineDraftId: string
+    generationStatus?: string
+    statusReasonCode?: string
+    isFallback?: boolean
     totalEstimatedTime?: number
     summaryTitle?: string
     rationaleSummary?: string | string[]
     warnings?: string[]
-    routineBlocks?: any[]
-    exercises?: any[]
+    routineBlocks?: any[]   // Path A: 백엔드 golden
+    exercises?: any[]       // Path B: Gemini direct / 구형 백엔드 (점진적 제거 대상)
 }
 
 interface AdapterContext {
@@ -19,6 +22,7 @@ interface AdapterContext {
     reasonCode?: StatusReasonCode
 }
 
+// Path B 전용: Gemini raw prescription을 FE SetPrescription으로 변환
 function normalizePrescription(rawPrescription: any[]): SetPrescription[] {
     if (rawPrescription.length === 0) {
         return [{ setIndex: 0, targetReps: 10, targetWeightKg: null, targetRir: 2, targetRestSec: 60 }]
@@ -32,44 +36,64 @@ function normalizePrescription(rawPrescription: any[]): SetPrescription[] {
     }))
 }
 
+function normalizeRationaleSummary(raw: string | string[] | undefined, fallback: string): string[] {
+    if (Array.isArray(raw)) return raw.map(String)
+    if (raw) return [String(raw)]
+    return [fallback]
+}
+
 export function normalizeRoutineResponse(rawData: any, context: AdapterContext = {}): RoutineDraft {
-    const isFallback = context.isFallback ?? false
-    const generationStatus = context.status ?? (isFallback ? "FALLBACK" : "SUCCESS")
-    const reasonCode = context.reasonCode ?? "OK"
+    const contextFallback = context.isFallback ?? false
+    const contextStatus = context.status ?? (contextFallback ? "FALLBACK" : "SUCCESS")
+    const contextReasonCode = context.reasonCode ?? "OK"
 
     const safeData = typeof rawData === "object" && rawData !== null ? (rawData as RawAiResponse) : {}
 
-    // Golden response: routineDraftId를 응답에서 직접 수용, 없으면 생성
+    // ─── Path A: Golden bypass ────────────────────────────────────────────────
+    // 백엔드가 render-ready routineBlocks[]를 내려줄 때:
+    // field 재매핑 없이 직통. routineDraftId 누락 시 즉시 에러.
+    if (Array.isArray(safeData.routineBlocks)) {
+        if (typeof safeData.routineDraftId !== "string" || safeData.routineDraftId.length === 0) {
+            throw new Error(
+                `[normalizeRoutineResponse] Missing routineDraftId in golden response — ` +
+                `backend must return routineDraftId. Got: ${JSON.stringify(safeData.routineDraftId)}`
+            )
+        }
+
+        return {
+            routineDraftId: safeData.routineDraftId,
+            generationStatus: (safeData.generationStatus as GenerationStatus) ?? contextStatus,
+            statusReasonCode: (safeData.statusReasonCode as StatusReasonCode) ?? contextReasonCode,
+            isFallback: safeData.isFallback ?? contextFallback,
+            totalEstimatedTime: Number(safeData.totalEstimatedTime) || 0,
+            summaryTitle: String(safeData.summaryTitle || "오늘의 루틴"),
+            rationaleSummary: normalizeRationaleSummary(safeData.rationaleSummary, ""),
+            warnings: Array.isArray(safeData.warnings) ? safeData.warnings.map(String) : [],
+            routineBlocks: safeData.routineBlocks as RoutineBlock[],
+        }
+    }
+
+    // ─── Path B: Legacy exercises[] ──────────────────────────────────────────
+    // Gemini direct 또는 구형 백엔드 대응. routineDraftId 없으면 임시 생성 (dev 전용).
     const draftId = safeData.routineDraftId ?? context.draftId ?? `draft_${crypto.randomUUID().slice(0, 8)}`
 
-    // Golden response: routineBlocks 우선, 구형 exercises 배열을 fallback으로 사용
-    const rawBlocks = Array.isArray(safeData.routineBlocks) ? safeData.routineBlocks
-        : Array.isArray(safeData.exercises) ? safeData.exercises
-        : []
-
-    const routineBlocks: RoutineBlock[] = rawBlocks.map((ex, index) => ({
-        exerciseId: ex?.exerciseId ?? `blk_${crypto.randomUUID().slice(0, 8)}_${index}`,
-        exerciseName: String(ex?.exerciseName || "이름 없는 기본 운동"),
-        exerciseRationale: String(ex?.exerciseRationale || "안전한 자세로 수행하세요."),
-        prescription: normalizePrescription(Array.isArray(ex?.prescription) ? ex.prescription : []),
-    }))
-
-    // rationaleSummary: 백엔드가 string 또는 string[]로 올 수 있으므로 항상 배열로 정규화
-    const rawRationale = safeData.rationaleSummary
-    const rationaleSummary: string[] = Array.isArray(rawRationale)
-        ? rawRationale.map(String)
-        : rawRationale
-        ? [String(rawRationale)]
-        : ["AI 코멘트를 불러올 수 없습니다."]
+    const routineBlocks: RoutineBlock[] = (Array.isArray(safeData.exercises) ? safeData.exercises : []).map(
+        (ex: any, index: number) => ({
+            exerciseId: ex?.exerciseId ?? `blk_${crypto.randomUUID().slice(0, 8)}_${index}`,
+            exerciseName: String(ex?.exerciseName || "이름 없는 기본 운동"),
+            exerciseRationale: String(ex?.exerciseRationale || "안전한 자세로 수행하세요."),
+            prescription: normalizePrescription(Array.isArray(ex?.prescription) ? ex.prescription : []),
+        })
+    )
 
     return {
         routineDraftId: draftId,
-        generationStatus,
-        statusReasonCode: reasonCode,
-        isFallback,
+        generationStatus: contextStatus,
+        statusReasonCode: contextReasonCode,
+        isFallback: contextFallback,
         totalEstimatedTime: Number(safeData.totalEstimatedTime) || 0,
         summaryTitle: String(safeData.summaryTitle || "오늘의 루틴"),
-        rationaleSummary,
+        rationaleSummary: normalizeRationaleSummary(safeData.rationaleSummary, "AI 코멘트를 불러올 수 없습니다."),
         warnings: Array.isArray(safeData.warnings) ? safeData.warnings.map(String) : [],
         routineBlocks,
     }
