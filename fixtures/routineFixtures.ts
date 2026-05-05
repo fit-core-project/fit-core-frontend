@@ -15,7 +15,7 @@ export const mockSuccessRoutine: RoutineDraft = {
     warnings: ["대흉근 DOMS 감지 — 총 볼륨 20% 감소 적용됨"],
     routineBlocks: [
         {
-            id: "blk_001",
+            exerciseId: "blk_001",
             exerciseName: "인클라인 덤벨 프레스",
             exerciseRationale: "어깨가 벤치에서 떨어지지 않게 고정하고, 쇄골 방향으로 밀어올리세요.",
             prescription: [
@@ -25,7 +25,7 @@ export const mockSuccessRoutine: RoutineDraft = {
             ],
         },
         {
-            id: "blk_002",
+            exerciseId: "blk_002",
             exerciseName: "케이블 크로스오버",
             exerciseRationale: "팔꿈치를 살짝 굽힌 상태를 유지하며 가슴을 모아주는 느낌에 집중하세요.",
             prescription: [
@@ -36,7 +36,7 @@ export const mockSuccessRoutine: RoutineDraft = {
             ],
         },
         {
-            id: "blk_003",
+            exerciseId: "blk_003",
             exerciseName: "케이블 푸시다운",
             exerciseRationale: "팔꿈치를 옆구리에 단단히 고정하고 삼두근의 수축만으로 밀어내세요.",
             prescription: [
@@ -63,7 +63,7 @@ export const mockFallbackRoutine: RoutineDraft = {
     warnings: ["AI 응답 지연 — 기본 루틴으로 대체됨"],
     routineBlocks: [
         {
-            id: "blk_f01",
+            exerciseId: "blk_f01",
             exerciseName: "벤치 프레스",
             exerciseRationale: "주동근에 집중하며 정확한 자세를 유지하세요.",
             prescription: [
@@ -73,7 +73,7 @@ export const mockFallbackRoutine: RoutineDraft = {
             ],
         },
         {
-            id: "blk_f02",
+            exerciseId: "blk_f02",
             exerciseName: "머신 숄더 프레스",
             exerciseRationale: "허리가 과도하게 꺾이지 않도록 코어에 힘을 주고 밀어주세요.",
             prescription: [

@@ -1,7 +1,7 @@
 {
   "routineDraftId": "draft_fallback_992",
-  "generationStatus": "FALLBACK",
-  "statusReasonCode": "LLM_TIMEOUT",
+  "generationStatus": "fallback",
+  "statusReasonCode": "llmTimeout",
   "isFallback": true,
   "totalEstimatedTime": 35,
   "summaryTitle": "기본 안전 루틴 (AI 대체)",
@@ -12,7 +12,7 @@
   "warnings": ["AI 응답 지연 — 기본 루틴으로 대체됨"],
   "routineBlocks": [
     {
-      "id": "blk_f01",
+      "exerciseId": "blk_f01",
       "exerciseName": "벤치 프레스",
       "exerciseRationale": "주동근에 집중하며 정확한 자세를 유지하세요.",
       "prescription": [
@@ -22,7 +22,7 @@
       ]
     },
     {
-      "id": "blk_f02",
+      "exerciseId": "blk_f02",
       "exerciseName": "머신 숄더 프레스",
       "exerciseRationale": "허리가 과도하게 꺾이지 않도록 코어에 힘을 주고 밀어주세요.",
       "prescription": [

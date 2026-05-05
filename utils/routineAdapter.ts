@@ -11,8 +11,8 @@ interface RawAiResponse {
     summaryTitle?: string
     rationaleSummary?: string | string[]
     warnings?: string[]
-    routineBlocks?: any[]   // Path A: 백엔드 golden
-    exercises?: any[]       // Path B: Gemini direct / 구형 백엔드 (점진적 제거 대상)
+    routineBlocks?: any[] // Path A: 백엔드 golden
+    exercises?: any[] // Path B: Gemini direct / 구형 백엔드 (점진적 제거 대상)
 }
 
 interface AdapterContext {
@@ -47,7 +47,8 @@ export function normalizeRoutineResponse(rawData: any, context: AdapterContext =
     const contextStatus = context.status ?? (contextFallback ? "FALLBACK" : "SUCCESS")
     const contextReasonCode = context.reasonCode ?? "OK"
 
-    const safeData = typeof rawData === "object" && rawData !== null ? (rawData as RawAiResponse) : {}
+    const safeData =
+        typeof rawData === "object" && rawData !== null ? (rawData as RawAiResponse) : ({} as RawAiResponse)
 
     // ─── Path A: Golden bypass ────────────────────────────────────────────────
     // 백엔드가 render-ready routineBlocks[]를 내려줄 때:
@@ -56,7 +57,7 @@ export function normalizeRoutineResponse(rawData: any, context: AdapterContext =
         if (typeof safeData.routineDraftId !== "string" || safeData.routineDraftId.length === 0) {
             throw new Error(
                 `[normalizeRoutineResponse] Missing routineDraftId in golden response — ` +
-                `backend must return routineDraftId. Got: ${JSON.stringify(safeData.routineDraftId)}`
+                    `backend must return routineDraftId. Got: ${JSON.stringify(safeData.routineDraftId)}`
             )
         }
 

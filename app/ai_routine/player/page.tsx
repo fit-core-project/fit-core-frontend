@@ -313,15 +313,15 @@ export default function WorkoutPlayer() {
 
     // ── VIEW 1: 운동 진행 화면 ────────────────────────────────────────────────
     return (
-        <main className="min-h-screen bg-slate-50 pb-32">
+        <main className="min-h-screen bg-slate-50 pb-44">
             {/* 상단 고정: 제목 + 진행 바 */}
             <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
-                <div className="flex justify-between items-end mb-2 max-w-2xl mx-auto w-full">
-                    <h1 className="font-extrabold text-xl text-slate-900 flex items-center">
-                        <Flame className="w-5 h-5 text-orange-500 mr-2" />
-                        {routine.summaryTitle || "오늘의 루틴"}
+                <div className="flex justify-between items-end mb-2 max-w-2xl mx-auto w-full gap-3">
+                    <h1 className="font-extrabold text-xl text-slate-900 flex items-center min-w-0 flex-1">
+                        <Flame className="w-5 h-5 text-orange-500 mr-2 shrink-0" />
+                        <span className="truncate">{routine.summaryTitle || "오늘의 루틴"}</span>
                     </h1>
-                    <div className="text-sm font-bold text-blue-600">
+                    <div className="text-sm font-bold text-blue-600 shrink-0">
                         {checkedSets.size} <span className="text-gray-400 font-normal">/ {totalSets} 세트</span>
                     </div>
                 </div>
@@ -341,11 +341,11 @@ export default function WorkoutPlayer() {
                         className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden"
                     >
                         <div className="p-5 border-b border-gray-50 bg-slate-900 text-white">
-                            <h2 className="text-xl font-bold flex items-center">
+                            <h2 className="text-xl font-bold flex items-center min-w-0">
                                 <span className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-sm mr-3 shrink-0">
                                     {blockIndex + 1}
                                 </span>
-                                {block.exerciseName}
+                                <span className="truncate">{block.exerciseName}</span>
                             </h2>
                             {block.exerciseRationale && (
                                 <p className="text-slate-400 text-sm mt-2 ml-11 leading-relaxed">
@@ -366,7 +366,7 @@ export default function WorkoutPlayer() {
                                             if (el) setRowRefs.current.set(key, el)
                                             else setRowRefs.current.delete(key)
                                         }}
-                                        className={`flex items-center justify-between p-4 my-1 rounded-2xl transition-all ${
+                                        className={`flex items-center justify-between px-3 py-3 my-1 rounded-2xl transition-all ${
                                             isChecked
                                                 ? "bg-blue-50/50 opacity-60"
                                                 : isFocused
@@ -374,16 +374,16 @@ export default function WorkoutPlayer() {
                                                   : "hover:bg-gray-50"
                                         }`}
                                     >
-                                        <div className="flex items-center space-x-6">
+                                        <div className="flex items-center gap-x-2">
                                             <div
-                                                className={`font-bold w-12 text-center ${isChecked ? "text-blue-400" : isFocused ? "text-blue-600" : "text-slate-400"}`}
+                                                className={`font-bold w-10 text-center text-sm ${isChecked ? "text-blue-400" : isFocused ? "text-blue-600" : "text-slate-400"}`}
                                             >
                                                 {set.setIndex + 1} Set
                                             </div>
-                                            <div className="font-extrabold text-xl w-20 text-slate-800">
+                                            <div className="font-extrabold text-base w-16 text-slate-800">
                                                 {set.targetWeightKg !== null ? `${set.targetWeightKg}kg` : "맨몸"}
                                             </div>
-                                            <div className="font-bold text-lg text-slate-600 w-16">
+                                            <div className="font-bold text-sm text-slate-600 w-12">
                                                 {set.targetReps}회
                                             </div>
                                         </div>
@@ -414,7 +414,7 @@ export default function WorkoutPlayer() {
 
             {/* 하단 고정: 휴식 타이머 패널 */}
             {isTimerActive && (
-                <div className="fixed bottom-0 left-0 right-0 bg-slate-900 text-white p-5 rounded-t-3xl shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.3)] z-50 animate-fade-in-up">
+                <div className="fixed bottom-0 left-0 right-0 bg-slate-900 text-white px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] rounded-t-3xl shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.3)] z-50 animate-fade-in-up">
                     <div className="max-w-md mx-auto w-full space-y-4">
                         {/* 타이머 표시 */}
                         <div className="flex items-center justify-between">

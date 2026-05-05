@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import Header from "./components/header"
@@ -11,7 +11,8 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = { title: "Fit Core" }
 
-const isDev = process.env.NODE_ENV === "development"
+// iOS 하단 홈 인디케이터 safe-area 활성화
+const isMockMode = process.env.NEXT_PUBLIC_API_MODE === "mock"
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     const content = (
@@ -28,7 +29,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-100 flex justify-center h-[100dvh]`}
             >
                 <main className="w-full max-w-[480px] h-full bg-slate-50 shadow-2xl relative flex flex-col overflow-hidden">
-                    {isDev ? <MSWProvider>{content}</MSWProvider> : content}
+                    {/* 2. isDev 대신 isMockMode 변수를 사용합니다. */}
+                    {isMockMode ? <MSWProvider>{content}</MSWProvider> : content}
                 </main>
             </body>
         </html>

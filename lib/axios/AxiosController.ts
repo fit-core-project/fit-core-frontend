@@ -61,8 +61,10 @@ const dateTransformer = (data: unknown, header: AxiosRequestHeaders): unknown =>
         return data
     } else if (Array.isArray(data)) {
         return data.map((value) => dateTransformer(value, header))
-    } else if (typeof data === "object" && isNotEmpty(data)) {
-        return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, dateTransformer(value, header)]))
+    } else if (data !== null && typeof data === "object" && isNotEmpty(data)) {
+        return Object.fromEntries(
+            Object.entries(data as Record<string, unknown>).map(([key, value]) => [key, dateTransformer(value, header)])
+        )
     }
     return data
 }
