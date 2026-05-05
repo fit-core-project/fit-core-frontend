@@ -205,6 +205,17 @@ export default function RoutineReviewPage() {
         )
     }, [draft?.routineBlocks])
 
+    const swapBlock = useMemo(
+        () => (swapBlockId && draft ? (draft.routineBlocks.find((b) => b.exerciseId === swapBlockId) ?? null) : null),
+        [swapBlockId, draft?.routineBlocks]
+    )
+
+    const aiCandidates = useMemo(() => {
+        if (!swapBlock?.substitutionCandidates?.length) return []
+        const candidateIds = new Set(swapBlock.substitutionCandidates)
+        return (Array.isArray(catalog) ? catalog : []).filter((item) => candidateIds.has(item.id))
+    }, [swapBlock, catalog])
+
     const filteredCatalog = useMemo(
         () =>
             // catalog가 진짜 배열(Array)일 때만 filter를 돌리고, 아니면 빈 배열([])을 반환합니다.
@@ -392,26 +403,60 @@ export default function RoutineReviewPage() {
                                 <div className="p-10 text-center text-slate-400 text-sm animate-pulse">
                                     최근 기록을 불러오는 중...
                                 </div>
-                            ) : filteredCatalog.length === 0 ? (
-                                <div className="p-10 text-center text-slate-400 text-sm">검색 결과가 없습니다.</div>
                             ) : (
-                                filteredCatalog.map((item) => (
-                                    <button
-                                        key={item.id}
-                                        onClick={() => replaceExercise(swapBlockId, item)}
-                                        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-blue-50 transition-colors border-b border-slate-50 text-left"
-                                    >
+                                <>
+                                    {/* AI 추천 대체 운동 섹션 */}
+                                    {aiCandidates.length > 0 && (
                                         <div>
-                                            <p className="font-bold text-slate-800 text-sm">{item.nameKr}</p>
-                                            <p className="text-xs text-slate-400 mt-0.5">
-                                                {item.primaryMuscle} · {item.equipment}
+                                            <p className="px-5 pt-4 pb-2 text-[10px] font-black text-purple-500 uppercase tracking-widest">
+                                                ✦ AI 추천 대체 운동
+                                            </p>
+                                            {aiCandidates.map((item) => (
+                                                <button
+                                                    key={item.id}
+                                                    onClick={() => replaceExercise(swapBlockId, item)}
+                                                    className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-purple-50 transition-colors border-b border-slate-50 text-left bg-purple-50/40"
+                                                >
+                                                    <div>
+                                                        <p className="font-bold text-slate-800 text-sm">{item.nameKr}</p>
+                                                        <p className="text-xs text-slate-400 mt-0.5">
+                                                            {item.primaryMuscle} · {item.equipment}
+                                                        </p>
+                                                    </div>
+                                                    <span className="text-[10px] font-bold text-purple-600 bg-purple-100 border border-purple-200 px-2 py-1 rounded-full shrink-0">
+                                                        AI
+                                                    </span>
+                                                </button>
+                                            ))}
+                                            <p className="px-5 pt-4 pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                                전체 운동
                                             </p>
                                         </div>
-                                        <span className="text-[10px] font-bold text-blue-500 bg-blue-50 border border-blue-100 px-2 py-1 rounded-full shrink-0">
-                                            T{item.tier}
-                                        </span>
-                                    </button>
-                                ))
+                                    )}
+
+                                    {/* 전체 운동 검색 리스트 */}
+                                    {filteredCatalog.length === 0 ? (
+                                        <div className="p-10 text-center text-slate-400 text-sm">검색 결과가 없습니다.</div>
+                                    ) : (
+                                        filteredCatalog.map((item) => (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => replaceExercise(swapBlockId, item)}
+                                                className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-blue-50 transition-colors border-b border-slate-50 text-left"
+                                            >
+                                                <div>
+                                                    <p className="font-bold text-slate-800 text-sm">{item.nameKr}</p>
+                                                    <p className="text-xs text-slate-400 mt-0.5">
+                                                        {item.primaryMuscle} · {item.equipment}
+                                                    </p>
+                                                </div>
+                                                <span className="text-[10px] font-bold text-blue-500 bg-blue-50 border border-blue-100 px-2 py-1 rounded-full shrink-0">
+                                                    T{item.tier}
+                                                </span>
+                                            </button>
+                                        ))
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>

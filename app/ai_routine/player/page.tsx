@@ -18,6 +18,8 @@ export default function WorkoutPlayer() {
 
     const [isWorkoutComplete, setIsWorkoutComplete] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
+    const [saveFailed, setSaveFailed] = useState(false)
+    const pendingPayload = useRef<WorkoutSaveRequest | null>(null)
     const workoutStartTime = useRef<number>(Date.now())
 
     // 1. localStorage에서 RoutineDraft 및 routineFinalId 로드
@@ -86,7 +88,9 @@ export default function WorkoutPlayer() {
     }
 
     const handleFinishRPE = async (rpeScore: number) => {
+        if (!routine) return
         setIsSaving(true)
+        setSaveFailed(false)
 
         const workoutDate = new Date().toISOString().split("T")[0]
         const durationMin = Math.max(1, Math.round((Date.now() - workoutStartTime.current) / 60_000))
@@ -98,11 +102,6 @@ export default function WorkoutPlayer() {
             .filter(([, v]) => DOMS_LEVEL_MAP[v] !== undefined)
             .map(([bodyPart, v]) => ({ bodyPart, level: DOMS_LEVEL_MAP[v] }))
 
-        // Golden 계약 기준으로 sets[] 조립:
-        // - exerciseNameSnapshot: 화면 표시용 이름 스냅샷
-        // - weightKg: bodyweight 운동은 null 허용
-        // - rpe: 내부 targetRir 값을 public rpe 필드로 매핑
-        // - setIndex: 1-based
         const sets = routine.routineBlocks.flatMap((block) =>
             block.prescription.map((set, index) => ({
                 exerciseId: block.exerciseId,
@@ -112,7 +111,7 @@ export default function WorkoutPlayer() {
                 trackingMode: "weightReps",
                 weightKg: set.targetWeightKg,
                 reps: set.targetReps,
-                rpe: set.targetRir,    // internal targetRir → public rpe
+                rpe: set.targetRir,
                 isFailure: false,
                 restSec: set.targetRestSec,
             }))
@@ -131,18 +130,75 @@ export default function WorkoutPlayer() {
             sets,
         }
 
+        pendingPayload.current = finalWorkoutData
+        await trySave(finalWorkoutData)
+    }
+
+    const trySave = async (payload: WorkoutSaveRequest) => {
+        setIsSaving(true)
+        setSaveFailed(false)
         try {
-            await workoutApiClient.save(finalWorkoutData)
+            await workoutApiClient.save(payload)
+            // Success: clean up all session keys including any prior failure backup
+            localStorage.removeItem("fitcore_active_routine")
+            localStorage.removeItem("fitcore_doms_data")
+            localStorage.removeItem("fitcore_pain_areas")
+            localStorage.removeItem("fitcore_routine_final_id")
+            localStorage.removeItem("fitcore_failed_workout_save")
+            router.push("/ai_routine")
         } catch (err) {
             console.error("[player] POST /api/workouts failed:", err)
+            localStorage.setItem("fitcore_failed_workout_save", JSON.stringify(payload))
+            setSaveFailed(true)
+        } finally {
+            setIsSaving(false)
         }
+    }
 
+    const handleRetry = () => {
+        if (pendingPayload.current) trySave(pendingPayload.current)
+    }
+
+    const handleSaveLater = () => {
+        // Leave fitcore_failed_workout_save intact for later recovery
         localStorage.removeItem("fitcore_active_routine")
         localStorage.removeItem("fitcore_doms_data")
         localStorage.removeItem("fitcore_pain_areas")
         localStorage.removeItem("fitcore_routine_final_id")
-        alert("오늘의 운동 기록이 성공적으로 저장되었습니다! 🎉")
         router.push("/ai_routine")
+    }
+
+    // ── VIEW 2b: 저장 실패 ───────────────────────────────────────────────────
+    if (isWorkoutComplete && saveFailed) {
+        return (
+            <main className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6">
+                <div className="text-5xl mb-6">⚠️</div>
+                <h1 className="text-2xl font-extrabold mb-3 text-red-400">기록 저장 실패</h1>
+                <p className="text-slate-400 text-center mb-2 leading-relaxed">
+                    네트워크 문제로 기록 저장에 실패했습니다.
+                </p>
+                <p className="text-slate-500 text-sm text-center mb-10">
+                    데이터는 안전하게 보관되어 있습니다.
+                </p>
+
+                <div className="w-full max-w-md space-y-3">
+                    <button
+                        onClick={handleRetry}
+                        disabled={isSaving}
+                        className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:text-blue-400 text-white font-bold rounded-2xl transition-colors"
+                    >
+                        {isSaving ? "저장 중..." : "다시 시도"}
+                    </button>
+                    <button
+                        onClick={handleSaveLater}
+                        disabled={isSaving}
+                        className="w-full py-4 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 font-bold rounded-2xl transition-colors"
+                    >
+                        나중에 저장
+                    </button>
+                </div>
+            </main>
+        )
     }
 
     // ── VIEW 2: 운동 완료 (RPE 수집) ─────────────────────────────────────────

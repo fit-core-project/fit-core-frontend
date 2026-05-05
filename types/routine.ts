@@ -14,6 +14,7 @@ export interface RoutineBlock {
     exerciseName: string
     exerciseRationale: string
     prescription: SetPrescription[]
+    substitutionCandidates?: string[]
 }
 
 export interface RoutineDraft {
