@@ -173,11 +173,6 @@ export async function generateRoutine(requestPayload: RoutineGenerateRequest): P
         }
     }
 
-    // Backend proxy mode — zero transformation: routineDraftId and routineBlocks accepted as-is
-    try {
-        return await routineApiClient.generate(requestPayload)
-    } catch (err) {
-        console.error("[aiRoutineService] Backend call failed — using fallback:", err)
-        return makeFallback()
-    }
+    // Backend proxy mode — propagate errors so callers can surface retry UI
+    return await routineApiClient.generate(requestPayload)
 }

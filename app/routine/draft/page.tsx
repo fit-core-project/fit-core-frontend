@@ -263,14 +263,16 @@ export default function RoutineReviewPage() {
     if (!draft) return <div className="p-10 text-center text-slate-500">저장된 루틴이 없습니다.</div>
 
     return (
-        <div className="flex flex-col w-full max-w-2xl mx-auto p-4 space-y-6 pb-32">
-            {/* ── Fallback warning badge ── */}
+        <div className="flex flex-col w-full">
+            {/* ── Fallback warning banner (sticky, 헤더 바로 아래 고정) ── */}
             {draft.isFallback && (
-                <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-300 rounded-2xl animate-in fade-in slide-in-from-top-2">
-                    <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-                    <p className="text-sm font-bold text-amber-800">AI 연결 지연으로 기본 루틴을 제공합니다</p>
+                <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 bg-amber-400 animate-in fade-in slide-in-from-top-2">
+                    <AlertCircle className="w-5 h-5 text-amber-900 shrink-0" />
+                    <p className="text-sm font-bold text-amber-900">AI 생성에 실패하여 기본 추천 루틴을 제공합니다.</p>
                 </div>
             )}
+
+        <div className="flex flex-col w-full max-w-2xl mx-auto p-4 space-y-6 pb-32">
 
             {/* ── Status badge + estimated time ── */}
             <div
@@ -462,6 +464,7 @@ export default function RoutineReviewPage() {
                     </div>
                 </div>
             )}
+        </div>
         </div>
     )
 }

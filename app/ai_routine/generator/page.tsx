@@ -62,6 +62,7 @@ export default function RoutineGenerator() {
     const [isPrefsLoading, setIsPrefsLoading] = useState(true)
     const [loadingMsgIndex, setLoadingMsgIndex] = useState(0)
     const [domsSummary, setDomsSummary] = useState<string>("")
+    const [generateError, setGenerateError] = useState<string | null>(null)
 
     const [formData, setFormData] = useState<RoutineFormState>({
         targetMuscles: [],
@@ -187,12 +188,16 @@ export default function RoutineGenerator() {
 
     const handleSubmit = async () => {
         setIsLoading(true)
-
-        const payload = assembleRoutineRequest(formData)
-        // generateRoutine never throws — fallback is returned on any error
-        const routineDraft = await generateRoutine(payload)
-        localStorage.setItem("fitcore_active_routine", JSON.stringify(routineDraft))
-        router.push("/routine/draft")
+        setGenerateError(null)
+        try {
+            const payload = assembleRoutineRequest(formData)
+            const routineDraft = await generateRoutine(payload)
+            localStorage.setItem("fitcore_active_routine", JSON.stringify(routineDraft))
+            router.push("/routine/draft")
+        } catch {
+            setGenerateError("서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.")
+            setIsLoading(false)
+        }
     }
 
     return (
@@ -400,6 +405,26 @@ export default function RoutineGenerator() {
                     </div>
                 </div>
             </div>
+
+            {/* 에러 오버레이 */}
+            {generateError && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-sm w-11/12 text-center">
+                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6">
+                            <AlertCircle className="w-8 h-8 text-red-500" />
+                        </div>
+                        <h3 className="text-xl font-extrabold text-slate-900 mb-2">연결 오류</h3>
+                        <p className="text-slate-500 font-medium mb-6 leading-relaxed">{generateError}</p>
+                        <button
+                            onClick={handleSubmit}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                            재시도
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* 로딩 오버레이 */}
             {isLoading && (
