@@ -22,8 +22,8 @@ export async function getRecentRecord(exerciseId: string): Promise<RecentRecord 
     }
     try {
         return await AxiosController.get<RecentRecord>(`/api/exercises/${exerciseId}/recent-record`)
-    } catch (err: any) {
-        if (err.response?.status === 404) return null
+    } catch (err: unknown) {
+        if ((err as { response?: { status?: number } }).response?.status === 404) return null
         throw err
     }
 }

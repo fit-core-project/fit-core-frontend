@@ -9,43 +9,43 @@ import qs from "qs"
 import { isNotEmpty } from "@/lib/utill/DataUtil"
 
 export interface IAxiosController extends AxiosInstance {
-    defaults: any
-    request<T = unknown, R = AxiosResponse<T>, D = unknown>(config: AxiosRequestConfig<D>): Promise<T>
-    get<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D>): Promise<T>
-    delete<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D>): Promise<T>
-    multipleDelete?<T = unknown, R = AxiosResponse<T>, D = unknown>(
+    defaults: AxiosInstance["defaults"]
+    request<T = unknown, _R = AxiosResponse<T>, D = unknown>(config: AxiosRequestConfig<D>): Promise<T>
+    get<T = unknown, _R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D>): Promise<T>
+    delete<T = unknown, _R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D>): Promise<T>
+    multipleDelete?<T = unknown, _R = AxiosResponse<T>, D = unknown>(
         url: string,
         data?: D,
         config?: AxiosRequestConfig<D>
     ): Promise<T>
-    head<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D>): Promise<T>
-    options<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D>): Promise<T>
-    post<T = unknown, R = AxiosResponse<T>, D = unknown>(
+    head<T = unknown, _R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D>): Promise<T>
+    options<T = unknown, _R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D>): Promise<T>
+    post<T = unknown, _R = AxiosResponse<T>, D = unknown>(
         url: string,
         data?: D,
         config?: AxiosRequestConfig<D>
     ): Promise<T>
-    put<T = unknown, R = AxiosResponse<T>, D = unknown>(
+    put<T = unknown, _R = AxiosResponse<T>, D = unknown>(
         url: string,
         data?: D,
         config?: AxiosRequestConfig<D>
     ): Promise<T>
-    patch<T = unknown, R = AxiosResponse<T>, D = unknown>(
+    patch<T = unknown, _R = AxiosResponse<T>, D = unknown>(
         url: string,
         data?: D,
         config?: AxiosRequestConfig<D>
     ): Promise<T>
-    postForm<T = unknown, R = AxiosResponse<T>, D = unknown>(
+    postForm<T = unknown, _R = AxiosResponse<T>, D = unknown>(
         url: string,
         data?: D,
         config?: AxiosRequestConfig<D>
     ): Promise<T>
-    putForm<T = unknown, R = AxiosResponse<T>, D = unknown>(
+    putForm<T = unknown, _R = AxiosResponse<T>, D = unknown>(
         url: string,
         data?: D,
         config?: AxiosRequestConfig<D>
     ): Promise<T>
-    patchForm<T = unknown, R = AxiosResponse<T>, D = unknown>(
+    patchForm<T = unknown, _R = AxiosResponse<T>, D = unknown>(
         url: string,
         data?: D,
         config?: AxiosRequestConfig<D>
@@ -82,8 +82,8 @@ const AxiosController: IAxiosController = axios.create({
             : ([axios.defaults.transformRequest] as AxiosRequestTransformer[])),
     ],
     timeout: 500000,
-    onUploadProgress: (progressEvent: unknown) => {},
-    onDownloadProgress: (progressEvent: unknown) => {},
+    onUploadProgress: (_progressEvent: unknown) => {},
+    onDownloadProgress: (_progressEvent: unknown) => {},
 })
 
 AxiosController.interceptors.request.use(
@@ -127,7 +127,7 @@ AxiosController.interceptors.response.use(
     }
 )
 
-AxiosController.multipleDelete = async function <T = unknown, R = AxiosResponse<T>, D = unknown>(
+AxiosController.multipleDelete = async function <T = unknown, _R = AxiosResponse<T>, D = unknown>(
     url: string,
     data?: D,
     config?: AxiosRequestConfig<D>

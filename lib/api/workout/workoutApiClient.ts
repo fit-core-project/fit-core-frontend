@@ -3,6 +3,7 @@ import { Page, WorkoutSessionResponse } from "@/types/project"
 import { guardWorkoutSaveRequest } from "@/utils/responseGuard"
 
 export interface WorkoutSetSaveRequest {
+    exerciseOrder: number
     exerciseId: string
     exerciseNameSnapshot: string
     setIndex: number
@@ -10,7 +11,8 @@ export interface WorkoutSetSaveRequest {
     trackingMode: string
     weightKg: number | null
     reps: number
-    rpe: number        // Golden 기준: rpe (내부 SetPrescription의 targetRir에서 매핑)
+    rir: number | null      // AI 추천값 (targetRir)
+    rpe: number | null      // 사용자 실제 체감값 (운동 후 입력)
     isFailure: boolean
     restSec: number
 }

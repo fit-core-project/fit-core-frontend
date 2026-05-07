@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useAuthStore } from "@/store/authStore"
-import { jwtDecode } from "jwt-decode"
+import { jwtDecode, JwtPayload } from "jwt-decode"
 import { AxiosError } from "axios"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
 
@@ -19,7 +19,7 @@ export default function AuthInitializer() {
 
             try {
                 // 2. 로컬에서 토큰 만료 시간 먼저 확인 (불필요한 네트워크 요청 방지)
-                const decoded: any = jwtDecode(token)
+                const decoded = jwtDecode<JwtPayload>(token)
                 const currentTime = Date.now() / 1000
 
                 if (decoded.exp < currentTime) {

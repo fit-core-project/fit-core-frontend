@@ -76,7 +76,7 @@ export default function QuickLogPage() {
                 try {
                     const data = await AxiosController.post<{ text: string }>("/api/ai/stt", formData)
                     if (data.text) setInputText((prev) => (prev ? `${prev} ${data.text}` : data.text))
-                } catch (err: any) {
+                } catch {
                     setError("음성 인식 중 오류가 발생했습니다. 다시 말씀해 주세요.")
                 } finally {
                     setIsSttLoading(false)
@@ -86,7 +86,7 @@ export default function QuickLogPage() {
 
             mediaRecorder.start()
             setIsRecording(true)
-        } catch (err) {
+        } catch {
             setError("마이크 권한이 필요합니다.")
         }
     }
@@ -112,14 +112,15 @@ export default function QuickLogPage() {
         try {
             const data = await AxiosController.post<ParsedData>("/api/ai/parse-log", { text: inputText })
             setParsedData(data)
-        } catch (err: any) {
-            if (err.response?.status === 503 || err.response?.status === 500) {
-                err.message = "AI 서버가 현재 붐비고 있습니다. 잠시 후 다시 시도해 주세요."
-            } else {
-                err.message = err.response?.data?.detail || err.message || "분석 중 오류가 발생했습니다."
-            }
+        } catch (err: unknown) {
+            const e = err as { response?: { status?: number; data?: { detail?: string } }; message?: string }
+            const status = e.response?.status
+            const message =
+                status === 503 || status === 500
+                    ? "AI 서버가 현재 붐비고 있습니다. 잠시 후 다시 시도해 주세요."
+                    : e.response?.data?.detail ?? e.message ?? "분석 중 오류가 발생했습니다."
             console.error(err)
-            setError(err.message)
+            setError(message)
         } finally {
             setIsLoading(false)
         }

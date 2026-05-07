@@ -1,7 +1,7 @@
 "use client"
 import React, { useState } from "react"
 import { UserResponse } from "@/types/project"
-import { CalendarIcon, Edit3, User, X } from "lucide-react"
+import { Edit3, User, X } from "lucide-react"
 import SocialButton from "@/app/components/SocialButton"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
 

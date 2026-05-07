@@ -2,8 +2,8 @@ import { RoutineDraft } from "../types/routine"
 
 export const mockSuccessRoutine: RoutineDraft = {
     routineDraftId: "draft_success_991",
-    generationStatus: "SUCCESS",
-    statusReasonCode: "OK",
+    generationStatus: "success",
+    statusReasonCode: "none",
     isFallback: false,
     totalEstimatedTime: 45,
     summaryTitle: "상부 흉근 집중 + 삼두 보조 루틴",
@@ -51,8 +51,8 @@ export const mockSuccessRoutine: RoutineDraft = {
 
 export const mockFallbackRoutine: RoutineDraft = {
     routineDraftId: "draft_fallback_992",
-    generationStatus: "FALLBACK",
-    statusReasonCode: "LLM_TIMEOUT",
+    generationStatus: "fallback",
+    statusReasonCode: "llmTimeout",
     isFallback: true,
     totalEstimatedTime: 35,
     summaryTitle: "기본 안전 루틴 (AI 대체)",

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Check, Timer, X, Play, Pause, Flame, Trophy, SkipForward } from "lucide-react"
+import { Check, Timer, Play, Pause, Flame, Trophy, SkipForward } from "lucide-react"
 import { RoutineDraft } from "@/types/routine"
 import workoutApiClient, { WorkoutSaveRequest } from "@/lib/api/workout/workoutApiClient"
 import { WorkoutState } from "@/types/state"
@@ -21,7 +21,7 @@ export default function WorkoutPlayer() {
 
     const [workoutStatus, setWorkoutStatus] = useState<WorkoutState>("idle")
     const pendingPayload = useRef<WorkoutSaveRequest | null>(null)
-    const workoutStartTime = useRef<number>(Date.now())
+    const workoutStartTime = useRef<number>(0)
 
     // ── Timer refs ──────────────────────────────────────────────────────────────
     const endTimeRef = useRef<number>(0)       // 절대 종료 시각 (ms)
@@ -31,6 +31,7 @@ export default function WorkoutPlayer() {
 
     // 1. Load routine + routineFinalId from localStorage
     useEffect(() => {
+        workoutStartTime.current = Date.now()
         const savedRoutine = localStorage.getItem("fitcore_active_routine")
         const savedFinalId = localStorage.getItem("fitcore_routine_final_id")
         if (savedRoutine) {
@@ -128,6 +129,7 @@ export default function WorkoutPlayer() {
                 setIsTimerActive(false)
             } else {
                 nextKeyRef.current = computeNextKey(blockIndex, setArrayIndex)
+                // eslint-disable-next-line react-hooks/purity
                 endTimeRef.current = Date.now() + restSec * 1000
                 setTimeLeft(restSec)
                 setIsPaused(false)
@@ -161,6 +163,7 @@ export default function WorkoutPlayer() {
         setWorkoutStatus("saving")
 
         const workoutDate = new Date().toISOString().split("T")[0]
+        // eslint-disable-next-line react-hooks/purity
         const durationMin = Math.max(1, Math.round((Date.now() - workoutStartTime.current) / 60_000))
 
         const DOMS_LEVEL_MAP: Record<number, string> = { 1: "mild", 2: "moderate", 3: "severe" }
@@ -170,8 +173,9 @@ export default function WorkoutPlayer() {
             .filter(([, v]) => DOMS_LEVEL_MAP[v] !== undefined)
             .map(([bodyPart, v]) => ({ bodyPart, level: DOMS_LEVEL_MAP[v] }))
 
-        const sets = routine.routineBlocks.flatMap((block) =>
+        const sets = routine.routineBlocks.flatMap((block, blockIndex) =>
             block.prescription.map((set, index) => ({
+                exerciseOrder: blockIndex + 1,
                 exerciseId: block.exerciseId,
                 exerciseNameSnapshot: block.exerciseName,
                 setIndex: index + 1,
@@ -179,7 +183,8 @@ export default function WorkoutPlayer() {
                 trackingMode: "weightReps",
                 weightKg: set.targetWeightKg,
                 reps: set.targetReps,
-                rpe: set.targetRir,
+                rir: set.targetRir,
+                rpe: rpeScore,
                 isFailure: false,
                 restSec: set.targetRestSec,
             }))

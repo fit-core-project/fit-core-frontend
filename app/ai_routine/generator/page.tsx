@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
     Activity,
@@ -62,7 +62,6 @@ export default function RoutineGenerator() {
     const [status, setStatus] = useState<GenerateState>("idle")
     const [isPrefsLoading, setIsPrefsLoading] = useState(true)
     const [loadingMsgIndex, setLoadingMsgIndex] = useState(0)
-    const [domsSummary, setDomsSummary] = useState<string>("")
 
     const [formData, setFormData] = useState<RoutineFormState>({
         targetMuscles: [],
@@ -77,6 +76,11 @@ export default function RoutineGenerator() {
     // 🌟 AnatomyModel용 데이터 상태 (선택된 근육은 1점, 아니면 없는 것으로 취급)
     const [targetModelData, setTargetModelData] = useState<Record<string, number>>({})
 
+    const domsSummary = useMemo(() => {
+        const count = Object.keys(formData.domsData).length
+        return count > 0 ? `현재 ${count}개 부위에 피로도가 감지되었습니다.` : ""
+    }, [formData.domsData])
+
     useEffect(() => {
         const savedDoms = localStorage.getItem("fitcore_doms_data")
         const savedPainAreas = localStorage.getItem("fitcore_pain_areas")
@@ -86,7 +90,7 @@ export default function RoutineGenerator() {
             if (!value || value === "undefined") return fallback
             try {
                 return JSON.parse(value) as T
-            } catch (error) {
+            } catch {
                 return fallback
             }
         }
@@ -94,11 +98,6 @@ export default function RoutineGenerator() {
         // 2. 안전망 함수를 통과시켜서 파싱
         const parsedDoms = safeParse<Record<string, number>>(savedDoms, {})
         const parsedPainAreas = safeParse<string[]>(savedPainAreas, [])
-        const partsCount = Object.keys(parsedDoms).length
-
-        if (partsCount > 0) {
-            setDomsSummary(`현재 ${partsCount}개 부위에 피로도가 감지되었습니다.`)
-        }
 
         getUserPreferences()
             .then((prefs) => {
@@ -123,15 +122,14 @@ export default function RoutineGenerator() {
     }, [])
 
     useEffect(() => {
-        let interval: NodeJS.Timeout
-        if (status === "loading") {
-            interval = setInterval(() => {
-                setLoadingMsgIndex((prev) => (prev + 1) % LOADING_MESSAGES.length)
-            }, 1800)
-        } else {
+        if (status !== "loading") return
+        const interval = setInterval(() => {
+            setLoadingMsgIndex((prev) => (prev + 1) % LOADING_MESSAGES.length)
+        }, 1800)
+        return () => {
+            clearInterval(interval)
             setLoadingMsgIndex(0)
         }
-        return () => clearInterval(interval)
     }, [status])
 
     const handlePresetClick = (groupKey: keyof typeof PRESET_GROUPS) => {
@@ -145,7 +143,7 @@ export default function RoutineGenerator() {
             return newData
         })
 
-        setFormData((prev: any) => {
+        setFormData((prev: RoutineFormState) => {
             const current = new Set(prev.targetMuscles)
             musclesToAdd.forEach((m) => current.add(m))
             return { ...prev, targetMuscles: Array.from(current) }
@@ -160,7 +158,7 @@ export default function RoutineGenerator() {
             return newData
         })
 
-        setFormData((prev: any) => {
+        setFormData((prev: RoutineFormState) => {
             const current = prev.targetMuscles
             if (current.includes(muscleName)) {
                 return { ...prev, targetMuscles: current.filter((m: string) => m !== muscleName) }
@@ -172,11 +170,11 @@ export default function RoutineGenerator() {
 
     const handleResetClick = () => {
         setTargetModelData({})
-        setFormData((prev: any) => ({ ...prev, targetMuscles: [] }))
+        setFormData((prev: RoutineFormState) => ({ ...prev, targetMuscles: [] }))
     }
 
     const toggleArrayItem = (key: keyof RoutineFormState, value: string) => {
-        setFormData((prev: any) => {
+        setFormData((prev: RoutineFormState) => {
             const currentArray = prev[key] as string[]
             if (currentArray.includes(value)) {
                 return { ...prev, [key]: currentArray.filter((item) => item !== value) }

@@ -78,13 +78,14 @@ export default function SupplementChatPage() {
                 try {
                     const data = await AxiosController.post<{ text: string }>("/api/ai/stt", formData)
                     if (data.text) setInputText((prev) => (prev ? `${prev} ${data.text}` : data.text))
-                } catch (err: any) {
+                } catch (err: unknown) {
+                    const msg = (err as { message?: string }).message ?? "알 수 없는 오류"
                     setMessages((prev) => [
                         ...prev,
                         {
                             id: Date.now().toString(),
                             role: "ai",
-                            content: `⚠️ 음성 인식 중 오류가 발생했습니다: ${err.message}`,
+                            content: `⚠️ 음성 인식 중 오류가 발생했습니다: ${msg}`,
                         },
                     ])
                 } finally {
@@ -95,7 +96,7 @@ export default function SupplementChatPage() {
 
             mediaRecorder.start()
             setIsRecording(true)
-        } catch (err) {
+        } catch {
             setMessages((prev) => [
                 ...prev,
                 { id: Date.now().toString(), role: "ai", content: "⚠️ 마이크 접근 권한이 필요합니다." },
@@ -133,11 +134,12 @@ export default function SupplementChatPage() {
                 sources: data.sources,
             }
             setMessages((prev) => [...prev, newAiMsg])
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const e = error as { response?: { data?: { detail?: string } }; message?: string }
             const errorMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: "ai",
-                content: `⚠️ 오류가 발생했습니다: ${error.response?.data?.detail ?? error.message}\n잠시 후 다시 시도해 주세요.`,
+                content: `⚠️ 오류가 발생했습니다: ${e.response?.data?.detail ?? e.message ?? "알 수 없는 오류"}\n잠시 후 다시 시도해 주세요.`,
             }
             setMessages((prev) => [...prev, errorMsg])
         } finally {

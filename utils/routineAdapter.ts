@@ -11,8 +11,8 @@ interface RawAiResponse {
     summaryTitle?: string
     rationaleSummary?: string | string[]
     warnings?: string[]
-    routineBlocks?: any[] // Path A: 백엔드 golden
-    exercises?: any[] // Path B: Gemini direct / 구형 백엔드 (점진적 제거 대상)
+    routineBlocks?: unknown[] // Path A: 백엔드 golden
+    exercises?: unknown[] // Path B: Gemini direct / 구형 백엔드 (점진적 제거 대상)
 }
 
 interface AdapterContext {
@@ -23,17 +23,20 @@ interface AdapterContext {
 }
 
 // Path B 전용: Gemini raw prescription을 FE SetPrescription으로 변환
-function normalizePrescription(rawPrescription: any[]): SetPrescription[] {
+function normalizePrescription(rawPrescription: unknown[]): SetPrescription[] {
     if (rawPrescription.length === 0) {
         return [{ setIndex: 0, targetReps: 10, targetWeightKg: null, targetRir: 2, targetRestSec: 60 }]
     }
-    return rawPrescription.map((p: any, i: number) => ({
-        setIndex: Number(p?.setIndex ?? i),
-        targetReps: Number(p?.targetReps) || 10,
-        targetWeightKg: typeof p?.targetWeightKg === "number" ? p.targetWeightKg : null,
-        targetRir: Number(p?.targetRir ?? 2),
-        targetRestSec: Number(p?.targetRestSec) || 60,
-    }))
+    return rawPrescription.map((raw, i: number) => {
+        const p = raw as Record<string, unknown>
+        return {
+            setIndex: Number(p?.setIndex ?? i),
+            targetReps: Number(p?.targetReps) || 10,
+            targetWeightKg: typeof p?.targetWeightKg === "number" ? p.targetWeightKg : null,
+            targetRir: Number(p?.targetRir ?? 2),
+            targetRestSec: Number(p?.targetRestSec) || 60,
+        }
+    })
 }
 
 function normalizeRationaleSummary(raw: string | string[] | undefined, fallback: string): string[] {
@@ -42,10 +45,10 @@ function normalizeRationaleSummary(raw: string | string[] | undefined, fallback:
     return [fallback]
 }
 
-export function normalizeRoutineResponse(rawData: any, context: AdapterContext = {}): RoutineDraft {
+export function normalizeRoutineResponse(rawData: unknown, context: AdapterContext = {}): RoutineDraft {
     const contextFallback = context.isFallback ?? false
-    const contextStatus = context.status ?? (contextFallback ? "FALLBACK" : "SUCCESS")
-    const contextReasonCode = context.reasonCode ?? "OK"
+    const contextStatus = context.status ?? (contextFallback ? "fallback" : "success")
+    const contextReasonCode = context.reasonCode ?? "none"
 
     const safeData =
         typeof rawData === "object" && rawData !== null ? (rawData as RawAiResponse) : ({} as RawAiResponse)
@@ -79,12 +82,15 @@ export function normalizeRoutineResponse(rawData: any, context: AdapterContext =
     const draftId = safeData.routineDraftId ?? context.draftId ?? `draft_${crypto.randomUUID().slice(0, 8)}`
 
     const routineBlocks: RoutineBlock[] = (Array.isArray(safeData.exercises) ? safeData.exercises : []).map(
-        (ex: any, index: number) => ({
-            exerciseId: ex?.exerciseId ?? `blk_${crypto.randomUUID().slice(0, 8)}_${index}`,
-            exerciseName: String(ex?.exerciseName || "이름 없는 기본 운동"),
-            exerciseRationale: String(ex?.exerciseRationale || "안전한 자세로 수행하세요."),
-            prescription: normalizePrescription(Array.isArray(ex?.prescription) ? ex.prescription : []),
-        })
+        (raw, index: number) => {
+            const ex = raw as Record<string, unknown>
+            return {
+                exerciseId: String(ex?.exerciseId ?? `blk_${crypto.randomUUID().slice(0, 8)}_${index}`),
+                exerciseName: String(ex?.exerciseName || "이름 없는 기본 운동"),
+                exerciseRationale: String(ex?.exerciseRationale || "안전한 자세로 수행하세요."),
+                prescription: normalizePrescription(Array.isArray(ex?.prescription) ? ex.prescription as unknown[] : []),
+            }
+        }
     )
 
     return {

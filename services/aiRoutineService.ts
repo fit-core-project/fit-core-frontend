@@ -9,8 +9,8 @@ const TIMEOUT_MS = 60_000
 
 const FALLBACK_ROUTINE: RoutineDraft = {
     routineDraftId: "draft_fallback_local",
-    generationStatus: "FALLBACK",
-    statusReasonCode: "LLM_TIMEOUT",
+    generationStatus: "fallback",
+    statusReasonCode: "llmTimeout",
     isFallback: true,
     totalEstimatedTime: 40,
     summaryTitle: "기본 안전 루틴 (AI 대체)",
@@ -152,7 +152,7 @@ async function callGeminiDirect(req: RoutineGenerateRequest): Promise<RoutineDra
 
         const parsed = JSON.parse(cleaned)
 
-        return normalizeRoutineResponse(parsed, { status: "SUCCESS", isFallback: false })
+        return normalizeRoutineResponse(parsed, { status: "success", isFallback: false })
     } finally {
         clearTimeout(timer)
     }

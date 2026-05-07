@@ -54,7 +54,7 @@ export default function Page() {
                 setIsEditing(false)
                 setProfile(res)
             })
-            .catch((error) => {
+            .catch(() => {
                 alert("프로필 업데이트 중 오류가 발생했습니다.")
             })
     }

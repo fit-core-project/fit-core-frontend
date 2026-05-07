@@ -3,7 +3,7 @@
 import React from "react"
 import AxiosController from "@/lib/axios/AxiosController"
 import SocialButton from "@/app/components/SocialButton"
-import { ArrowLeft, UserCircle } from "lucide-react"
+import { UserCircle } from "lucide-react"
 
 export default function LoginPage() {
     /**

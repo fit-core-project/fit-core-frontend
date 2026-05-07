@@ -1,7 +1,12 @@
 // store/authStore.ts
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
-import { jwtDecode } from "jwt-decode"
+import { jwtDecode, JwtPayload } from "jwt-decode"
+
+interface FitCoreJwt extends JwtPayload {
+    auth: string
+    profileImage?: string | null
+}
 
 interface UserInfo {
     email: string
@@ -27,13 +32,13 @@ export const useAuthStore = create<AuthState>()(
             isLoading: true, // 처음엔 true로 설정 (초기화 중)
             setIsLoading: (loading) => set({ isLoading: loading }),
             setToken: (token: string) => {
-                const decoded: any = jwtDecode(token)
+                const decoded = jwtDecode<FitCoreJwt>(token)
                 set({
                     token,
                     user: {
-                        email: decoded.sub,
+                        email: decoded.sub ?? "",
                         role: decoded.auth,
-                        profileImage: decoded.profileImage || null,
+                        profileImage: decoded.profileImage ?? null,
                     },
                 })
             },

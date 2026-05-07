@@ -68,16 +68,16 @@ function WorkoutCard({ workout }: { workout: WorkoutSessionResponse }) {
                 </div>
                 <div>
                     <p className="text-sm font-bold text-slate-800">
-                        {(workout as any).splitLabel ?? "운동 세션"}
+                        {workout.splitLabel ?? "운동 세션"}
                     </p>
                     <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
                         <Calendar className="w-3 h-3" />
                         {dateStr}
-                        {(workout as any).durationMin && (
+                        {workout.durationMin && (
                             <>
                                 <span className="mx-1 text-slate-200">·</span>
                                 <Clock className="w-3 h-3" />
-                                {(workout as any).durationMin}분
+                                {workout.durationMin}분
                             </>
                         )}
                     </p>

@@ -187,7 +187,7 @@ export default function RoutineReviewPage() {
             const totalRestSec = block.prescription.reduce((s, p) => s + p.targetRestSec, 0)
             return acc + Math.ceil((block.prescription.length * 60 + totalRestSec) / 60)
         }, 0)
-    }, [draft?.routineBlocks])
+    }, [draft])
 
     // ── Validation: gate finalize when any set violates bounds ─────────────────
     const isRoutineValid = useMemo(() => {
@@ -204,11 +204,11 @@ export default function RoutineReviewPage() {
                         s.targetRestSec <= 300
                 )
         )
-    }, [draft?.routineBlocks])
+    }, [draft])
 
     const swapBlock = useMemo(
         () => (swapBlockId && draft ? (draft.routineBlocks.find((b) => b.exerciseId === swapBlockId) ?? null) : null),
-        [swapBlockId, draft?.routineBlocks]
+        [swapBlockId, draft]
     )
 
     const aiCandidates = useMemo(() => {
@@ -499,8 +499,6 @@ export default function RoutineReviewPage() {
 }
 
 // ── ExerciseCard ─────────────────────────────────────────────────────────────
-
-const REST_OPTIONS = [30, 60, 90, 120, 150, 180]
 
 interface ExerciseCardProps {
     block: RoutineBlock

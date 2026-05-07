@@ -1,5 +1,5 @@
-export type GenerationStatus = "SUCCESS" | "FALLBACK" | "FAILED"
-export type StatusReasonCode = "OK" | "LLM_TIMEOUT" | "SCHEMA_ERROR" | "NETWORK_ERROR"
+export type GenerationStatus = "success" | "fallback" | "failed"
+export type StatusReasonCode = "none" | "llmTimeout" | "schemaError" | "networkError"
 
 export interface SetPrescription {
     setIndex: number

@@ -133,7 +133,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                 // API 호출 시에도 trim된 값을 보내는 것이 더 안전합니다
                 const res = await profileApiClient.checkNickname(trimmedNickname)
                 setNicknameStatus(res ? "duplicate" : "available")
-            } catch (error) {
+            } catch {
                 setNicknameStatus("idle")
             }
         }, 500)
@@ -159,7 +159,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                     alert("이미 사용 중인 닉네임입니다. 다시 확인해 주세요.")
                     return
                 }
-            } catch (error) {
+            } catch {
                 alert("중복 확인 중 오류가 발생했습니다.")
                 return
             }
