@@ -23,12 +23,15 @@ const routineApiClient = {
     },
 
     finalize: async (draftId: string, payload: FinalizePayload): Promise<string> => {
-        const result = await AxiosController.post<{ routineFinalId?: string; id?: string }>(
+        const result = await AxiosController.post<{ routineFinalId?: string; id?: string; targetSplitLabel?: string }>(
             `/api/routines/drafts/${draftId}/finalize`,
             payload
         )
         const finalId = result.routineFinalId ?? result.id ?? null
         guardFinalizeResponse(finalId)
+        if (result.targetSplitLabel) {
+            localStorage.setItem("fitcore_split_label", result.targetSplitLabel)
+        }
         return finalId
     },
 }

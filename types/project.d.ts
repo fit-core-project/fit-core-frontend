@@ -126,7 +126,7 @@ export interface WorkoutSessionResponse {
 
     // JSON 필드 (배열 처리)
     currentPainAreas: string[]
-    doms: Doms[]
+    currentDoms: Doms[]
     unavailableEquipment: string[]
 
     sessionNote: string

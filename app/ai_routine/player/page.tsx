@@ -190,9 +190,11 @@ export default function WorkoutPlayer() {
             }))
         )
 
+        const splitLabel = localStorage.getItem("fitcore_split_label") ?? routine.summaryTitle
+
         const finalWorkoutData: WorkoutSaveRequest = {
             workoutDate,
-            splitLabel: routine.summaryTitle,
+            splitLabel,
             sourceRoutineFinalId: routineFinalId,
             timeAvailableMin: routine.totalEstimatedTime,
             durationMin,
@@ -215,6 +217,7 @@ export default function WorkoutPlayer() {
             localStorage.removeItem("fitcore_doms_data")
             localStorage.removeItem("fitcore_pain_areas")
             localStorage.removeItem("fitcore_routine_final_id")
+            localStorage.removeItem("fitcore_split_label")
             localStorage.removeItem("fitcore_failed_workout_save")
             setWorkoutStatus("saved")
             router.push("/ai_routine")
@@ -234,6 +237,7 @@ export default function WorkoutPlayer() {
         localStorage.removeItem("fitcore_doms_data")
         localStorage.removeItem("fitcore_pain_areas")
         localStorage.removeItem("fitcore_routine_final_id")
+        localStorage.removeItem("fitcore_split_label")
         router.push("/ai_routine")
     }
 
