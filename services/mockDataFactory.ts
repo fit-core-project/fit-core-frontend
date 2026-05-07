@@ -11,7 +11,7 @@ export interface UserPreferences {
     equipment: string[]
     weeklyFrequency: number
     splitPreference: SplitType
-    baselineWeights: Record<string, number>
+    strengthBaseline: Record<string, number>
 }
 
 export interface ExerciseCatalogItem {
@@ -41,7 +41,7 @@ export function getMockUserPreferences(): UserPreferences {
         equipment: ["BARBELL", "DUMBBELL", "CABLE", "MACHINE"],
         weeklyFrequency: 4,
         splitPreference: "pushPullLegs",
-        baselineWeights: {
+        strengthBaseline: {
             benchPress: 80,
             squat: 100,
             deadlift: 120,
