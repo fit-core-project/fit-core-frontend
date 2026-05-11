@@ -22,7 +22,7 @@ export default function AuthInitializer() {
                 const decoded = jwtDecode<JwtPayload>(token)
                 const currentTime = Date.now() / 1000
 
-                if (decoded.exp && decoded.exp < currentTime) {
+                if (decoded.exp < currentTime) {
                     logout()
                     return
                 }

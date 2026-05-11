@@ -57,7 +57,7 @@ GENERATE_STATUS=$(echo "$GENERATE_RES" | tail -n 1)
 
 check "POST /api/routines/generate" "$GENERATE_STATUS" 200
 
-DRAFT_ID=$(echo "$GENERATE_BODY_RES" | jq -r '.routineDraftId// empty')
+DRAFT_ID=$(echo "$GENERATE_BODY_RES" | jq -r '.routineDraftId // empty')
 echo "  routineDraftId = $DRAFT_ID"
 
 # =============================================================================
@@ -84,7 +84,7 @@ FINALIZE_STATUS=$(echo "$FINALIZE_RES" | tail -n 1)
 
 check "POST /api/routines/drafts/:draftId/finalize" "$FINALIZE_STATUS" 200
 
-FINAL_ID=$(echo "$FINALIZE_BODY_RES" | jq -r '.routineFinalId// empty')
+FINAL_ID=$(echo "$FINALIZE_BODY_RES" | jq -r '.routineFinalId // .id // empty')
 echo "  routineFinalId = $FINAL_ID"
 
 # =============================================================================
@@ -153,7 +153,7 @@ WORKOUT_STATUS=$(echo "$WORKOUT_RES" | tail -n 1)
 
 check "POST /api/workouts" "$WORKOUT_STATUS" 200
 
-WORKOUT_ID=$(echo "$WORKOUT_BODY_RES" | jq -r '.workoutSessionId// empty')
+WORKOUT_ID=$(echo "$WORKOUT_BODY_RES" | jq -r '.workoutSessionId // .id // empty')
 echo "  workoutSessionId = $WORKOUT_ID"
 
 # =============================================================================
