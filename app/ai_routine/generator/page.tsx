@@ -50,11 +50,11 @@ const PRESET_GROUPS = {
 }
 
 const GOAL_MAP: Record<string, RoutineFormState["goal"]> = {
-    strength: "STRENGTH",
-    hypertrophy: "HYPERTROPHY",
-    fatLoss: "ENDURANCE",
-    recomposition: "ENDURANCE",
-    generalFitness: "ENDURANCE",
+    strength: "strength",
+    hypertrophy: "hypertrophy",
+    fatLoss: "endurance",
+    recomposition: "endurance",
+    generalFitness: "endurance",
 }
 
 export default function RoutineGenerator() {
@@ -69,7 +69,7 @@ export default function RoutineGenerator() {
         timeAvailable: 60,
         painAreas: [],
         domsData: {},
-        goal: "HYPERTROPHY",
+        goal: "hypertrophy",
         userNote: "",
     })
 
@@ -107,7 +107,7 @@ export default function RoutineGenerator() {
                     painAreas: parsedPainAreas,
                     timeAvailable: prefs.timeAvailable,
                     equipment: (prefs.equipment || []) as RoutineFormState["equipment"],
-                    goal: GOAL_MAP[prefs.goal] ?? "HYPERTROPHY",
+                    goal: GOAL_MAP[prefs.goal] ?? "hypertrophy",
                 }))
             })
             .catch(() => {
@@ -190,6 +190,7 @@ export default function RoutineGenerator() {
             const payload = assembleRoutineRequest(formData)
             const routineDraft = await generateRoutine(payload)
             localStorage.setItem("fitcore_active_routine", JSON.stringify(routineDraft))
+            localStorage.setItem("fitcore_unavailable_equipment", JSON.stringify(payload.unavailableEquipment))
             setStatus(routineDraft.isFallback ? "fallback" : "success")
             router.push("/routine/draft")
         } catch {
@@ -348,9 +349,9 @@ export default function RoutineGenerator() {
                                 }
                                 className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold text-slate-700 text-sm"
                             >
-                                <option value="HYPERTROPHY">근비대 (근육 크기 증가)</option>
-                                <option value="STRENGTH">스트렝스 (최대 근력 증가)</option>
-                                <option value="ENDURANCE">근지구력 (다이어트/체력)</option>
+                                <option value="hypertrophy">근비대 (근육 크기 증가)</option>
+                                <option value="strength">스트렝스 (최대 근력 증가)</option>
+                                <option value="endurance">근지구력 (다이어트/체력)</option>
                             </select>
                         </section>
 

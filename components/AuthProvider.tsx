@@ -47,7 +47,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         }
 
         // 2. 보호된 경로 접근 제어 (선택 사항)
-        const publicPaths = ["/login", "/signup", "/oauth2-redirect"]
+        const publicPaths = ["/login", "/signup", "/oauth2/redirect"]
         const isPublicPath = publicPaths.some((path) => pathname.startsWith(path)) || pathname === "/"
 
         if (!token && !isPublicPath) {

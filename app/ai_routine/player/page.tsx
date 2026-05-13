@@ -172,6 +172,7 @@ export default function WorkoutPlayer() {
         const currentDoms = Object.entries(domsRaw)
             .filter(([, v]) => DOMS_LEVEL_MAP[v] !== undefined)
             .map(([bodyPart, v]) => ({ bodyPart, level: DOMS_LEVEL_MAP[v] }))
+        const unavailableEquipment: string[] = JSON.parse(localStorage.getItem("fitcore_unavailable_equipment") || "[]")
 
         const sets = routine.routineBlocks.flatMap((block, blockIndex) =>
             block.prescription.map((set, index) => ({
@@ -201,7 +202,7 @@ export default function WorkoutPlayer() {
             readinessLevel: "normal",
             currentPainAreas: painAreas,
             currentDoms,
-            unavailableEquipment: [],
+            unavailableEquipment,
             sets,
         }
 
@@ -218,6 +219,7 @@ export default function WorkoutPlayer() {
             localStorage.removeItem("fitcore_pain_areas")
             localStorage.removeItem("fitcore_routine_final_id")
             localStorage.removeItem("fitcore_split_label")
+            localStorage.removeItem("fitcore_unavailable_equipment")
             localStorage.removeItem("fitcore_failed_workout_save")
             setWorkoutStatus("saved")
             router.push("/ai_routine")
@@ -238,6 +240,7 @@ export default function WorkoutPlayer() {
         localStorage.removeItem("fitcore_pain_areas")
         localStorage.removeItem("fitcore_routine_final_id")
         localStorage.removeItem("fitcore_split_label")
+        localStorage.removeItem("fitcore_unavailable_equipment")
         router.push("/ai_routine")
     }
 
@@ -387,7 +390,7 @@ export default function WorkoutPlayer() {
                                             <div
                                                 className={`font-bold w-10 text-center text-sm ${isChecked ? "text-blue-400" : isFocused ? "text-blue-600" : "text-slate-400"}`}
                                             >
-                                                {set.setIndex + 1} Set
+                                                {set.setIndex} Set
                                             </div>
                                             <div className="font-extrabold text-base w-16 text-slate-800">
                                                 {set.targetWeightKg !== null ? `${set.targetWeightKg}kg` : "맨몸"}

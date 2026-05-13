@@ -25,12 +25,13 @@ interface AdapterContext {
 // Path B 전용: Gemini raw prescription을 FE SetPrescription으로 변환
 function normalizePrescription(rawPrescription: unknown[]): SetPrescription[] {
     if (rawPrescription.length === 0) {
-        return [{ setIndex: 0, targetReps: 10, targetWeightKg: null, targetRir: 2, targetRestSec: 60 }]
+        return [{ setIndex: 1, setType: "working", targetReps: 10, targetWeightKg: null, targetRir: 2, targetRestSec: 60 }]
     }
     return rawPrescription.map((raw, i: number) => {
         const p = raw as Record<string, unknown>
         return {
-            setIndex: Number(p?.setIndex ?? i),
+            setIndex: Number(p?.setIndex ?? i + 1),
+            setType: String(p?.setType ?? "working"),
             targetReps: Number(p?.targetReps) || 10,
             targetWeightKg: typeof p?.targetWeightKg === "number" ? p.targetWeightKg : null,
             targetRir: Number(p?.targetRir ?? 2),
@@ -85,6 +86,7 @@ export function normalizeRoutineResponse(rawData: unknown, context: AdapterConte
         (raw, index: number) => {
             const ex = raw as Record<string, unknown>
             return {
+                order: Number(ex?.order ?? index + 1),
                 exerciseId: String(ex?.exerciseId ?? `blk_${crypto.randomUUID().slice(0, 8)}_${index}`),
                 exerciseName: String(ex?.exerciseName || "이름 없는 기본 운동"),
                 exerciseRationale: String(ex?.exerciseRationale || "안전한 자세로 수행하세요."),

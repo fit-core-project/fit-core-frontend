@@ -16,32 +16,37 @@
       "exerciseId": "blk_001",
       "exerciseName": "인클라인 덤벨 프레스",
       "exerciseRationale": "어깨가 벤치에서 떨어지지 않게 고정하고, 쇄골 방향으로 밀어올리세요.",
+      "substitutionCandidates": [
+        { "exerciseId": "blk_s01", "exerciseName": "덤벨 플라이", "reason": "가슴 내전 집중, 어깨 부담 감소" }
+      ],
       "prescription": [
-        { "setIndex": 0, "targetReps": 12, "targetWeightKg": 12, "targetRir": 3, "targetRestSec": 90 },
-        { "setIndex": 1, "targetReps": 10, "targetWeightKg": 15, "targetRir": 2, "targetRestSec": 90 },
-        { "setIndex": 2, "targetReps": 10, "targetWeightKg": 15, "targetRir": 2, "targetRestSec": 90 }
+        { "setIndex": 1, "targetReps": 12, "targetWeightKg": 12, "targetRir": 3, "targetRestSec": 90 },
+        { "setIndex": 2, "targetReps": 10, "targetWeightKg": 15, "targetRir": 2, "targetRestSec": 90 },
+        { "setIndex": 3, "targetReps": 10, "targetWeightKg": 15, "targetRir": 2, "targetRestSec": 90 }
       ]
     },
     {
       "exerciseId": "blk_002",
       "exerciseName": "케이블 크로스오버",
       "exerciseRationale": "팔꿈치를 살짝 굽힌 상태를 유지하며 가슴을 모아주는 느낌에 집중하세요.",
+      "substitutionCandidates": [],
       "prescription": [
-        { "setIndex": 0, "targetReps": 15, "targetWeightKg": 8, "targetRir": 3, "targetRestSec": 60 },
-        { "setIndex": 1, "targetReps": 12, "targetWeightKg": 10, "targetRir": 2, "targetRestSec": 60 },
+        { "setIndex": 1, "targetReps": 15, "targetWeightKg": 8, "targetRir": 3, "targetRestSec": 60 },
         { "setIndex": 2, "targetReps": 12, "targetWeightKg": 10, "targetRir": 2, "targetRestSec": 60 },
-        { "setIndex": 3, "targetReps": 10, "targetWeightKg": 10, "targetRir": 1, "targetRestSec": 60 }
+        { "setIndex": 3, "targetReps": 12, "targetWeightKg": 10, "targetRir": 2, "targetRestSec": 60 },
+        { "setIndex": 4, "targetReps": 10, "targetWeightKg": 10, "targetRir": 1, "targetRestSec": 60 }
       ]
     },
     {
       "exerciseId": "blk_003",
       "exerciseName": "케이블 푸시다운",
       "exerciseRationale": "팔꿈치를 옆구리에 단단히 고정하고 삼두근의 수축만으로 밀어내세요.",
+      "substitutionCandidates": [],
       "prescription": [
-        { "setIndex": 0, "targetReps": 15, "targetWeightKg": 18, "targetRir": 3, "targetRestSec": 60 },
-        { "setIndex": 1, "targetReps": 12, "targetWeightKg": 20, "targetRir": 2, "targetRestSec": 60 },
+        { "setIndex": 1, "targetReps": 15, "targetWeightKg": 18, "targetRir": 3, "targetRestSec": 60 },
         { "setIndex": 2, "targetReps": 12, "targetWeightKg": 20, "targetRir": 2, "targetRestSec": 60 },
-        { "setIndex": 3, "targetReps": 10, "targetWeightKg": 20, "targetRir": 1, "targetRestSec": 60 }
+        { "setIndex": 3, "targetReps": 12, "targetWeightKg": 20, "targetRir": 2, "targetRestSec": 60 },
+        { "setIndex": 4, "targetReps": 10, "targetWeightKg": 20, "targetRir": 1, "targetRestSec": 60 }
       ]
     }
   ]

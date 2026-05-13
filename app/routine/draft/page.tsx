@@ -106,7 +106,7 @@ export default function RoutineReviewPage() {
                           targetRestSec: 60,
                       }
                 const updated = [...block.prescription, newSet]
-                return { ...block, prescription: updated.map((s, i) => ({ ...s, setIndex: i })) }
+                return { ...block, prescription: updated.map((s, i) => ({ ...s, setIndex: i + 1 })) }
             }),
         })
     }
@@ -118,7 +118,7 @@ export default function RoutineReviewPage() {
             routineBlocks: draft.routineBlocks.map((block) => {
                 if (block.exerciseId !== blockId) return block
                 const updated = block.prescription.filter((_, i) => i !== arrayIndex)
-                return { ...block, prescription: updated.map((s, i) => ({ ...s, setIndex: i })) }
+                return { ...block, prescription: updated.map((s, i) => ({ ...s, setIndex: i + 1 })) }
             }),
         })
     }
@@ -137,10 +137,11 @@ export default function RoutineReviewPage() {
         if (!draft) return
         const newId = `block_${Date.now()}`
         const newBlock: RoutineBlock = {
+            order: draft.routineBlocks.length + 1,
             exerciseId: newId,
             exerciseName: "",
             exerciseRationale: "",
-            prescription: [{ setIndex: 0, targetReps: 10, targetWeightKg: null, targetRir: 2, targetRestSec: 90 }],
+            prescription: [{ setIndex: 1, setType: "working", targetReps: 10, targetWeightKg: null, targetRir: 2, targetRestSec: 90 }],
         }
         setDraft({ ...draft, routineBlocks: [...draft.routineBlocks, newBlock] })
         setSwapBlockId(newId)
@@ -213,7 +214,7 @@ export default function RoutineReviewPage() {
 
     const aiCandidates = useMemo(() => {
         if (!swapBlock?.substitutionCandidates?.length) return []
-        const candidateIds = new Set(swapBlock.substitutionCandidates)
+        const candidateIds = new Set(swapBlock.substitutionCandidates.map((c) => c.exerciseId))
         return (Array.isArray(catalog) ? catalog : []).filter((item) => candidateIds.has(item.id))
     }, [swapBlock, catalog])
 
