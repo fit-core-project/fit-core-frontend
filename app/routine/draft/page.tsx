@@ -100,6 +100,7 @@ export default function RoutineReviewPage() {
                     ? { ...last, setIndex: block.prescription.length }
                     : {
                           setIndex: block.prescription.length,
+                          setType: "working",
                           targetReps: 10,
                           targetWeightKg: null,
                           targetRir: 2,

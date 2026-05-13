@@ -71,6 +71,8 @@ export default function RoutineGenerator() {
         domsData: {},
         goal: "hypertrophy",
         userNote: "",
+        targetSplitLabel: undefined,
+        readinessLevel: "normal",
     })
 
     // 🌟 AnatomyModel용 데이터 상태 (선택된 근육은 1점, 아니면 없는 것으로 취급)
@@ -146,7 +148,7 @@ export default function RoutineGenerator() {
         setFormData((prev: RoutineFormState) => {
             const current = new Set(prev.targetMuscles)
             musclesToAdd.forEach((m) => current.add(m))
-            return { ...prev, targetMuscles: Array.from(current) }
+            return { ...prev, targetMuscles: Array.from(current), targetSplitLabel: groupKey.toLowerCase() }
         })
     }
 
@@ -170,7 +172,7 @@ export default function RoutineGenerator() {
 
     const handleResetClick = () => {
         setTargetModelData({})
-        setFormData((prev: RoutineFormState) => ({ ...prev, targetMuscles: [] }))
+        setFormData((prev: RoutineFormState) => ({ ...prev, targetMuscles: [], targetSplitLabel: undefined }))
     }
 
     const toggleArrayItem = (key: keyof RoutineFormState, value: string) => {
@@ -189,6 +191,10 @@ export default function RoutineGenerator() {
         try {
             const payload = assembleRoutineRequest(formData)
             const routineDraft = await generateRoutine(payload)
+            if (routineDraft.generationStatus === "failed") {
+                setStatus("hardFailed")
+                return
+            }
             localStorage.setItem("fitcore_active_routine", JSON.stringify(routineDraft))
             localStorage.setItem("fitcore_unavailable_equipment", JSON.stringify(payload.unavailableEquipment))
             setStatus(routineDraft.isFallback ? "fallback" : "success")
@@ -421,6 +427,27 @@ export default function RoutineGenerator() {
                         >
                             <RefreshCw className="w-4 h-4" />
                             재시도
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* hardFailed 오버레이 — 운동 조건 변경 안내 */}
+            {status === "hardFailed" && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-sm w-11/12 text-center">
+                        <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mb-6">
+                            <AlertCircle className="w-8 h-8 text-amber-500" />
+                        </div>
+                        <h3 className="text-xl font-extrabold text-slate-900 mb-2">루틴을 만들 수 없어요</h3>
+                        <p className="text-slate-500 font-medium mb-6 leading-relaxed">
+                            선택한 조건에 맞는 운동이 없습니다. 운동 부위나 장비 조건을 변경한 뒤 다시 생성해 주세요.
+                        </p>
+                        <button
+                            onClick={() => setStatus("idle")}
+                            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl transition-colors"
+                        >
+                            조건 변경하기
                         </button>
                     </div>
                 </div>

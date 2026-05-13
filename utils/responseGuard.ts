@@ -19,10 +19,12 @@ export function guardGenerateResponse(data: unknown): asserts data is RoutineDra
         Array.isArray(d.routineBlocks),
         `routineBlocks is not an array — got: ${typeof d.routineBlocks}`
     )
-    assert(
-        (d.routineBlocks as unknown[]).length > 0,
-        "routineBlocks array is empty"
-    )
+    if (d.generationStatus !== "failed") {
+        assert(
+            (d.routineBlocks as unknown[]).length > 0,
+            "routineBlocks array is empty"
+        )
+    }
 }
 
 export function guardFinalizeResponse(finalId: string | null): asserts finalId is string {

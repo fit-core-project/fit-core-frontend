@@ -1,1 +1,59 @@
-{}
+{
+  "id": "88888888-8888-8888-8888-888888888888",
+  "userId": "user-demo-001",
+  "workoutDate": "2026-05-14",
+  "splitLabel": "push",
+  "sourceRoutineFinalId": "44444444-4444-4444-4444-444444444444",
+  "timeAvailableMin": 58,
+  "durationMin": 52,
+  "readinessLevel": "normal",
+  "currentPainAreas": ["leftShoulder"],
+  "currentDoms": [
+    {
+      "bodyPart": "chest",
+      "level": "moderate"
+    },
+    {
+      "bodyPart": "lats",
+      "level": "mild"
+    }
+  ],
+  "unavailableEquipment": ["MACHINE"],
+  "sessionNote": null,
+  "createdAt": "2026-05-14T22:05:00+09:00",
+  "updatedAt": "2026-05-14T22:05:00+09:00",
+  "sets": [
+    {
+      "id": "99999999-9999-9999-9999-999999999991",
+      "exerciseOrder": 1,
+      "exerciseId": "barbell_bench_press",
+      "exerciseNameSnapshot": "Barbell Bench Press",
+      "setIndex": 1,
+      "setType": "working",
+      "trackingMode": "weightReps",
+      "weightKg": 67.5,
+      "reps": 8,
+      "rir": 3,
+      "rpe": 7,
+      "isFailure": false,
+      "restSec": 120,
+      "setNote": null
+    },
+    {
+      "id": "99999999-9999-9999-9999-999999999992",
+      "exerciseOrder": 1,
+      "exerciseId": "barbell_bench_press",
+      "exerciseNameSnapshot": "Barbell Bench Press",
+      "setIndex": 2,
+      "setType": "working",
+      "trackingMode": "weightReps",
+      "weightKg": 70,
+      "reps": 8,
+      "rir": 2,
+      "rpe": 8,
+      "isFailure": false,
+      "restSec": 120,
+      "setNote": null
+    }
+  ]
+}

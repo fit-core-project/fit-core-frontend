@@ -1,52 +1,130 @@
 {
-  "routineDraftId": "draft_success_991",
+  "routineDraftId": "55555555-5555-5555-5555-555555555555",
   "generationStatus": "success",
   "statusReasonCode": "none",
   "isFallback": false,
-  "totalEstimatedTime": 45,
-  "summaryTitle": "상부 흉근 집중 + 삼두 보조 루틴",
+  "totalEstimatedTime": 58,
+  "summaryTitle": "어깨 부담을 낮춘 Push 루틴",
   "rationaleSummary": [
-    "현재 대흉근 상부에 약간의 뻐근함이 있어 볼륨을 20% 줄였습니다.",
-    "회전근개 보호를 위해 안정적인 머신 위주로 타겟팅했습니다.",
-    "다이어트 목적에 맞춰 세트 간 휴식 시간을 짧게 가져갑니다."
+    "오늘 선택한 push 부위를 기준으로 가슴과 삼두 중심 루틴을 구성했다.",
+    "가슴 DOMS moderate를 반영해 총 볼륨을 줄이고 어깨 부담이 큰 동작을 피했다.",
+    "사용 불가 장비 MACHINE을 제외하고 바벨, 덤벨, 맨몸 중심으로 구성했다."
   ],
-  "warnings": ["대흉근 DOMS 감지 — 총 볼륨 20% 감소 적용됨"],
+  "warnings": [
+    "왼쪽 어깨 통증이 올라오면 벤치 각도를 낮추거나 해당 세트를 중단한다."
+  ],
   "routineBlocks": [
     {
-      "exerciseId": "blk_001",
-      "exerciseName": "인클라인 덤벨 프레스",
-      "exerciseRationale": "어깨가 벤치에서 떨어지지 않게 고정하고, 쇄골 방향으로 밀어올리세요.",
+      "order": 1,
+      "exerciseId": "barbell_bench_press",
+      "exerciseName": "Barbell Bench Press",
+      "movementPattern": "horizontalPush",
+      "primaryMuscles": ["CHEST_MID", "ARM_TRICEPS", "SHOULDER_FRONT"],
+      "equipmentType": "BARBELL",
+      "defaultRestSec": 120,
+      "exerciseRationale": "가슴 중심 push 루틴의 주운동이며, 어깨 부담을 줄이기 위해 중량보다 자세 안정성을 우선한다.",
       "substitutionCandidates": [
-        { "exerciseId": "blk_s01", "exerciseName": "덤벨 플라이", "reason": "가슴 내전 집중, 어깨 부담 감소" }
+        {
+          "exerciseId": "dumbbell_flat_press",
+          "exerciseName": "Dumbbell Flat Press",
+          "reason": "바벨이 불편하거나 벤치 점유 시 수평 밀기 의도를 유지할 수 있다."
+        }
       ],
       "prescription": [
-        { "setIndex": 1, "targetReps": 12, "targetWeightKg": 12, "targetRir": 3, "targetRestSec": 90 },
-        { "setIndex": 2, "targetReps": 10, "targetWeightKg": 15, "targetRir": 2, "targetRestSec": 90 },
-        { "setIndex": 3, "targetReps": 10, "targetWeightKg": 15, "targetRir": 2, "targetRestSec": 90 }
+        {
+          "setIndex": 1,
+          "setType": "working",
+          "targetReps": 8,
+          "targetWeightKg": 70,
+          "targetRir": 3,
+          "targetRestSec": 120
+        },
+        {
+          "setIndex": 2,
+          "setType": "working",
+          "targetReps": 8,
+          "targetWeightKg": 72.5,
+          "targetRir": 2,
+          "targetRestSec": 120
+        },
+        {
+          "setIndex": 3,
+          "setType": "working",
+          "targetReps": 8,
+          "targetWeightKg": 72.5,
+          "targetRir": 2,
+          "targetRestSec": 120
+        }
       ]
     },
     {
-      "exerciseId": "blk_002",
-      "exerciseName": "케이블 크로스오버",
-      "exerciseRationale": "팔꿈치를 살짝 굽힌 상태를 유지하며 가슴을 모아주는 느낌에 집중하세요.",
-      "substitutionCandidates": [],
+      "order": 2,
+      "exerciseId": "dumbbell_incline_press",
+      "exerciseName": "Dumbbell Incline Press",
+      "movementPattern": "inclinePush",
+      "primaryMuscles": ["CHEST_UPPER", "SHOULDER_FRONT", "ARM_TRICEPS"],
+      "equipmentType": "DUMBBELL",
+      "defaultRestSec": 90,
+      "exerciseRationale": "상부 가슴 자극을 보완하되 덤벨 궤도로 어깨 위치를 조절할 수 있다.",
+      "substitutionCandidates": [
+        {
+          "exerciseId": "push_up",
+          "exerciseName": "Push-up",
+          "reason": "덤벨 사용이 어렵거나 어깨가 불편할 때 강도를 낮출 수 있다."
+        }
+      ],
       "prescription": [
-        { "setIndex": 1, "targetReps": 15, "targetWeightKg": 8, "targetRir": 3, "targetRestSec": 60 },
-        { "setIndex": 2, "targetReps": 12, "targetWeightKg": 10, "targetRir": 2, "targetRestSec": 60 },
-        { "setIndex": 3, "targetReps": 12, "targetWeightKg": 10, "targetRir": 2, "targetRestSec": 60 },
-        { "setIndex": 4, "targetReps": 10, "targetWeightKg": 10, "targetRir": 1, "targetRestSec": 60 }
+        {
+          "setIndex": 1,
+          "setType": "working",
+          "targetReps": 10,
+          "targetWeightKg": 18,
+          "targetRir": 3,
+          "targetRestSec": 90
+        },
+        {
+          "setIndex": 2,
+          "setType": "working",
+          "targetReps": 10,
+          "targetWeightKg": 20,
+          "targetRir": 2,
+          "targetRestSec": 90
+        }
       ]
     },
     {
-      "exerciseId": "blk_003",
-      "exerciseName": "케이블 푸시다운",
-      "exerciseRationale": "팔꿈치를 옆구리에 단단히 고정하고 삼두근의 수축만으로 밀어내세요.",
-      "substitutionCandidates": [],
+      "order": 3,
+      "exerciseId": "cable_triceps_pushdown",
+      "exerciseName": "Cable Triceps Pushdown",
+      "movementPattern": "elbowExtension",
+      "primaryMuscles": ["ARM_TRICEPS"],
+      "equipmentType": "CABLE",
+      "defaultRestSec": 60,
+      "exerciseRationale": "가슴 볼륨을 줄인 대신 삼두 보조 운동으로 push 루틴 완성도를 보완한다.",
+      "substitutionCandidates": [
+        {
+          "exerciseId": "bench_dip",
+          "exerciseName": "Bench Dip",
+          "reason": "케이블 사용이 어려울 때 맨몸으로 삼두 자극을 유지할 수 있다."
+        }
+      ],
       "prescription": [
-        { "setIndex": 1, "targetReps": 15, "targetWeightKg": 18, "targetRir": 3, "targetRestSec": 60 },
-        { "setIndex": 2, "targetReps": 12, "targetWeightKg": 20, "targetRir": 2, "targetRestSec": 60 },
-        { "setIndex": 3, "targetReps": 12, "targetWeightKg": 20, "targetRir": 2, "targetRestSec": 60 },
-        { "setIndex": 4, "targetReps": 10, "targetWeightKg": 20, "targetRir": 1, "targetRestSec": 60 }
+        {
+          "setIndex": 1,
+          "setType": "working",
+          "targetReps": 12,
+          "targetWeightKg": 25,
+          "targetRir": 3,
+          "targetRestSec": 60
+        },
+        {
+          "setIndex": 2,
+          "setType": "working",
+          "targetReps": 12,
+          "targetWeightKg": 27.5,
+          "targetRir": 2,
+          "targetRestSec": 60
+        }
       ]
     }
   ]

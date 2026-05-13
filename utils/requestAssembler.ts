@@ -6,6 +6,8 @@ export interface RoutineFormState {
     painAreas: string[]
     goal: "strength" | "hypertrophy" | "endurance"
     userNote: string
+    targetSplitLabel?: string
+    readinessLevel: string
 }
 
 export interface RoutineGenerateRequest {
@@ -16,6 +18,8 @@ export interface RoutineGenerateRequest {
     currentDoms: { bodyPart: string; level: string }[]
     goal: string
     userNote: string
+    targetSplitLabel?: string
+    readinessLevel: string
 }
 
 const ALL_WEIGHTED_EQUIPMENT = ["BARBELL", "DUMBBELL", "MACHINE", "CABLE"] as const
@@ -43,7 +47,7 @@ export function assembleRoutineRequest(state: Partial<RoutineFormState>): Routin
             level: DOMS_LEVEL_MAP[value],
         }))
 
-    return {
+    const req: RoutineGenerateRequest = {
         targetMuscles: state.targetMuscles || [],
         timeAvailableMin: safeTime,
         currentPainAreas: state.painAreas || [],
@@ -51,5 +55,10 @@ export function assembleRoutineRequest(state: Partial<RoutineFormState>): Routin
         currentDoms,
         goal: safeGoal,
         userNote: (state.userNote || "").trim(),
+        readinessLevel: state.readinessLevel || "normal",
     }
+    if (state.targetSplitLabel !== undefined) {
+        req.targetSplitLabel = state.targetSplitLabel
+    }
+    return req
 }
