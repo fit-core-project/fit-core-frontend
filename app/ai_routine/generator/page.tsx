@@ -45,7 +45,7 @@ const EQUIPMENTS: { label: string; value: Equipment }[] = [
 const PRESET_GROUPS = {
     PUSH: ["chest", "front-deltoids", "triceps"],
     PULL: ["upper-back", "trapezius", "biceps", "forearm", "back-deltoids"],
-    LEGS: ["quadriceps", "hamstring", "gluteal", "calves", "adductor", "abductors"],
+    LEGS: ["quadriceps", "hamstring", "glutes", "calves", "adductors", "abductors"],
     CORE: ["abs", "lower-back", "obliques"],
 }
 

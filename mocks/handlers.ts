@@ -2,7 +2,7 @@ import { http, HttpResponse, delay } from "msw"
 
 import generateGolden from "@/docs/ops/golden-examples/generate.response.success.golden.json"
 import finalizeGolden from "@/docs/ops/golden-examples/finalize.response.golden.json"
-import workoutGolden from "@/docs/ops/golden-examples/workout.save.response.golden.json"
+import workoutGolden from "@/docs/ops/golden-examples/workout-save.response.golden.json"
 import { mockRecentWorkoutsPage, mockWorkoutSessions } from "./workoutFixtures"
 
 const SIM_DELAY_MS = 1500

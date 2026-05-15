@@ -1,9 +1,5 @@
 {
-  "routineFinalId": "44444444-4444-4444-4444-444444444444",
-  "routineDraftId": "55555555-5555-5555-5555-555555555555",
-  "userId": "user-demo-001",
   "targetWorkoutDate": "2026-05-14",
-  "targetSplitLabel": "push",
   "finalRoutinePayload": {
     "routineBlocks": [
       {
@@ -47,6 +43,5 @@
   "userEditSummary": [
     "Barbell Bench Press 목표 중량을 72.5kg에서 70kg로 수정",
     "Barbell Bench Press 3세트를 삭제"
-  ],
-  "savedAt": "2026-05-14T21:10:00+09:00"
+  ]
 }

@@ -1,0 +1,20 @@
+{
+  "targetSplitLabel": "push",
+  "targetMuscles": ["chest", "front-deltoids", "triceps"],
+  "readinessLevel": "normal",
+  "timeAvailableMin": 70,
+  "currentPainAreas": ["leftShoulder"],
+  "currentDoms": [
+    {
+      "bodyPart": "chest",
+      "level": "moderate"
+    },
+    {
+      "bodyPart": "lats",
+      "level": "mild"
+    }
+  ],
+  "unavailableEquipment": ["MACHINE"],
+  "goal": "hypertrophy",
+  "userNote": "오늘은 어깨 무리 없이 진행하고 싶음"
+}

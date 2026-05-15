@@ -2,7 +2,22 @@
 
 import { useEffect, useState, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, X, Info, Search } from "lucide-react"
+import { AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, X, Info, Search, GripVertical } from "lucide-react"
+import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from "@dnd-kit/core"
+import {
+    SortableContext,
+    useSortable,
+    verticalListSortingStrategy,
+    arrayMove,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { RoutineDraft, RoutineBlock, SetPrescription } from "@/types/routine"
 import { getExerciseCatalog, getRecentRecord } from "@/services/exerciseService"
 import { ExerciseCatalogItem } from "@/services/mockDataFactory"
@@ -32,6 +47,9 @@ export default function RoutineReviewPage() {
     const [finalizeStatus, setFinalizeStatus] = useState<FinalizeState>("loading")
     const [displayUnit, setDisplayUnit] = useState<"kg" | "lbs">("kg")
     const initialDraftRef = useRef<RoutineDraft | null>(null)
+
+    // ── DnD sensors ────────────────────────────────────────────────────────
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
     // ── Exercise swap state ─────────────────────────────────────────────────
     const [catalog, setCatalog] = useState<ExerciseCatalogItem[]>([])
@@ -121,6 +139,16 @@ export default function RoutineReviewPage() {
                 const updated = block.prescription.filter((_, i) => i !== arrayIndex)
                 return { ...block, prescription: updated.map((s, i) => ({ ...s, setIndex: i + 1 })) }
             }),
+        })
+    }
+
+    const reorderBlocks = (activeId: string, overId: string) => {
+        setDraft((prev) => {
+            if (!prev) return prev
+            const oldIndex = prev.routineBlocks.findIndex((b) => b.exerciseId === activeId)
+            const newIndex = prev.routineBlocks.findIndex((b) => b.exerciseId === overId)
+            const reordered = arrayMove(prev.routineBlocks, oldIndex, newIndex)
+            return { ...prev, routineBlocks: reordered.map((b, i) => ({ ...b, order: i + 1 })) }
         })
     }
 
@@ -359,22 +387,36 @@ export default function RoutineReviewPage() {
 
             {/* ── Exercise block list ── */}
             <section className="space-y-4">
-                {draft.routineBlocks.map((block) => (
-                    <ExerciseCard
-                        key={block.exerciseId}
-                        block={block}
-                        displayUnit={displayUnit}
-                        onUpdateSet={updateSet}
-                        onUpdateRestTime={updateRestTime}
-                        onAddSet={addSet}
-                        onDeleteSet={deleteSet}
-                        onDeleteBlock={deleteBlock}
-                        onSwapRequest={(blockId) => {
-                            setSwapBlockId(blockId)
-                            setSwapQuery("")
-                        }}
-                    />
-                ))}
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={({ active, over }: DragEndEvent) => {
+                        if (over && active.id !== over.id)
+                            reorderBlocks(String(active.id), String(over.id))
+                    }}
+                >
+                    <SortableContext
+                        items={draft.routineBlocks.map((b) => b.exerciseId)}
+                        strategy={verticalListSortingStrategy}
+                    >
+                        {draft.routineBlocks.map((block) => (
+                            <SortableExerciseCard
+                                key={block.exerciseId}
+                                block={block}
+                                displayUnit={displayUnit}
+                                onUpdateSet={updateSet}
+                                onUpdateRestTime={updateRestTime}
+                                onAddSet={addSet}
+                                onDeleteSet={deleteSet}
+                                onDeleteBlock={deleteBlock}
+                                onSwapRequest={(blockId) => {
+                                    setSwapBlockId(blockId)
+                                    setSwapQuery("")
+                                }}
+                            />
+                        ))}
+                    </SortableContext>
+                </DndContext>
 
                 <button
                     onClick={addNewExerciseBlock}
@@ -500,6 +542,23 @@ export default function RoutineReviewPage() {
     )
 }
 
+// ── SortableExerciseCard ──────────────────────────────────────────────────────
+
+function SortableExerciseCard(props: ExerciseCardProps) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+        useSortable({ id: props.block.exerciseId })
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={{ transform: CSS.Transform.toString(transform), transition }}
+            className={isDragging ? "opacity-50 z-10 relative" : ""}
+        >
+            <ExerciseCard {...props} dragHandleProps={{ ...attributes, ...listeners }} />
+        </div>
+    )
+}
+
 // ── ExerciseCard ─────────────────────────────────────────────────────────────
 
 interface ExerciseCardProps {
@@ -511,6 +570,7 @@ interface ExerciseCardProps {
     onDeleteSet: (blockId: string, arrayIndex: number) => void
     onDeleteBlock: (blockId: string) => void
     onSwapRequest: (blockId: string) => void
+    dragHandleProps?: Record<string, unknown>
 }
 
 function ExerciseCard({
@@ -522,6 +582,7 @@ function ExerciseCard({
     onDeleteSet,
     onDeleteBlock,
     onSwapRequest,
+    dragHandleProps,
 }: ExerciseCardProps) {
     return (
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative">
@@ -532,9 +593,17 @@ function ExerciseCard({
                 <Trash2 className="w-5 h-5" />
             </button>
 
-            <h4 className="font-bold text-slate-800 pr-10 truncate">
-                {block.exerciseName || <span className="text-slate-300 font-medium">운동 선택 필요</span>}
-            </h4>
+            <div className="flex items-center gap-2 pr-10 mb-1">
+                <div
+                    {...dragHandleProps}
+                    className="p-0.5 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0 touch-none"
+                >
+                    <GripVertical className="w-4 h-4" />
+                </div>
+                <h4 className="font-bold text-slate-800 truncate">
+                    {block.exerciseName || <span className="text-slate-300 font-medium">운동 선택 필요</span>}
+                </h4>
+            </div>
             {block.exerciseRationale && (
                 <p className="text-xs text-slate-400 mt-1 mb-4 leading-relaxed line-clamp-2">{block.exerciseRationale}</p>
             )}

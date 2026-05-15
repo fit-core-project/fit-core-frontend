@@ -1,0 +1,43 @@
+{
+  "routineBlocks": [
+    {
+      "order": 1,
+      "exerciseId": "barbell_bench_press",
+      "exerciseName": "Barbell Bench Press",
+      "movementPattern": "horizontalPush",
+      "primaryMuscles": ["CHEST_MID_LOWER", "ARM_TRICEPS", "SHOULDER_FRONT"],
+      "equipmentType": "BARBELL",
+      "defaultRestSec": 120,
+      "exerciseRationale": "사용자가 중량을 낮춰도 원래 운동 추천 의도는 유지한다.",
+      "substitutionCandidates": [
+        {
+          "exerciseId": "dumbbell_flat_press",
+          "exerciseName": "Dumbbell Flat Press",
+          "reason": "바벨이 불편하거나 벤치 점유 시 수평 밀기 의도를 유지할 수 있다."
+        }
+      ],
+      "prescription": [
+        {
+          "setIndex": 1,
+          "setType": "working",
+          "targetReps": 8,
+          "targetWeightKg": 67.5,
+          "targetRir": 3,
+          "targetRestSec": 120
+        },
+        {
+          "setIndex": 2,
+          "setType": "working",
+          "targetReps": 8,
+          "targetWeightKg": 70,
+          "targetRir": 2,
+          "targetRestSec": 120
+        }
+      ]
+    }
+  ],
+  "userEditSummary": [
+    "Barbell Bench Press 목표 중량을 72.5kg에서 70kg로 수정",
+    "Barbell Bench Press 3세트를 삭제"
+  ]
+}
