@@ -1,7 +1,7 @@
 {
   "userId": "user-demo-001",
   "targetSplitLabel": "push",
-  "targetMuscles": ["CHEST_UPPER", "CHEST_MID_LOWER", "SHOULDER_FRONT", "ARM_TRICEPS"],
+  "targetMuscles": ["CHEST_UPPER", "CHEST_MID", "CHEST_LOWER", "SHOULDER_FRONT", "ARM_TRICEPS"],
   "readinessLevel": "normal",
   "timeAvailableMin": 70,
   "painAreas": [
@@ -11,7 +11,8 @@
   ],
   "domsData": {
     "CHEST_UPPER": 2,
-    "CHEST_MID_LOWER": 2,
+    "CHEST_MID": 2,
+    "CHEST_LOWER": 2,
     "BACK_LATS": 1
   },
   "equipment": ["MACHINE"],
