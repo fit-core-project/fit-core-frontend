@@ -73,9 +73,14 @@ export default function RoutineReviewPage() {
 
                 // 카탈로그에서 exerciseName → exerciseId 매핑 후 전 세트 중량 일괄 적용
                 const enrichedBlocks = await Promise.all(
-                    data.routineBlocks.map((block) => {
-                        // 백엔드가 준 exerciseId를 그대로 직행시킵니다! (카탈로그 검색 불필요)
-                        return block.exerciseId ? applyWeightToAllSets(block, block.exerciseId) : Promise.resolve(block)
+                    data.routineBlocks.map((block, index) => {
+                        const blockWithId: RoutineBlock = {
+                            ...block,
+                            clientBlockId: block.clientBlockId ?? `cbid_${Date.now()}_${index}`,
+                        }
+                        return blockWithId.exerciseId
+                            ? applyWeightToAllSets(blockWithId, blockWithId.exerciseId)
+                            : Promise.resolve(blockWithId)
                     })
                 )
                 setDraft({ ...data, routineBlocks: enrichedBlocks })
@@ -95,7 +100,7 @@ export default function RoutineReviewPage() {
         setDraft({
             ...draft,
             routineBlocks: draft.routineBlocks.map((block) =>
-                block.exerciseId !== blockId
+                block.clientBlockId !== blockId
                     ? block
                     : {
                           ...block,
@@ -112,7 +117,7 @@ export default function RoutineReviewPage() {
         setDraft({
             ...draft,
             routineBlocks: draft.routineBlocks.map((block) => {
-                if (block.exerciseId !== blockId) return block
+                if (block.clientBlockId !== blockId) return block
                 const last = block.prescription[block.prescription.length - 1]
                 const newSet: SetPrescription = last
                     ? { ...last, setIndex: block.prescription.length }
@@ -135,7 +140,7 @@ export default function RoutineReviewPage() {
         setDraft({
             ...draft,
             routineBlocks: draft.routineBlocks.map((block) => {
-                if (block.exerciseId !== blockId) return block
+                if (block.clientBlockId !== blockId) return block
                 const updated = block.prescription.filter((_, i) => i !== arrayIndex)
                 return { ...block, prescription: updated.map((s, i) => ({ ...s, setIndex: i + 1 })) }
             }),
@@ -145,8 +150,8 @@ export default function RoutineReviewPage() {
     const reorderBlocks = (activeId: string, overId: string) => {
         setDraft((prev) => {
             if (!prev) return prev
-            const oldIndex = prev.routineBlocks.findIndex((b) => b.exerciseId === activeId)
-            const newIndex = prev.routineBlocks.findIndex((b) => b.exerciseId === overId)
+            const oldIndex = prev.routineBlocks.findIndex((b) => b.clientBlockId === activeId)
+            const newIndex = prev.routineBlocks.findIndex((b) => b.clientBlockId === overId)
             const reordered = arrayMove(prev.routineBlocks, oldIndex, newIndex)
             return { ...prev, routineBlocks: reordered.map((b, i) => ({ ...b, order: i + 1 })) }
         })
@@ -155,7 +160,7 @@ export default function RoutineReviewPage() {
     const deleteBlock = (blockId: string) => {
         if (!draft) return
         if (!confirm("이 운동을 루틴에서 삭제할까요?")) return
-        setDraft({ ...draft, routineBlocks: draft.routineBlocks.filter((b) => b.exerciseId !== blockId) })
+        setDraft({ ...draft, routineBlocks: draft.routineBlocks.filter((b) => b.clientBlockId !== blockId) })
     }
 
     const updateRestTime = (blockId: string, arrayIndex: number, value: number) => {
@@ -164,16 +169,17 @@ export default function RoutineReviewPage() {
 
     const addNewExerciseBlock = () => {
         if (!draft) return
-        const newId = `block_${Date.now()}`
+        const clientBlockId = `cbid_${Date.now()}`
         const newBlock: RoutineBlock = {
             order: draft.routineBlocks.length + 1,
-            exerciseId: newId,
+            clientBlockId,
+            exerciseId: "",
             exerciseName: "",
             exerciseRationale: "",
             prescription: [{ setIndex: 1, setType: "working", targetReps: 10, targetWeightKg: null, targetRir: 2, targetRestSec: 90 }],
         }
         setDraft({ ...draft, routineBlocks: [...draft.routineBlocks, newBlock] })
-        setSwapBlockId(newId)
+        setSwapBlockId(clientBlockId)
         setSwapQuery("")
     }
 
@@ -182,7 +188,7 @@ export default function RoutineReviewPage() {
         if (!draft) return
         setSwapLoading(true)
         try {
-            const currentBlock = draft.routineBlocks.find((b) => b.exerciseId === blockId)
+            const currentBlock = draft.routineBlocks.find((b) => b.clientBlockId === blockId)
             if (!currentBlock) return
 
             const baseBlock: RoutineBlock = {
@@ -197,7 +203,7 @@ export default function RoutineReviewPage() {
                 if (!prev) return prev
                 return {
                     ...prev,
-                    routineBlocks: prev.routineBlocks.map((b) => (b.exerciseId !== blockId ? b : enrichedBlock)),
+                    routineBlocks: prev.routineBlocks.map((b) => (b.clientBlockId !== blockId ? b : enrichedBlock)),
                 }
             })
         } finally {
@@ -237,7 +243,7 @@ export default function RoutineReviewPage() {
     }, [draft])
 
     const swapBlock = useMemo(
-        () => (swapBlockId && draft ? (draft.routineBlocks.find((b) => b.exerciseId === swapBlockId) ?? null) : null),
+        () => (swapBlockId && draft ? (draft.routineBlocks.find((b) => b.clientBlockId === swapBlockId) ?? null) : null),
         [swapBlockId, draft]
     )
 
@@ -396,12 +402,12 @@ export default function RoutineReviewPage() {
                     }}
                 >
                     <SortableContext
-                        items={draft.routineBlocks.map((b) => b.exerciseId)}
+                        items={draft.routineBlocks.map((b) => b.clientBlockId!)}
                         strategy={verticalListSortingStrategy}
                     >
                         {draft.routineBlocks.map((block) => (
                             <SortableExerciseCard
-                                key={block.exerciseId}
+                                key={block.clientBlockId}
                                 block={block}
                                 displayUnit={displayUnit}
                                 onUpdateSet={updateSet}
@@ -546,7 +552,7 @@ export default function RoutineReviewPage() {
 
 function SortableExerciseCard(props: ExerciseCardProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-        useSortable({ id: props.block.exerciseId })
+        useSortable({ id: props.block.clientBlockId! })
 
     return (
         <div
@@ -587,7 +593,7 @@ function ExerciseCard({
     return (
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative">
             <button
-                onClick={() => onDeleteBlock(block.exerciseId)}
+                onClick={() => onDeleteBlock(block.clientBlockId!)}
                 className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 transition-colors"
             >
                 <Trash2 className="w-5 h-5" />
@@ -624,7 +630,7 @@ function ExerciseCard({
                         key={arrayIndex}
                         set={set}
                         arrayIndex={arrayIndex}
-                        blockId={block.exerciseId}
+                        blockId={block.clientBlockId!}
                         displayUnit={displayUnit}
                         onUpdate={onUpdateSet}
                         onUpdateRest={onUpdateRestTime}
@@ -635,14 +641,14 @@ function ExerciseCard({
             </div>
 
             <button
-                onClick={() => onAddSet(block.exerciseId)}
+                onClick={() => onAddSet(block.clientBlockId!)}
                 className="w-full mt-3 py-2 border-2 border-dashed border-slate-100 rounded-xl text-xs text-slate-400 font-bold hover:bg-slate-50 hover:border-blue-200 hover:text-blue-500 transition-colors flex items-center justify-center gap-1"
             >
                 <Plus className="w-3.5 h-3.5" /> 세트 추가
             </button>
 
             <button
-                onClick={() => onSwapRequest(block.exerciseId)}
+                onClick={() => onSwapRequest(block.clientBlockId!)}
                 className="w-full mt-2 py-2 border-2 border-dashed border-slate-100 rounded-xl text-xs text-slate-400 font-bold hover:bg-slate-50 hover:border-purple-200 hover:text-purple-500 transition-colors"
             >
                 다른 운동으로 교체하기

@@ -165,7 +165,11 @@ export default function RoutineGenerator() {
             if (current.includes(muscleName)) {
                 return { ...prev, targetMuscles: current.filter((m: string) => m !== muscleName) }
             } else {
-                return { ...prev, targetMuscles: [...current, muscleName] }
+                return {
+                    ...prev,
+                    targetMuscles: [...current, muscleName],
+                    targetSplitLabel: prev.targetSplitLabel ?? "custom",
+                }
             }
         })
     }

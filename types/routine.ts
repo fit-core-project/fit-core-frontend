@@ -18,6 +18,7 @@ export interface SubstitutionCandidate {
 
 export interface RoutineBlock {
     order: number
+    clientBlockId?: string
     exerciseId: string
     exerciseName: string
     movementPattern?: string
