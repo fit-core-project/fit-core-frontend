@@ -18,6 +18,7 @@ export interface SubstitutionCandidate {
 
 export interface RoutineBlock {
     order: number
+    // UI-only drag/sort identifier. Strip before sending public finalize payloads.
     clientBlockId?: string
     exerciseId: string
     exerciseName: string

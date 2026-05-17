@@ -1,16 +1,4 @@
 #!/usr/bin/env bash
-# =============================================================================
-# fit-core  |  P1-04 Curl Smoke Pack
-# 커버리지: generate → finalize → workout save → final get → recent read
-#
-# 사전 요구사항:
-#   - jq 설치 (brew install jq / apt install jq)
-#   - 백엔드 서버 실행 중 (BASE_URL 기본값: http://localhost:8080)
-#   - 로그인 후 발급된 JWT를 TOKEN에 설정
-#
-# 사용법:
-#   BASE_URL=http://localhost:8080 TOKEN=<jwt> bash scripts/smoke.sh
-# =============================================================================
 
 set -euo pipefail
 
@@ -18,6 +6,13 @@ BASE_URL="${BASE_URL:-http://localhost:8080}"
 TOKEN="${TOKEN:-REPLACE_ME}"
 AUTH="Authorization: Bearer $TOKEN"
 JSON="Content-Type: application/json"
+PYTHON_BIN="${PYTHON_BIN:-python}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GOLDEN_DIR="$SCRIPT_DIR/../docs/ops/golden-examples"
+GENERATE_GOLDEN="$GOLDEN_DIR/generate.request.golden.json"
+FINALIZE_GOLDEN="$GOLDEN_DIR/finalize.request.golden.json"
+WORKOUT_GOLDEN="$GOLDEN_DIR/workout-save.request.golden.json"
 
 PASS=0
 FAIL=0
@@ -28,52 +23,36 @@ check() {
     echo "  [PASS] $label (HTTP $status)"
     PASS=$((PASS + 1))
   else
-    echo "  [FAIL] $label — expected HTTP $expected, got $status"
+    echo "  [FAIL] $label - expected HTTP $expected, got $status"
     FAIL=$((FAIL + 1))
   fi
 }
 
-# =============================================================================
-# 1. Generate  —  POST /api/routines/generate
-# =============================================================================
 echo ""
-echo "━━━ 1. Generate ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-GENERATE_BODY='{
-  "targetMuscles": ["chest", "triceps"],
-  "timeAvailableMin": 60,
-  "currentPainAreas": [],
-  "unavailableEquipment": [],
-  "currentDoms": [],
-  "goal": "HYPERTROPHY",
-  "userNote": "벤치프레스 위주로 부탁해"
-}'
+echo "1. Generate"
 
 GENERATE_RES=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/routines/generate" \
-  -H "$AUTH" -H "$JSON" -d "$GENERATE_BODY")
+  -H "$AUTH" -H "$JSON" --data-binary "@$GENERATE_GOLDEN")
 
 GENERATE_BODY_RES=$(echo "$GENERATE_RES" | head -n -1)
 GENERATE_STATUS=$(echo "$GENERATE_RES" | tail -n 1)
-
 check "POST /api/routines/generate" "$GENERATE_STATUS" 200
 
-DRAFT_ID=$(echo "$GENERATE_BODY_RES" | jq -r '.routineDraftId// empty')
+DRAFT_ID=$(printf '%s' "$GENERATE_BODY_RES" | "$PYTHON_BIN" -c 'import json,sys; print(json.load(sys.stdin).get("routineDraftId",""))')
 echo "  routineDraftId = $DRAFT_ID"
 
-# =============================================================================
-# 2. Finalize  —  POST /api/routines/drafts/{routineDraftId}/finalize
-# =============================================================================
 echo ""
-echo "━━━ 2. Finalize ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "2. Finalize"
 
-FINALIZE_BODY=$(jq -n \
-  --argjson payload "$GENERATE_BODY_RES" \
-  '{
-    targetWorkoutDate: (now | strftime("%Y-%m-%d")),
-    finalRoutinePayload: $payload,
-    acceptedWithoutEdits: true,
-    userEditSummary: ["수정 없이 시작"]
-  }')
+FINALIZE_BODY=$("$PYTHON_BIN" - "$FINALIZE_GOLDEN" "$(date +%Y-%m-%d)" <<'PY'
+import json, sys
+path, date = sys.argv[1], sys.argv[2]
+with open(path, encoding="utf-8") as f:
+    payload = json.load(f)
+payload["targetWorkoutDate"] = date
+print(json.dumps(payload))
+PY
+)
 
 FINALIZE_RES=$(curl -s -w "\n%{http_code}" -X POST \
   "$BASE_URL/api/routines/drafts/$DRAFT_ID/finalize" \
@@ -81,103 +60,49 @@ FINALIZE_RES=$(curl -s -w "\n%{http_code}" -X POST \
 
 FINALIZE_BODY_RES=$(echo "$FINALIZE_RES" | head -n -1)
 FINALIZE_STATUS=$(echo "$FINALIZE_RES" | tail -n 1)
-
 check "POST /api/routines/drafts/:draftId/finalize" "$FINALIZE_STATUS" 200
 
-FINAL_ID=$(echo "$FINALIZE_BODY_RES" | jq -r '.routineFinalId// empty')
+FINAL_ID=$(printf '%s' "$FINALIZE_BODY_RES" | "$PYTHON_BIN" -c 'import json,sys; print(json.load(sys.stdin).get("routineFinalId",""))')
 echo "  routineFinalId = $FINAL_ID"
 
-# =============================================================================
-# 3. Workout Save  —  POST /api/workouts
-# =============================================================================
 echo ""
-echo "━━━ 3. Workout Save ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "3. Workout Save"
 
-TODAY=$(date +%Y-%m-%d)
-
-WORKOUT_BODY=$(jq -n --arg date "$TODAY" --arg finalId "$FINAL_ID" '{
-  workoutDate: $date,
-  splitLabel: "스모크 테스트 루틴",
-  sourceRoutineFinalId: $finalId,
-  timeAvailableMin: 60,
-  durationMin: 45,
-  readinessLevel: "normal",
-  currentPainAreas: [],
-  currentDoms: [],
-  unavailableEquipment: [],
-  sets: [
-    {
-      exerciseId: "barbell_bench_press",
-      exerciseNameSnapshot: "바벨 벤치프레스",
-      setIndex: 1,
-      setType: "working",
-      trackingMode: "weightReps",
-      weightKg: 80,
-      reps: 8,
-      rir: 2,
-      isFailure: false,
-      restSec: 90
-    },
-    {
-      exerciseId: "barbell_bench_press",
-      exerciseNameSnapshot: "바벨 벤치프레스",
-      setIndex: 2,
-      setType: "working",
-      trackingMode: "weightReps",
-      weightKg: 80,
-      reps: 7,
-      rir: 1,
-      isFailure: false,
-      restSec: 90
-    },
-    {
-      exerciseId: "barbell_bench_press",
-      exerciseNameSnapshot: "바벨 벤치프레스",
-      setIndex: 3,
-      setType: "working",
-      trackingMode: "weightReps",
-      weightKg: 77.5,
-      reps: 6,
-      rir: 0,
-      isFailure: true,
-      restSec: 120
-    }
-  ]
-}')
+WORKOUT_BODY=$("$PYTHON_BIN" - "$WORKOUT_GOLDEN" "$(date +%Y-%m-%d)" "$FINAL_ID" <<'PY'
+import json, sys
+path, date, final_id = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(path, encoding="utf-8") as f:
+    payload = json.load(f)
+payload["workoutDate"] = date
+payload["sourceRoutineFinalId"] = final_id
+print(json.dumps(payload))
+PY
+)
 
 WORKOUT_RES=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/workouts" \
   -H "$AUTH" -H "$JSON" -d "$WORKOUT_BODY")
 
 WORKOUT_BODY_RES=$(echo "$WORKOUT_RES" | head -n -1)
 WORKOUT_STATUS=$(echo "$WORKOUT_RES" | tail -n 1)
-
 check "POST /api/workouts" "$WORKOUT_STATUS" 200
 
-WORKOUT_ID=$(echo "$WORKOUT_BODY_RES" | jq -r '.workoutSessionId// empty')
+WORKOUT_ID=$(printf '%s' "$WORKOUT_BODY_RES" | "$PYTHON_BIN" -c 'import json,sys; data=json.load(sys.stdin); print(data.get("workoutSessionId") or data.get("id",""))')
 echo "  workoutSessionId = $WORKOUT_ID"
 
-# =============================================================================
-# 4. Final Get  —  GET /api/routines/finals/{routineFinalId}
-# =============================================================================
 echo ""
-echo "━━━ 4. Final Get ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "4. Final Get"
 
 FINAL_GET_RES=$(curl -s -w "\n%{http_code}" -X GET \
   "$BASE_URL/api/routines/finals/$FINAL_ID" \
   -H "$AUTH")
 
 FINAL_GET_STATUS=$(echo "$FINAL_GET_RES" | tail -n 1)
-
 check "GET /api/routines/finals/:finalId" "$FINAL_GET_STATUS" 200
 
-# =============================================================================
-# 5. Recent Read  —  GET /api/exercises/{exerciseId}/recent-record
-# =============================================================================
 echo ""
-echo "━━━ 5. Recent Read ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "5. Recent Read"
 
 EXERCISE_ID="barbell_bench_press"
-
 RECENT_RES=$(curl -s -w "\n%{http_code}" -X GET \
   "$BASE_URL/api/exercises/$EXERCISE_ID/recent-record" \
   -H "$AUTH")
@@ -185,25 +110,21 @@ RECENT_RES=$(curl -s -w "\n%{http_code}" -X GET \
 RECENT_BODY_RES=$(echo "$RECENT_RES" | head -n -1)
 RECENT_STATUS=$(echo "$RECENT_RES" | tail -n 1)
 
-# 404 = 기록 없음 (정상), 200 = 기록 있음
 if [ "$RECENT_STATUS" -eq 200 ] || [ "$RECENT_STATUS" -eq 404 ]; then
   echo "  [PASS] GET /api/exercises/:exerciseId/recent-record (HTTP $RECENT_STATUS)"
   PASS=$((PASS + 1))
 else
-  echo "  [FAIL] GET /api/exercises/:exerciseId/recent-record — unexpected HTTP $RECENT_STATUS"
+  echo "  [FAIL] GET /api/exercises/:exerciseId/recent-record - unexpected HTTP $RECENT_STATUS"
   FAIL=$((FAIL + 1))
 fi
 
 if [ "$RECENT_STATUS" -eq 200 ]; then
-  echo "  defaultWeight = $(echo "$RECENT_BODY_RES" | jq -r '.defaultWeight // "N/A"')"
-  echo "  defaultReps   = $(echo "$RECENT_BODY_RES" | jq -r '.defaultReps // "N/A"')"
+  echo "  defaultWeight = $(printf '%s' "$RECENT_BODY_RES" | "$PYTHON_BIN" -c 'import json,sys; print(json.load(sys.stdin).get("defaultWeight","N/A"))')"
+  echo "  defaultReps   = $(printf '%s' "$RECENT_BODY_RES" | "$PYTHON_BIN" -c 'import json,sys; print(json.load(sys.stdin).get("defaultReps","N/A"))')"
 fi
 
-# =============================================================================
-# 결과 요약
-# =============================================================================
 echo ""
-echo "━━━ 결과 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Result"
 echo "  PASS: $PASS / $((PASS + FAIL))"
 [ "$FAIL" -gt 0 ] && echo "  FAIL: $FAIL" && exit 1
-echo "  모든 smoke 테스트 통과"
+echo "  all smoke checks passed"

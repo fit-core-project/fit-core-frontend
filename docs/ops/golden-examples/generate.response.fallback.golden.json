@@ -18,7 +18,7 @@
       "exerciseId": "push_up",
       "exerciseName": "Push-up",
       "movementPattern": "horizontalPush",
-      "primaryMuscles": ["CHEST_MID", "ARM_TRICEPS", "SHOULDER_FRONT"],
+        "primaryMuscles": ["CHEST_MID_LOWER", "ARM_TRICEPS", "SHOULDER_FRONT"],
       "equipmentType": "BODYWEIGHT",
       "defaultRestSec": 90,
       "exerciseRationale": "장비 의존도를 낮춘 기본 push 운동이며 컨디션에 맞게 강도를 조절하기 쉽다.",

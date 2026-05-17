@@ -278,9 +278,12 @@ export default function RoutineReviewPage() {
         )
         const acceptedWithoutEdits = userEditSummary.length === 0
 
+        const cleanRoutineBlocks = draft.routineBlocks.map(({ clientBlockId, ...block }) => block)
+
         const payload = {
             targetWorkoutDate: new Date().toISOString().split("T")[0],
-            finalRoutinePayload: { routineBlocks: draft.routineBlocks },
+            // clientBlockId is UI-only state for drag-and-drop, not part of the public finalize contract.
+            finalRoutinePayload: { routineBlocks: cleanRoutineBlocks },
             acceptedWithoutEdits,
             userEditSummary,
         }

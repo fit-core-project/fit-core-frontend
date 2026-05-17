@@ -19,7 +19,7 @@
       "exerciseId": "barbell_bench_press",
       "exerciseName": "Barbell Bench Press",
       "movementPattern": "horizontalPush",
-      "primaryMuscles": ["CHEST_MID", "ARM_TRICEPS", "SHOULDER_FRONT"],
+        "primaryMuscles": ["CHEST_MID_LOWER", "ARM_TRICEPS", "SHOULDER_FRONT"],
       "equipmentType": "BARBELL",
       "defaultRestSec": 120,
       "exerciseRationale": "가슴 중심 push 루틴의 주운동이며, 어깨 부담을 줄이기 위해 중량보다 자세 안정성을 우선한다.",
