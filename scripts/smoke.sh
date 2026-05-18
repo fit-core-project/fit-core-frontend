@@ -9,10 +9,16 @@ JSON="Content-Type: application/json"
 PYTHON_BIN="${PYTHON_BIN:-python}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EVIDENCE_DIR="${EVIDENCE_DIR:-$SCRIPT_DIR/../artifacts/smoke}"
 GOLDEN_DIR="$SCRIPT_DIR/../docs/ops/golden-examples"
 GENERATE_GOLDEN="$GOLDEN_DIR/generate.request.golden.json"
 FINALIZE_GOLDEN="$GOLDEN_DIR/finalize.request.golden.json"
 WORKOUT_GOLDEN="$GOLDEN_DIR/workout-save.request.golden.json"
+TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+EVIDENCE_LOG="${EVIDENCE_LOG:-$EVIDENCE_DIR/live-smoke-$TIMESTAMP.log}"
+
+mkdir -p "$EVIDENCE_DIR"
+exec > >(tee "$EVIDENCE_LOG") 2>&1
 
 PASS=0
 FAIL=0
@@ -27,6 +33,27 @@ check() {
     FAIL=$((FAIL + 1))
   fi
 }
+
+echo ""
+echo "Live backend smoke evidence"
+echo "  timestamp = $(date -Iseconds)"
+echo "  baseUrl   = $BASE_URL"
+echo "  logFile   = $EVIDENCE_LOG"
+
+if [ "$TOKEN" = "REPLACE_ME" ]; then
+  echo "  [FAIL] TOKEN is still REPLACE_ME; provide a real JWT for live backend verification."
+  exit 2
+fi
+
+echo ""
+echo "0. Backend Reachability"
+HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/swagger-ui/index.html")
+if [ "$HEALTH_STATUS" -eq 200 ] || [ "$HEALTH_STATUS" -eq 302 ]; then
+  echo "  [PASS] backend reachable (HTTP $HEALTH_STATUS)"
+else
+  echo "  [FAIL] backend not reachable at $BASE_URL (HTTP $HEALTH_STATUS)"
+  exit 3
+fi
 
 echo ""
 echo "1. Generate"
@@ -128,3 +155,4 @@ echo "Result"
 echo "  PASS: $PASS / $((PASS + FAIL))"
 [ "$FAIL" -gt 0 ] && echo "  FAIL: $FAIL" && exit 1
 echo "  all smoke checks passed"
+echo "  evidence saved to $EVIDENCE_LOG"
