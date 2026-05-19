@@ -11,7 +11,7 @@
         "exerciseId": "barbell_bench_press",
         "exerciseName": "Barbell Bench Press",
         "movementPattern": "horizontalPush",
-        "primaryMuscles": ["CHEST_MID", "ARM_TRICEPS", "SHOULDER_FRONT"],
+        "primaryMuscles": ["chest", "triceps", "front-deltoids"],
         "equipmentType": "BARBELL",
         "defaultRestSec": 120,
         "exerciseRationale": "사용자가 중량을 낮춰도 원래 운동 추천 의도는 유지한다.",

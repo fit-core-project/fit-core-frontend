@@ -45,16 +45,16 @@ const EQUIPMENTS: { label: string; value: Equipment }[] = [
 const PRESET_GROUPS = {
     PUSH: ["chest", "front-deltoids", "triceps"],
     PULL: ["upper-back", "trapezius", "biceps", "forearm", "back-deltoids"],
-    LEGS: ["quadriceps", "hamstring", "glutes", "calves", "adductors", "abductors"],
+    LEGS: ["quadriceps", "hamstring", "gluteal", "calves", "adductor", "abductors"],
     CORE: ["abs", "lower-back", "obliques"],
 }
 
 const GOAL_MAP: Record<string, RoutineFormState["goal"]> = {
     strength: "strength",
     hypertrophy: "hypertrophy",
-    fatLoss: "endurance",
-    recomposition: "endurance",
-    generalFitness: "endurance",
+    fatLoss: "fatLoss",
+    recomposition: "recomposition",
+    generalFitness: "generalFitness",
 }
 
 export default function RoutineGenerator() {
@@ -359,9 +359,11 @@ export default function RoutineGenerator() {
                                 }
                                 className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold text-slate-700 text-sm"
                             >
-                                <option value="hypertrophy">근비대 (근육 크기 증가)</option>
-                                <option value="strength">스트렝스 (최대 근력 증가)</option>
-                                <option value="endurance">근지구력 (다이어트/체력)</option>
+                                <option value="hypertrophy">근비대</option>
+                                <option value="strength">근력 강화</option>
+                                <option value="fatLoss">체지방 감량</option>
+                                <option value="recomposition">바디 리컴포지션</option>
+                                <option value="generalFitness">건강 유지</option>
                             </select>
                         </section>
 

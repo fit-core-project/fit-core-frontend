@@ -27,7 +27,7 @@ import { FinalizeState } from "@/types/state"
 
 // ── applyWeightToAllSets ─────────────────────────────────────────────────────
 // exerciseId로 최근 기록을 조회해 블록의 모든 세트에 중량/횟수를 일괄 적용한다.
-async function applyWeightToAllSets(block: RoutineBlock, exerciseId: string): Promise<RoutineBlock> {
+async function applyRecentRecordDefaults(block: RoutineBlock, exerciseId: string): Promise<RoutineBlock> {
     const record = await getRecentRecord(exerciseId)
     if (!record) return block
     const weight = record.defaultWeight > 0 ? record.defaultWeight : null
@@ -69,21 +69,15 @@ export default function RoutineReviewPage() {
 
                 if (!saved) return
                 const data = JSON.parse(saved) as RoutineDraft
-                initialDraftRef.current = JSON.parse(JSON.stringify(data))
-
-                // 카탈로그에서 exerciseName → exerciseId 매핑 후 전 세트 중량 일괄 적용
-                const enrichedBlocks = await Promise.all(
-                    data.routineBlocks.map((block, index) => {
-                        const blockWithId: RoutineBlock = {
-                            ...block,
-                            clientBlockId: block.clientBlockId ?? `cbid_${Date.now()}_${index}`,
-                        }
-                        return blockWithId.exerciseId
-                            ? applyWeightToAllSets(blockWithId, blockWithId.exerciseId)
-                            : Promise.resolve(blockWithId)
-                    })
-                )
-                setDraft({ ...data, routineBlocks: enrichedBlocks })
+                const hydratedDraft: RoutineDraft = {
+                    ...data,
+                    routineBlocks: data.routineBlocks.map((block, index) => ({
+                        ...block,
+                        clientBlockId: block.clientBlockId ?? `cbid_${Date.now()}_${index}`,
+                    })),
+                }
+                initialDraftRef.current = JSON.parse(JSON.stringify(hydratedDraft))
+                setDraft(hydratedDraft)
             } catch (err) {
                 console.error("루틴 로드 실패:", err)
             } finally {
@@ -197,7 +191,7 @@ export default function RoutineReviewPage() {
                 exerciseName: item.nameKr,
                 exerciseRationale: `${item.primaryMuscle} 주 자극 운동 (${item.equipment})`,
             }
-            const enrichedBlock = await applyWeightToAllSets(baseBlock, item.id)
+            const enrichedBlock = await applyRecentRecordDefaults(baseBlock, item.id)
 
             setDraft((prev) => {
                 if (!prev) return prev
@@ -219,10 +213,18 @@ export default function RoutineReviewPage() {
         if (!draft || !initialDraftRef.current) return 0
         const isModified = JSON.stringify(draft.routineBlocks) !== JSON.stringify(initialDraftRef.current.routineBlocks)
         if (!isModified) return initialDraftRef.current.totalEstimatedTime
-        return draft.routineBlocks.reduce((acc, block) => {
-            const totalRestSec = block.prescription.reduce((s, p) => s + p.targetRestSec, 0)
-            return acc + Math.ceil((block.prescription.length * 60 + totalRestSec) / 60)
+        const warmupSec = 5 * 60
+        const transitionSec = Math.max(0, draft.routineBlocks.length - 1) * 120
+        const workAndRestSec = draft.routineBlocks.reduce((acc, block) => {
+            const sets = block.prescription.length
+            const workSec = sets * 60
+            const restSec = block.prescription.reduce(
+                (sum, set, index) => (index < sets - 1 ? sum + set.targetRestSec : sum),
+                0
+            )
+            return acc + workSec + restSec
         }, 0)
+        return Math.ceil((warmupSec + transitionSec + workAndRestSec) / 60)
     }, [draft])
 
     // ── Validation: gate finalize when any set violates bounds ─────────────────

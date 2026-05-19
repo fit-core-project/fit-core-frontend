@@ -4,7 +4,7 @@ export interface RoutineFormState {
     equipment: string[]
     timeAvailable: number
     painAreas: string[]
-    goal: "strength" | "hypertrophy" | "endurance"
+    goal: "strength" | "hypertrophy" | "fatLoss" | "recomposition" | "generalFitness"
     userNote: string
     targetSplitLabel?: string
     readinessLevel: string

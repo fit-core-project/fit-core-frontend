@@ -28,7 +28,7 @@ export interface UserResponse {
     unpreferredExerciseIds: string[]
     preferredExerciseIds: string[]
     painAreas: PainArea[] // List<Map<String, Object>> 매핑
-    strengthBaseline: Record<string, unknown> // Map<String, Object> 매핑
+    strengthBaseline: StrengthBaseline[]
 
     bodyCompositionSnapshot?: BodyComposition[]
     profileVersion: number
@@ -57,13 +57,20 @@ export interface UserUpdateRequest {
     unpreferredExerciseIds?: string[]
     preferredExerciseIds?: string[]
     painAreas?: PainArea[]
-    strengthBaseline?: Record<string, unknown>
+    strengthBaseline?: StrengthBaseline[]
     bodyCompositionSnapshot?: BodyComposition[]
 }
 
 export interface PainArea {
     area: string
     note: string
+}
+
+export interface StrengthBaseline {
+    exerciseId: string
+    exerciseNameSnapshot: string
+    workingWeightKg: number
+    reps: number
 }
 
 export interface BodyComposition {

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { UserResponse } from "@/types/project"
+import { StrengthBaseline, UserResponse } from "@/types/project"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
 import { Activity, Bandage, Calendar, ChevronDown, Dumbbell, User } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
@@ -42,6 +42,30 @@ const EQUIPMENTS: { label: string; value: string }[] = [
     { label: "케이블", value: "CABLE" },
     { label: "맨몸", value: "BODYWEIGHT" },
 ]
+
+const BIG_FOUR_BASELINE: StrengthBaseline[] = [
+    { exerciseId: "75", exerciseNameSnapshot: "Barbell Overhead Press", workingWeightKg: 0, reps: 5 },
+    { exerciseId: "30", exerciseNameSnapshot: "Barbell Bench Press", workingWeightKg: 0, reps: 5 },
+    { exerciseId: "7", exerciseNameSnapshot: "Deadlift", workingWeightKg: 0, reps: 5 },
+    { exerciseId: "98", exerciseNameSnapshot: "Back Squat", workingWeightKg: 0, reps: 5 },
+]
+
+const BIG_FOUR_LABELS: Record<string, string> = {
+    "75": "오버헤드프레스",
+    "30": "벤치프레스",
+    "7": "데드리프트",
+    "98": "스쿼트",
+}
+
+function mergeBigFourBaseline(existing?: StrengthBaseline[] | null): StrengthBaseline[] {
+    const byId = new Map((existing || []).map((item) => [String(item.exerciseId), item]))
+    return BIG_FOUR_BASELINE.map((base) => ({
+        ...base,
+        ...byId.get(base.exerciseId),
+        exerciseId: base.exerciseId,
+        exerciseNameSnapshot: byId.get(base.exerciseId)?.exerciseNameSnapshot || base.exerciseNameSnapshot,
+    }))
+}
 
 const DAYS_OF_WEEK = [
     { label: "월", value: "MON" },
@@ -101,6 +125,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
         availableDays: initialProfile?.availableDays || [],
         equipmentAccess: initialProfile?.equipmentAccess || [],
         painAreas: initialProfile?.painAreas || [],
+        strengthBaseline: mergeBigFourBaseline(initialProfile?.strengthBaseline),
     })
     const [nicknameStatus, setNicknameStatus] = useState<"idle" | "checking" | "available" | "duplicate">("idle")
     const [domsData, setDomsData] = useState<Record<string, number>>(() => {
@@ -253,6 +278,20 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
         }))
     }
 
+    const handleStrengthBaselineChange = (
+        exerciseId: string,
+        field: "workingWeightKg" | "reps",
+        value: string
+    ) => {
+        const numericValue = value === "" ? 0 : Math.max(0, Number(value))
+        setFormData((prev) => ({
+            ...prev,
+            strengthBaseline: prev.strengthBaseline.map((item) =>
+                item.exerciseId === exerciseId ? { ...item, [field]: numericValue } : item
+            ),
+        }))
+    }
+
     return (
         <form
             onSubmit={handleSubmit}
@@ -372,6 +411,53 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                                 onChange={handleChange}
                                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:outline-none"
                             />
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            <section>
+                <div className="flex items-center gap-2 mb-4">
+                    <Dumbbell className="w-5 h-5 text-slate-700" />
+                    <h2 className="text-lg font-bold text-gray-900">4대 운동 기준 중량</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {formData.strengthBaseline.map((item) => (
+                        <div key={item.exerciseId} className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                            <div>
+                                <p className="text-sm font-bold text-gray-900">
+                                    {BIG_FOUR_LABELS[item.exerciseId] || item.exerciseNameSnapshot}
+                                </p>
+                                <p className="text-xs text-gray-500">{item.exerciseNameSnapshot}</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <label className="space-y-1">
+                                    <span className="text-xs font-semibold text-gray-600">중량 kg</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="2.5"
+                                        value={item.workingWeightKg}
+                                        onChange={(e) =>
+                                            handleStrengthBaselineChange(item.exerciseId, "workingWeightKg", e.target.value)
+                                        }
+                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
+                                    />
+                                </label>
+                                <label className="space-y-1">
+                                    <span className="text-xs font-semibold text-gray-600">반복</span>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        step="1"
+                                        value={item.reps}
+                                        onChange={(e) =>
+                                            handleStrengthBaselineChange(item.exerciseId, "reps", e.target.value)
+                                        }
+                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
+                                    />
+                                </label>
+                            </div>
                         </div>
                     ))}
                 </div>
