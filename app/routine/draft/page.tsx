@@ -611,12 +611,14 @@ function ExerciseCard({
                 >
                     <GripVertical className="w-4 h-4" />
                 </div>
-                <h4 className="font-bold text-slate-800 truncate">
+                <h4 className="min-w-0 font-bold text-slate-800 truncate">
                     {block.exerciseName || <span className="text-slate-300 font-medium">운동 선택 필요</span>}
                 </h4>
             </div>
             {block.exerciseRationale && (
-                <p className="text-xs text-slate-400 mt-1 mb-4 leading-relaxed line-clamp-2">{block.exerciseRationale}</p>
+                <p className="pr-10 text-xs text-slate-500 mt-1 mb-4 leading-relaxed whitespace-pre-wrap break-words">
+                    {block.exerciseRationale}
+                </p>
             )}
 
             {/* Set table header */}

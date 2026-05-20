@@ -5,7 +5,7 @@
   "timeAvailableMin": 58,
   "durationMin": 52,
   "readinessLevel": "normal",
-  "currentPainAreas": ["leftShoulder"],
+  "currentPainAreas": ["front-deltoids"],
   "currentDoms": [
     {
       "bodyPart": "chest",

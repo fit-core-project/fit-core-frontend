@@ -21,7 +21,7 @@
 - [ ] AI must not compare UI pain slugs directly against `exercise_tier.pain_triggers`.
 - [ ] `exercise_tier.pain_triggers` stores FE-facing pain slugs that can be matched from public `currentPainAreas`.
 - [ ] The same pain slug filtering is used in post-validation (`_candidate_is_safe`), not only in SQL.
-- [ ] The active golden case `currentPainAreas: ["leftShoulder"]` must exclude candidates whose `pain_triggers` include `leftShoulder` when that slug exists in the spreadsheet.
+- [ ] The active golden case `currentPainAreas: ["front-deltoids"]` must exclude candidates whose `pain_triggers` include `front-deltoids`.
 - [ ] Do not change public `currentPainAreas` to DB tokens; public request remains UI-friendly.
 
 ## Generate Response

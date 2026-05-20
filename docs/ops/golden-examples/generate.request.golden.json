@@ -3,7 +3,7 @@
   "targetMuscles": ["chest", "front-deltoids", "triceps"],
   "readinessLevel": "normal",
   "timeAvailableMin": 70,
-  "currentPainAreas": ["leftShoulder"],
+  "currentPainAreas": ["front-deltoids"],
   "currentDoms": [
     {
       "bodyPart": "chest",

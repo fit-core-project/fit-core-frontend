@@ -44,6 +44,18 @@ export default function WorkoutPlayer() {
         if (savedFinalId) setRoutineFinalId(savedFinalId)
     }, [router])
 
+    useEffect(() => {
+        const previousBodyOverflow = document.body.style.overflow
+        const previousHtmlOverflow = document.documentElement.style.overflow
+        document.body.style.overflow = "hidden"
+        document.documentElement.style.overflow = "hidden"
+
+        return () => {
+            document.body.style.overflow = previousBodyOverflow
+            document.documentElement.style.overflow = previousHtmlOverflow
+        }
+    }, [])
+
     // ── 타이머 종료의 단일 진입점 ───────────────────────────────────────────────
     // tick→0, skip, visibilitychange 세 경로 모두 여기로 수렴
     const finishRest = useCallback(() => {
@@ -92,6 +104,20 @@ export default function WorkoutPlayer() {
         return () => document.removeEventListener("visibilitychange", onVisibilityChange)
     }, [isTimerActive, isPaused, finishRest])
 
+    const scrollSetAboveTimer = useCallback((key: string | null) => {
+        if (!key) return
+        setTimeout(() => {
+            const row = setRowRefs.current.get(key)
+            if (!row) return
+            row.scrollIntoView({ behavior: "smooth", block: "center" })
+        }, 50)
+    }, [])
+
+    useEffect(() => {
+        if (!isTimerActive) return
+        scrollSetAboveTimer(nextKeyRef.current)
+    }, [isTimerActive, scrollSetAboveTimer])
+
     if (workoutStatus === "idle" || !routine) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -135,6 +161,7 @@ export default function WorkoutPlayer() {
                 setIsPaused(false)
                 setFocusedKey(null)
                 setIsTimerActive(true)
+                scrollSetAboveTimer(nextKeyRef.current)
             }
         }
     }
@@ -157,6 +184,8 @@ export default function WorkoutPlayer() {
         const s = seconds % 60
         return `${m}:${s.toString().padStart(2, "0")}`
     }
+
+    const displayedRestTime = isTimerActive ? timeLeft : 0
 
     const handleFinishRPE = async (rpeScore: number) => {
         if (!routine) return
@@ -325,9 +354,9 @@ export default function WorkoutPlayer() {
 
     // ── VIEW 1: 운동 진행 화면 ────────────────────────────────────────────────
     return (
-        <main className="min-h-screen bg-slate-50 pb-44">
+        <main className="absolute inset-0 bg-slate-50 flex flex-col overflow-hidden">
             {/* 상단 고정: 제목 + 진행 바 */}
-            <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
+            <div className="shrink-0 z-40 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
                 <div className="flex justify-between items-end mb-2 max-w-2xl mx-auto w-full gap-3">
                     <h1 className="font-extrabold text-xl text-slate-900 flex items-center min-w-0 flex-1">
                         <Flame className="w-5 h-5 text-orange-500 mr-2 shrink-0" />
@@ -346,7 +375,7 @@ export default function WorkoutPlayer() {
             </div>
 
             {/* 운동 블록 리스트 */}
-            <div className="p-4 max-w-2xl mx-auto w-full space-y-6 mt-4">
+            <div className="flex-1 overflow-y-auto p-4 pb-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
                 {routine.routineBlocks.map((block, blockIndex) => (
                     <div
                         key={block.exerciseId}
@@ -425,15 +454,18 @@ export default function WorkoutPlayer() {
             </div>
 
             {/* 하단 고정: 휴식 타이머 패널 */}
-            {isTimerActive && (
-                <div className="fixed bottom-0 left-0 right-0 bg-slate-900 text-white px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] rounded-t-3xl shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.3)] z-50 animate-fade-in-up">
+            <div className="shrink-0 bg-slate-900 text-white px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] rounded-t-3xl shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.3)] z-50">
                     <div className="max-w-md mx-auto w-full space-y-4">
                         {/* 타이머 표시 */}
                         <div className="flex items-center justify-between">
                             <div className="flex items-center">
                                 <div className="w-14 h-14 bg-slate-800 rounded-full flex items-center justify-center mr-4 shrink-0">
                                     <Timer
-                                        className={`w-7 h-7 ${timeLeft <= 10 && !isPaused ? "text-red-400 animate-pulse" : "text-blue-400"}`}
+                                        className={`w-7 h-7 ${
+                                            isTimerActive && displayedRestTime <= 10 && !isPaused
+                                                ? "text-red-400 animate-pulse"
+                                                : "text-blue-400"
+                                        }`}
                                     />
                                 </div>
                                 <div>
@@ -442,14 +474,16 @@ export default function WorkoutPlayer() {
                                     </p>
                                     <div
                                         className={`text-4xl font-mono font-extrabold tracking-tighter ${
-                                            isPaused
-                                                ? "text-slate-400"
-                                                : timeLeft <= 10
-                                                  ? "text-red-400"
-                                                  : "text-white"
+                                            !isTimerActive
+                                                ? "text-slate-500"
+                                                : isPaused
+                                                  ? "text-slate-400"
+                                                  : displayedRestTime <= 10
+                                                    ? "text-red-400"
+                                                    : "text-white"
                                         }`}
                                     >
-                                        {formatTime(timeLeft)}
+                                        {formatTime(displayedRestTime)}
                                     </div>
                                 </div>
                             </div>
@@ -457,7 +491,8 @@ export default function WorkoutPlayer() {
                             {/* 건너뛰기 */}
                             <button
                                 onClick={handleSkip}
-                                className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-3 rounded-2xl font-bold flex items-center gap-1.5 transition-colors text-sm"
+                                disabled={!isTimerActive}
+                                className="bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-white px-4 py-3 rounded-2xl font-bold flex items-center gap-1.5 transition-colors text-sm"
                             >
                                 <SkipForward className="w-4 h-4" />
                                 건너뛰기
@@ -467,7 +502,8 @@ export default function WorkoutPlayer() {
                         {/* 일시정지 / 재개 버튼 */}
                         <button
                             onClick={isPaused ? handleResume : handlePause}
-                            className={`w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors ${
+                            disabled={!isTimerActive}
+                            className={`w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors disabled:bg-slate-800 disabled:text-slate-600 ${
                                 isPaused
                                     ? "bg-blue-600 hover:bg-blue-500 text-white"
                                     : "bg-slate-800 hover:bg-slate-700 text-slate-300"
@@ -484,8 +520,7 @@ export default function WorkoutPlayer() {
                             )}
                         </button>
                     </div>
-                </div>
-            )}
+            </div>
         </main>
     )
 }

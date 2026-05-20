@@ -57,6 +57,12 @@ const GOAL_MAP: Record<string, RoutineFormState["goal"]> = {
     generalFitness: "generalFitness",
 }
 
+const normalizeTimeAvailable = (value: unknown): number => {
+    const parsed = typeof value === "number" ? value : Number(value)
+    if (!Number.isFinite(parsed) || parsed <= 0) return 60
+    return Math.min(120, Math.max(30, Math.round(parsed / 15) * 15))
+}
+
 export default function RoutineGenerator() {
     const router = useRouter()
     const [status, setStatus] = useState<GenerateState>("idle")
@@ -107,8 +113,11 @@ export default function RoutineGenerator() {
                     ...prev,
                     domsData: parsedDoms,
                     painAreas: parsedPainAreas,
-                    timeAvailable: prefs.timeAvailable,
-                    equipment: (prefs.equipment || []) as RoutineFormState["equipment"],
+                    timeAvailable: normalizeTimeAvailable(prefs.timeAvailable),
+                    equipment:
+                        prefs.equipment && prefs.equipment.length > 0
+                            ? (prefs.equipment as RoutineFormState["equipment"])
+                            : prev.equipment,
                     goal: GOAL_MAP[prefs.goal] ?? "hypertrophy",
                 }))
             })
