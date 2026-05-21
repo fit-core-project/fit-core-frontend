@@ -1,5 +1,6 @@
 import { getMockUserCondition, getMockUserPreferences, UserCondition, UserPreferences } from "./mockDataFactory"
 import AxiosController from "@/lib/axios/AxiosController"
+import { demoUserCondition, demoUserPreferences, isDemoMode } from "@/utils/demoMode"
 
 const IS_MOCK = process.env.NEXT_PUBLIC_DATA_SOURCE === "mock"
 
@@ -8,6 +9,8 @@ function delay(ms: number): Promise<void> {
 }
 
 export async function getUserCondition(): Promise<UserCondition> {
+    if (isDemoMode()) return demoUserCondition
+
     if (IS_MOCK) {
         await delay(500)
         return getMockUserCondition()
@@ -16,6 +19,8 @@ export async function getUserCondition(): Promise<UserCondition> {
 }
 
 export async function getUserPreferences(): Promise<UserPreferences> {
+    if (isDemoMode()) return demoUserPreferences
+
     if (IS_MOCK) {
         await delay(500)
         return getMockUserPreferences()

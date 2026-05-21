@@ -21,20 +21,20 @@ export default function StatCard({ label, value, unit, color, icon, diff }: Stat
     }
 
     return (
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
+        <div className="flex min-h-[132px] flex-col items-center justify-center rounded-xl border border-gray-100 bg-white px-2.5 py-3 text-center shadow-sm">
             {/* 아이콘 영역 (SVG 비율 유지) */}
-            <div className={`w-12 h-12 mb-3 flex items-center justify-center ${color}`}>{icon}</div>
+            <div className={`mb-2 flex h-8 w-8 items-center justify-center ${color}`}>{icon}</div>
 
             {/* 라벨 (예: 체중) */}
-            <span className="text-xs text-gray-500 mb-1.5 font-medium">{label}</span>
+            <span className="mb-1 text-[11px] font-medium text-gray-500">{label}</span>
 
             {/* 값과 단위 (예: 78.4kg) */}
-            <div className="flex items-baseline mb-2">
-                <span className="text-2xl font-extrabold text-gray-900">{value}</span>
-                <span className="text-base font-bold text-gray-900 ml-0.5">{unit}</span>
+            <div className="mb-1.5 flex items-baseline">
+                <span className="text-xl font-extrabold text-gray-900">{value}</span>
+                <span className="ml-0.5 text-xs font-bold text-gray-900">{unit}</span>
             </div>
 
-            <div className={`flex items-center text-[10px] ${getDiffColor(diff.type)} font-medium`}>
+            <div className={`flex items-center text-[10px] ${getDiffColor(diff.type)} font-medium leading-none`}>
                 {/* 컴포넌트 대신 직접 조건부 렌더링 사용 */}
                 {diff.type === "up" && <span className="mr-0.5">▲</span>}
                 {diff.type === "down" && <span className="mr-0.5">▼</span>}

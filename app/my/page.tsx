@@ -1,7 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { User, ClipboardList, Settings, Trophy, Dumbbell } from "lucide-react"
+import { ReactNode, useCallback, useEffect, useState } from "react"
+import { ClipboardList, Dumbbell, Settings, Trophy, User } from "lucide-react"
 import Profile from "@/app/my/profile/Profile"
 import ProfileEditForm from "@/app/my/profile/ProfileEditForm"
 import { BodyComposition, UserResponse, UserUpdateRequest } from "@/types/project"
@@ -10,23 +10,33 @@ import profileApiClient from "@/lib/api/profile/profileApiClient"
 import BodyCompositionPage from "@/app/my/body-composition/BodyComposition"
 import WorkoutList from "@/app/my/workout/WorkoutList"
 
-export default function Page() {
-    const tabs = [
-        { id: "profile", label: "프로필", icon: <User size={18} /> },
-        { id: "stats", label: "체성분", icon: <Trophy size={18} /> },
-        { id: "routine", label: "루틴", icon: <Dumbbell size={18} /> },
-        { id: "workout", label: "운동이력", icon: <ClipboardList size={18} /> },
-        { id: "settings", label: "설정", icon: <Settings size={18} /> },
-    ]
+type TabId = "profile" | "stats" | "routine" | "workout" | "settings"
 
+const tabs: { id: TabId; label: string; icon: ReactNode }[] = [
+    { id: "profile", label: "프로필", icon: <User size={18} /> },
+    { id: "stats", label: "체성분", icon: <Trophy size={18} /> },
+    { id: "routine", label: "루틴", icon: <Dumbbell size={18} /> },
+    { id: "workout", label: "운동이력", icon: <ClipboardList size={18} /> },
+    { id: "settings", label: "설정", icon: <Settings size={18} /> },
+]
+
+function PlaceholderPanel({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
+    return (
+        <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl bg-white px-6 py-16 text-center shadow-sm">
+            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                {icon}
+            </div>
+            <h2 className="mb-2 text-lg font-extrabold text-slate-800">{title}</h2>
+            <p className="max-w-xs text-sm leading-relaxed text-slate-500">{description}</p>
+        </div>
+    )
+}
+
+export default function Page() {
     const [isEditing, setIsEditing] = useState(false)
-    const [activeTab, setActiveTab] = useState("profile") // 탭 상태 관리: 'profile', 'history', 'stats', 'settings'
+    const [activeTab, setActiveTab] = useState<TabId>("profile")
     const user = useAuthStore((state) => state.user)
     const [profile, setProfile] = useState<UserResponse | null>(null)
-
-    useEffect(() => {
-        console.log(profile)
-    }, [profile])
 
     const logout = useCallback(() => {
         useAuthStore.getState().logout()
@@ -48,7 +58,8 @@ export default function Page() {
             return
         }
 
-        profileApiClient.updateMe(updatedData as UserUpdateRequest)
+        profileApiClient
+            .updateMe(updatedData as UserUpdateRequest)
             .then((res) => {
                 alert("프로필이 성공적으로 업데이트되었습니다.")
                 setIsEditing(false)
@@ -62,45 +73,44 @@ export default function Page() {
     const onBodyCompositionSave = async (formData: BodyComposition): Promise<boolean> => {
         const existingSnapshots = profile?.bodyCompositionSnapshot || []
         const updatedSnapshots = [...existingSnapshots, formData]
-        console.log(formData)
+
         try {
             const res = await profileApiClient.updateMe({
                 ...profile,
                 bodyCompositionSnapshot: updatedSnapshots,
             } as UserUpdateRequest)
 
-            alert("프로필이 성공적으로 업데이트되었습니다.")
+            alert("체성분 정보가 성공적으로 업데이트되었습니다.")
             setProfile(res)
-            return true // 성공 시 true 리턴
+            return true
         } catch (error) {
             console.error("Update Error:", error)
-            alert("프로필 업데이트 중 오류가 발생했습니다.")
-            return false // 실패 시 false 리턴
+            alert("체성분 업데이트 중 오류가 발생했습니다.")
+            return false
         }
     }
 
     return (
-        <div className="w-full max-w-2xl mx-auto p-4">
-            {/* 1. 상단 탭 메뉴 */}
-            <div className="flex border-b border-gray-200 mb-6">
+        <div className="mx-auto w-full max-w-[480px] p-4">
+            <div className="mb-6 grid grid-cols-5 border-b border-gray-200">
                 {tabs.map((tab) => (
                     <button
+                        type="button"
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors border-b-2 ${
+                        className={`flex min-w-0 flex-col items-center justify-center gap-1 border-b-2 px-1 py-3 text-[11px] font-medium transition-colors ${
                             activeTab === tab.id
                                 ? "border-blue-600 text-blue-600"
                                 : "border-transparent text-gray-500 hover:text-gray-700"
                         }`}
                     >
                         {tab.icon}
-                        {tab.label}
+                        <span className="w-full truncate">{tab.label}</span>
                     </button>
                 ))}
             </div>
 
-            {/* 2. 탭 컨텐츠 영역 */}
-            <div className="min-h-75">
+            <div className="min-h-[360px]">
                 {activeTab === "profile" &&
                     (isEditing ? (
                         <ProfileEditForm
@@ -112,10 +122,20 @@ export default function Page() {
                         <Profile profile={profile} logout={logout} onEdit={() => setIsEditing(true)} />
                     ))}
                 {activeTab === "stats" && <BodyCompositionPage profile={profile} onSave={onBodyCompositionSave} />}
-                {activeTab === "routine" && <div className="text-center py-10">루틴이 여기에 표시됩니다.</div>}
+                {activeTab === "routine" && (
+                    <PlaceholderPanel
+                        icon={<Dumbbell className="h-8 w-8" />}
+                        title="루틴 준비 중입니다"
+                        description="저장한 루틴과 반복 사용 기능이 준비되면 이곳에서 확인할 수 있습니다."
+                    />
+                )}
                 {activeTab === "workout" && <WorkoutList />}
                 {activeTab === "settings" && (
-                    <div className="text-center py-10">계정 설정 메뉴가 여기에 표시됩니다.</div>
+                    <PlaceholderPanel
+                        icon={<Settings className="h-8 w-8" />}
+                        title="설정 준비 중입니다"
+                        description="계정 및 앱 설정 메뉴가 준비되면 이곳에서 관리할 수 있습니다."
+                    />
                 )}
             </div>
         </div>

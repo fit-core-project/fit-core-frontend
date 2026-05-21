@@ -470,80 +470,82 @@ export default function RoutineGenerator() {
 
             {/* 로딩 스켈레톤 — 드래프트 페이지처럼 보이는 전체화면 오버레이 */}
             {status === "loading" && (
-                <div className="fixed inset-0 z-50 bg-slate-50 overflow-y-auto animate-in fade-in duration-200">
-                    {/* 가짜 헤더 — 진행 바 + 로딩 메시지 */}
-                    <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
-                        <div className="flex justify-between items-end mb-2 max-w-2xl mx-auto">
-                            <div className="flex items-center gap-2">
-                                <Dumbbell
-                                    className="w-5 h-5 text-orange-500 shrink-0"
-                                    style={{ animation: "spin 3s linear infinite" }}
-                                />
-                                <div className="h-4 w-36 bg-slate-200 rounded-full animate-pulse" />
-                            </div>
-                            <div className="h-3.5 w-16 bg-slate-100 rounded-full animate-pulse" />
-                        </div>
-                        <div className="max-w-2xl mx-auto h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-blue-300 rounded-full animate-pulse"
-                                style={{ width: "30%" }}
-                            />
-                        </div>
-                        <p
-                            className="text-xs text-blue-500 font-medium mt-2 text-center animate-pulse"
-                            key={loadingMsgIndex}
-                        >
-                            {LOADING_MESSAGES[loadingMsgIndex]}
-                        </p>
-                    </div>
-
-                    {/* 스켈레톤 운동 블록 카드 3장 */}
-                    <div className="p-4 max-w-2xl mx-auto space-y-5 mt-4">
-                        {[72, 56, 64].map((titleWidth, i) => (
-                            <div
-                                key={i}
-                                className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden animate-pulse"
-                            >
-                                {/* 카드 헤더 (다크 배경) */}
-                                <div className="p-5 bg-slate-800">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-slate-600 shrink-0" />
-                                        <div
-                                            className="h-4 bg-slate-600 rounded-full"
-                                            style={{ width: `${titleWidth}%` }}
-                                        />
-                                    </div>
-                                    <div className="h-3 bg-slate-700 rounded-full mt-3 ml-11 w-4/5" />
+                <div className="fixed inset-0 z-50 flex justify-center bg-slate-900/20 animate-in fade-in duration-200">
+                    <div className="h-full w-full max-w-[480px] overflow-y-auto bg-slate-50 shadow-2xl">
+                        {/* 가짜 헤더 — 진행 바 + 로딩 메시지 */}
+                        <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
+                            <div className="flex justify-between items-end mb-2 w-full mx-auto">
+                                <div className="flex items-center gap-2">
+                                    <Dumbbell
+                                        className="w-5 h-5 text-orange-500 shrink-0"
+                                        style={{ animation: "spin 3s linear infinite" }}
+                                    />
+                                    <div className="h-4 w-36 bg-slate-200 rounded-full animate-pulse" />
                                 </div>
+                                <div className="h-3.5 w-16 bg-slate-100 rounded-full animate-pulse" />
+                            </div>
+                            <div className="w-full mx-auto h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-blue-300 rounded-full animate-pulse"
+                                    style={{ width: "30%" }}
+                                />
+                            </div>
+                            <p
+                                className="text-xs text-blue-500 font-medium mt-2 text-center animate-pulse"
+                                key={loadingMsgIndex}
+                            >
+                                {LOADING_MESSAGES[loadingMsgIndex]}
+                            </p>
+                        </div>
 
-                                {/* 세트 행 */}
-                                <div className="p-4 space-y-3">
-                                    {/* 컬럼 헤더 */}
-                                    <div className="grid grid-cols-[1.5rem_1fr_1fr_3.5rem_1.5rem] gap-x-2 px-1">
-                                        {[6, 8, 8, 10, 6].map((w, j) => (
+                        {/* 스켈레톤 운동 블록 카드 3장 */}
+                        <div className="p-4 w-full mx-auto space-y-5 mt-4">
+                            {[72, 56, 64].map((titleWidth, i) => (
+                                <div
+                                    key={i}
+                                    className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden animate-pulse"
+                                >
+                                    {/* 카드 헤더 (다크 배경) */}
+                                    <div className="p-5 bg-slate-800">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-slate-600 shrink-0" />
+                                            <div
+                                                className="h-4 bg-slate-600 rounded-full"
+                                                style={{ width: `${titleWidth}%` }}
+                                            />
+                                        </div>
+                                        <div className="h-3 bg-slate-700 rounded-full mt-3 ml-11 w-4/5" />
+                                    </div>
+
+                                    {/* 세트 행 */}
+                                    <div className="p-4 space-y-3">
+                                        {/* 컬럼 헤더 */}
+                                        <div className="grid grid-cols-[1.5rem_1fr_1fr_3.5rem_1.5rem] gap-x-2 px-1">
+                                            {[6, 8, 8, 10, 6].map((w, j) => (
+                                                <div
+                                                    key={j}
+                                                    className="h-2.5 bg-slate-100 rounded-full"
+                                                    style={{ width: `${w * 4}px` }}
+                                                />
+                                            ))}
+                                        </div>
+                                        {/* 세트 3개 */}
+                                        {[0, 1, 2].map((j) => (
                                             <div
                                                 key={j}
-                                                className="h-2.5 bg-slate-100 rounded-full"
-                                                style={{ width: `${w * 4}px` }}
-                                            />
+                                                className="grid grid-cols-[1.5rem_1fr_1fr_3.5rem_1.5rem] gap-x-2 items-center"
+                                            >
+                                                <div className="h-4 w-4 bg-slate-100 rounded-full mx-auto" />
+                                                <div className="h-9 bg-slate-100 rounded-xl" />
+                                                <div className="h-9 bg-slate-100 rounded-xl" />
+                                                <div className="h-9 bg-slate-100 rounded-xl" />
+                                                <div className="h-4 w-4 bg-slate-100 rounded-full mx-auto" />
+                                            </div>
                                         ))}
                                     </div>
-                                    {/* 세트 3개 */}
-                                    {[0, 1, 2].map((j) => (
-                                        <div
-                                            key={j}
-                                            className="grid grid-cols-[1.5rem_1fr_1fr_3.5rem_1.5rem] gap-x-2 items-center"
-                                        >
-                                            <div className="h-4 w-4 bg-slate-100 rounded-full mx-auto" />
-                                            <div className="h-9 bg-slate-100 rounded-xl" />
-                                            <div className="h-9 bg-slate-100 rounded-xl" />
-                                            <div className="h-9 bg-slate-100 rounded-xl" />
-                                            <div className="h-4 w-4 bg-slate-100 rounded-full mx-auto" />
-                                        </div>
-                                    ))}
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </div>
             )}

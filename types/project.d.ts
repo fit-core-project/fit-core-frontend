@@ -126,6 +126,10 @@ export interface WorkoutSessionResponse {
     userId: string
     workoutDate: string | Date // ISO 8601 Date (YYYY-MM-DD)
     splitLabel: string
+    routineName?: string | null
+    title?: string | null
+    summaryTitle?: string | null
+    targetSplitLabel?: string | null
     sourceRoutineFinalId: string
     timeAvailableMin: number // Short -> number
     durationMin: number

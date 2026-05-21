@@ -1,14 +1,16 @@
 "use client"
 
-import React from "react"
-import AxiosController from "@/lib/axios/AxiosController"
+import { useRouter } from "next/navigation"
+import { FlaskConical, UserCircle } from "lucide-react"
 import SocialButton from "@/app/components/SocialButton"
-import { UserCircle } from "lucide-react"
+import AxiosController from "@/lib/axios/AxiosController"
+import { useAuthStore } from "@/store/authStore"
+import { createDemoToken, seedDemoSession } from "@/utils/demoMode"
 
 export default function LoginPage() {
-    /**
-     * 소셜 로그인 핸들러
-     */
+    const router = useRouter()
+    const setToken = useAuthStore((state) => state.setToken)
+
     const handleSocialLogin = (provider: string) => {
         const baseUrl = AxiosController.defaults.baseURL
 
@@ -16,7 +18,15 @@ export default function LoginPage() {
             alert("백엔드 서버 주소(BASE_URL)가 설정되지 않았습니다.")
             return
         }
+
         window.location.href = `${baseUrl}/oauth2/authorization/${provider}`
+    }
+
+    const handleDemoLogin = () => {
+        seedDemoSession()
+        setToken(createDemoToken())
+        useAuthStore.getState().setIsLoading(false)
+        router.replace("/")
     }
 
     return (
@@ -36,10 +46,28 @@ export default function LoginPage() {
                     <SocialButton provider="google" imageSrc="/images/google.png" onClick={handleSocialLogin} />
                 </div>
 
+                <div className="my-6 flex items-center gap-3">
+                    <div className="h-px flex-1 bg-slate-100" />
+                    <span className="text-[11px] font-bold text-slate-400">PORTFOLIO DEMO</span>
+                    <div className="h-px flex-1 bg-slate-100" />
+                </div>
+
                 <button
+                    type="button"
+                    onClick={handleDemoLogin}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-extrabold text-emerald-700 transition-colors hover:bg-emerald-100 active:scale-[0.99]"
+                >
+                    <FlaskConical className="h-4 w-4" />
+                    테스트 모드 로그인
+                </button>
+
+                <button
+                    type="button"
                     onClick={() => window.history.back()}
-                    className="mt-10 group text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center gap-1.5"
-                ></button>
+                    className="mt-8 group text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center gap-1.5"
+                >
+                    돌아가기
+                </button>
             </div>
         </div>
     )

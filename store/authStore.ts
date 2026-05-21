@@ -2,10 +2,12 @@
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
 import { jwtDecode, JwtPayload } from "jwt-decode"
+import { clearDemoSession } from "@/utils/demoMode"
 
 interface FitCoreJwt extends JwtPayload {
     auth: string
     profileImage?: string | null
+    demo?: boolean
 }
 
 interface UserInfo {
@@ -33,6 +35,7 @@ export const useAuthStore = create<AuthState>()(
             setIsLoading: (loading) => set({ isLoading: loading }),
             setToken: (token: string) => {
                 const decoded = jwtDecode<FitCoreJwt>(token)
+                if (!decoded.demo) clearDemoSession()
                 set({
                     token,
                     user: {
@@ -42,7 +45,10 @@ export const useAuthStore = create<AuthState>()(
                     },
                 })
             },
-            logout: () => set({ token: null, user: null }),
+            logout: () => {
+                clearDemoSession()
+                set({ token: null, user: null })
+            },
             clearToken: () => set({ token: null }),
         }),
         {

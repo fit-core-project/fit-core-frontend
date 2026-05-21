@@ -24,8 +24,8 @@ export default function WorkoutPlayer() {
     const workoutStartTime = useRef<number>(0)
 
     // ── Timer refs ──────────────────────────────────────────────────────────────
-    const endTimeRef = useRef<number>(0)       // 절대 종료 시각 (ms)
-    const pausedAtRef = useRef<number>(0)      // 일시정지 시작 시각 (ms)
+    const endTimeRef = useRef<number>(0) // 절대 종료 시각 (ms)
+    const pausedAtRef = useRef<number>(0) // 일시정지 시작 시각 (ms)
     const nextKeyRef = useRef<string | null>(null)
     const setRowRefs = useRef<Map<string, HTMLElement>>(new Map())
 
@@ -90,7 +90,7 @@ export default function WorkoutPlayer() {
     useEffect(() => {
         const onVisibilityChange = () => {
             if (document.visibilityState !== "visible") return
-            if (!isTimerActive || isPaused) return   // 일시정지 중엔 재보정 하지 않음
+            if (!isTimerActive || isPaused) return // 일시정지 중엔 재보정 하지 않음
 
             const remaining = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000))
             if (remaining === 0) {
@@ -220,11 +220,12 @@ export default function WorkoutPlayer() {
             }))
         )
 
-        const splitLabel = localStorage.getItem("fitcore_split_label") ?? routine.summaryTitle
+        const targetSplitLabel = localStorage.getItem("fitcore_split_label")
+        const routineTitle = routine.summaryTitle || targetSplitLabel || "오늘의 루틴"
 
         const finalWorkoutData: WorkoutSaveRequest = {
             workoutDate,
-            splitLabel,
+            splitLabel: routineTitle,
             sourceRoutineFinalId: routineFinalId,
             timeAvailableMin: routine.totalEstimatedTime,
             durationMin,
@@ -282,9 +283,7 @@ export default function WorkoutPlayer() {
                 <p className="text-slate-400 text-center mb-2 leading-relaxed">
                     네트워크 문제로 기록 저장에 실패했습니다.
                 </p>
-                <p className="text-slate-500 text-sm text-center mb-10">
-                    데이터는 안전하게 보관되어 있습니다.
-                </p>
+                <p className="text-slate-500 text-sm text-center mb-10">데이터는 안전하게 보관되어 있습니다.</p>
                 <div className="w-full max-w-md space-y-3">
                     <button
                         onClick={handleRetry}
@@ -455,71 +454,71 @@ export default function WorkoutPlayer() {
 
             {/* 하단 고정: 휴식 타이머 패널 */}
             <div className="shrink-0 bg-slate-900 text-white px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] rounded-t-3xl shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.3)] z-50">
-                    <div className="max-w-md mx-auto w-full space-y-4">
-                        {/* 타이머 표시 */}
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center">
-                                <div className="w-14 h-14 bg-slate-800 rounded-full flex items-center justify-center mr-4 shrink-0">
-                                    <Timer
-                                        className={`w-7 h-7 ${
-                                            isTimerActive && displayedRestTime <= 10 && !isPaused
-                                                ? "text-red-400 animate-pulse"
-                                                : "text-blue-400"
-                                        }`}
-                                    />
-                                </div>
-                                <div>
-                                    <p className="text-slate-400 text-sm font-bold mb-0.5">
-                                        {isPaused ? "일시정지" : "휴식 시간"}
-                                    </p>
-                                    <div
-                                        className={`text-4xl font-mono font-extrabold tracking-tighter ${
-                                            !isTimerActive
-                                                ? "text-slate-500"
-                                                : isPaused
-                                                  ? "text-slate-400"
-                                                  : displayedRestTime <= 10
-                                                    ? "text-red-400"
-                                                    : "text-white"
-                                        }`}
-                                    >
-                                        {formatTime(displayedRestTime)}
-                                    </div>
+                <div className="max-w-md mx-auto w-full space-y-4">
+                    {/* 타이머 표시 */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <div className="w-14 h-14 bg-slate-800 rounded-full flex items-center justify-center mr-4 shrink-0">
+                                <Timer
+                                    className={`w-7 h-7 ${
+                                        isTimerActive && displayedRestTime <= 10 && !isPaused
+                                            ? "text-red-400 animate-pulse"
+                                            : "text-blue-400"
+                                    }`}
+                                />
+                            </div>
+                            <div>
+                                <p className="text-slate-400 text-sm font-bold mb-0.5">
+                                    {isPaused ? "일시정지" : "휴식 시간"}
+                                </p>
+                                <div
+                                    className={`text-4xl font-mono font-extrabold tracking-tighter ${
+                                        !isTimerActive
+                                            ? "text-slate-500"
+                                            : isPaused
+                                              ? "text-slate-400"
+                                              : displayedRestTime <= 10
+                                                ? "text-red-400"
+                                                : "text-white"
+                                    }`}
+                                >
+                                    {formatTime(displayedRestTime)}
                                 </div>
                             </div>
-
-                            {/* 건너뛰기 */}
-                            <button
-                                onClick={handleSkip}
-                                disabled={!isTimerActive}
-                                className="bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-white px-4 py-3 rounded-2xl font-bold flex items-center gap-1.5 transition-colors text-sm"
-                            >
-                                <SkipForward className="w-4 h-4" />
-                                건너뛰기
-                            </button>
                         </div>
 
-                        {/* 일시정지 / 재개 버튼 */}
+                        {/* 건너뛰기 */}
                         <button
-                            onClick={isPaused ? handleResume : handlePause}
+                            onClick={handleSkip}
                             disabled={!isTimerActive}
-                            className={`w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors disabled:bg-slate-800 disabled:text-slate-600 ${
-                                isPaused
-                                    ? "bg-blue-600 hover:bg-blue-500 text-white"
-                                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
-                            }`}
+                            className="bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-white px-4 py-3 rounded-2xl font-bold flex items-center gap-1.5 transition-colors text-sm"
                         >
-                            {isPaused ? (
-                                <>
-                                    <Play className="w-4 h-4" /> 재개
-                                </>
-                            ) : (
-                                <>
-                                    <Pause className="w-4 h-4" /> 일시정지
-                                </>
-                            )}
+                            <SkipForward className="w-4 h-4" />
+                            건너뛰기
                         </button>
                     </div>
+
+                    {/* 일시정지 / 재개 버튼 */}
+                    <button
+                        onClick={isPaused ? handleResume : handlePause}
+                        disabled={!isTimerActive}
+                        className={`w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors disabled:bg-slate-800 disabled:text-slate-600 ${
+                            isPaused
+                                ? "bg-blue-600 hover:bg-blue-500 text-white"
+                                : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                        }`}
+                    >
+                        {isPaused ? (
+                            <>
+                                <Play className="w-4 h-4" /> 재개
+                            </>
+                        ) : (
+                            <>
+                                <Pause className="w-4 h-4" /> 일시정지
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
         </main>
     )
