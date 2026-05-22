@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Send, Sparkles, Mic, Bot, StopCircle, AlertCircle, Activity, Save, Apple, Dumbbell } from "lucide-react"
 import AxiosController from "@/lib/axios/AxiosController"
+import { useSettingsStore } from "@/store/settingsStore"
 
 // --- TypeScript 타입 정의 ---
 interface ParsedData {
@@ -38,6 +39,7 @@ export default function QuickLogPage() {
     const [displayedFeedback, setDisplayedFeedback] = useState("")
     const [isSaving, setIsSaving] = useState(false) // 저장 중 상태 추가
     const [saveSuccess, setSaveSuccess] = useState(false)
+    const { weightUnit } = useSettingsStore()
 
     // 로딩 메시지 순환 효과
     useEffect(() => {
@@ -301,7 +303,9 @@ export default function QuickLogPage() {
                                                     {log.exercise_name}
                                                 </div>
                                                 <div className="text-sm font-bold text-slate-600 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
-                                                    {log.weight_kg ? `${log.weight_kg}kg · ` : ""}
+                                                    {log.weight_kg
+                                                        ? `${weightUnit === "lbs" ? Math.round(log.weight_kg * 2.20462) : log.weight_kg}${weightUnit} · `
+                                                        : ""}
                                                     {log.sets ? `${log.sets}세트 ` : ""}
                                                     {log.reps ? `· ${log.reps}회` : ""}
                                                 </div>

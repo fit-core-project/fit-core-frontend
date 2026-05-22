@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import Header from "./components/header"
 import AuthInitializer from "@/app/components/AuthInitializer"
-import LogViewer from "@/app/components/LogViewer"
+import MainLayout from "@/app/components/MainLayout"
 import Providers from "@/components/Providers"
 import MSWProvider from "@/app/components/MSWProvider"
 
@@ -26,21 +26,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     return (
         <html lang="ko" className="h-[100dvh]">
             <body className={`${geistSans.variable} ${geistMono.variable} h-[100dvh] bg-slate-950 antialiased`}>
-                <main className="flex h-full w-full justify-center overflow-hidden">
-                    <LogViewer
-                        title="AI Engine Logs"
-                        endpoint={process.env.NEXT_PUBLIC_API_URL}
-                        accentClassName="bg-emerald-400"
-                    />
+                <MainLayout>
                     <section className="relative flex h-full w-full max-w-[480px] shrink-0 flex-col overflow-hidden bg-slate-50 shadow-2xl">
                         {isMockMode ? <MSWProvider>{content}</MSWProvider> : content}
                     </section>
-                    <LogViewer
-                        title="Spring Boot Logs"
-                        endpoint={process.env.NEXT_PUBLIC_BASE_URL}
-                        accentClassName="bg-sky-400"
-                    />
-                </main>
+                </MainLayout>
             </body>
         </html>
     )

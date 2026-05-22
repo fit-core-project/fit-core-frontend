@@ -1,14 +1,23 @@
 import React, { useState } from "react"
 import { BodyComposition } from "@/types/project"
 import { Scale } from "lucide-react"
+import { useSettingsStore } from "@/store/settingsStore"
 
 type props = {
     onCancel: () => void
     onSave: (formData: BodyComposition) => void
 }
 
+const WEIGHT_KG_FIELDS: (keyof BodyComposition)[] = [
+    "bodyWeightKg",
+    "skeletalMuscleMassKg",
+    "bodyFatMassKg",
+    "fatFreeMassKg",
+]
+
 export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
     const [formData, setFormData] = useState<BodyComposition | null>()
+    const { weightUnit } = useSettingsStore()
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type } = e.target
@@ -22,7 +31,18 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
         e.preventDefault()
 
         if (formData) {
-            onSave(formData)
+            if (weightUnit === "lbs") {
+                const converted = { ...formData }
+                for (const field of WEIGHT_KG_FIELDS) {
+                    const val = converted[field] as number | undefined
+                    if (val != null) {
+                        ;(converted as Record<string, unknown>)[field] = val / 2.20462
+                    }
+                }
+                onSave(converted)
+            } else {
+                onSave(formData)
+            }
         }
     }
 
@@ -65,7 +85,7 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
 
                     {/* 체중 */}
                     <div className="space-y-0.5">
-                        <label className="text-xs font-semibold text-gray-500">체중 (kg)</label>
+                        <label className="text-xs font-semibold text-gray-500">체중 ({weightUnit})</label>
                         <input
                             type="number"
                             step="0.1"
@@ -78,7 +98,7 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
 
                     {/* 골격근량 */}
                     <div className="space-y-0.5">
-                        <label className="text-xs font-semibold text-gray-500">골격근량 (kg)</label>
+                        <label className="text-xs font-semibold text-gray-500">골격근량 ({weightUnit})</label>
                         <input
                             type="number"
                             step="0.1"
@@ -91,7 +111,7 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
 
                     {/* 체지방량 */}
                     <div className="space-y-0.5">
-                        <label className="text-xs font-semibold text-gray-500">체지방량 (kg)</label>
+                        <label className="text-xs font-semibold text-gray-500">체지방량 ({weightUnit})</label>
                         <input
                             type="number"
                             step="0.1"
@@ -117,7 +137,7 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
 
                     {/* 제지방량 */}
                     <div className="space-y-0.5">
-                        <label className="text-xs font-semibold text-gray-500">제지방량 (kg)</label>
+                        <label className="text-xs font-semibold text-gray-500">제지방량 ({weightUnit})</label>
                         <input
                             type="number"
                             step="0.1"

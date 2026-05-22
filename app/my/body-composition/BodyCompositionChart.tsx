@@ -4,6 +4,7 @@ import { BodyComposition } from "@/types/project"
 
 interface BodyCompositionChartProps {
     data: BodyComposition[]
+    weightUnit: "kg" | "lbs"
 }
 
 interface MetricConfig {
@@ -11,32 +12,7 @@ interface MetricConfig {
     label: string
     unit: string
     color: string
-    value: (item: BodyComposition) => number | undefined
 }
-
-const metrics: MetricConfig[] = [
-    {
-        key: "weight",
-        label: "체중",
-        unit: "kg",
-        color: "#2563eb",
-        value: (item) => item.bodyWeightKg,
-    },
-    {
-        key: "muscle",
-        label: "골격근량",
-        unit: "kg",
-        color: "#16a34a",
-        value: (item) => item.skeletalMuscleMassKg,
-    },
-    {
-        key: "fatPct",
-        label: "체지방률",
-        unit: "%",
-        color: "#e11d48",
-        value: (item) => item.bodyFatPct,
-    },
-]
 
 const formatDate = (value?: string) => {
     if (!value) return ""
@@ -55,7 +31,18 @@ const getDomain = (values: number[]): [number, number] => {
     return [Number((min - padding).toFixed(1)), Number((max + padding).toFixed(1))]
 }
 
-export default function BodyCompositionChart({ data }: BodyCompositionChartProps) {
+export default function BodyCompositionChart({ data, weightUnit }: BodyCompositionChartProps) {
+    const metrics: MetricConfig[] = [
+        { key: "weight", label: "체중", unit: weightUnit, color: "#2563eb" },
+        { key: "muscle", label: "골격근량", unit: weightUnit, color: "#16a34a" },
+        { key: "fatPct", label: "체지방률", unit: "%", color: "#e11d48" },
+    ]
+
+    const toDisplay = (kg: number | undefined): number | undefined => {
+        if (kg == null) return undefined
+        return weightUnit === "lbs" ? +(kg * 2.20462).toFixed(1) : kg
+    }
+
     const chartData = useMemo(() => {
         return [...data]
             .sort((a, b) => {
@@ -66,11 +53,12 @@ export default function BodyCompositionChart({ data }: BodyCompositionChartProps
             .map((item) => ({
                 date: formatDate(item.measuredAt),
                 rawDate: item.measuredAt ?? "",
-                weight: item.bodyWeightKg,
-                muscle: item.skeletalMuscleMassKg,
+                weight: toDisplay(item.bodyWeightKg),
+                muscle: toDisplay(item.skeletalMuscleMassKg),
                 fatPct: item.bodyFatPct,
             }))
-    }, [data])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data, weightUnit])
 
     if (chartData.length === 0) {
         return (

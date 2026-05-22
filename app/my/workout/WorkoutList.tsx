@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Calendar, ChevronRight, Clock, Dumbbell, X } from "lucide-react"
 import { Page, WorkoutSessionResponse, WorkoutSetResponse } from "@/types/project"
 import workoutApiClient from "@/lib/api/workout/workoutApiClient"
+import { useSettingsStore } from "@/store/settingsStore"
 
 type WorkoutTitleSource = WorkoutSessionResponse & {
     routineName?: string | null
@@ -139,6 +140,7 @@ function WorkoutDetailModal({ workout, onClose }: { workout: WorkoutSessionRespo
     const dateStr = formatDate(workout.workoutDate)
     const groups = useMemo(() => groupWorkoutSets(workout.sets ?? []), [workout.sets])
     const totalSets = groups.reduce((total, group) => total + group.sets.length, 0)
+    const { weightUnit } = useSettingsStore()
 
     return (
         <div className="fixed inset-0 z-50 flex justify-center bg-slate-950/60">
@@ -197,7 +199,9 @@ function WorkoutDetailModal({ workout, onClose }: { workout: WorkoutSessionRespo
                                                 {set.setIndex} Set
                                             </div>
                                             <div className="text-base font-extrabold text-slate-800">
-                                                {set.weightKg > 0 ? `${set.weightKg}kg` : "맨몸"}
+                                                {set.weightKg > 0
+                                                    ? `${weightUnit === "lbs" ? Math.round(set.weightKg * 2.20462) : set.weightKg}${weightUnit}`
+                                                    : "맨몸"}
                                             </div>
                                             <div className="text-sm font-bold text-slate-600">{set.reps}회</div>
                                         </div>

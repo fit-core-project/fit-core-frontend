@@ -5,6 +5,7 @@ import { StrengthBaseline, UserResponse } from "@/types/project"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
 import { Activity, Bandage, Calendar, ChevronDown, Dumbbell, User } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
+import { useSettingsStore } from "@/store/settingsStore"
 
 // 1. 타입을 순회하기 위한 상수 배열 정의
 const GOAL_OPTIONS: { label: string; value: string }[] = [
@@ -109,6 +110,7 @@ interface ProfileEditFormProps {
 }
 
 export default function ProfileEditForm({ initialProfile, onSave, onCancel }: ProfileEditFormProps) {
+    const { weightUnit } = useSettingsStore()
     const [formData, setFormData] = useState({
         name: initialProfile?.name || "",
         nickname: initialProfile?.nickname || "",
@@ -399,7 +401,6 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                     {/* 숫자 입력 필드도 스타일 통일 */}
                     {[
                         { label: "주당 운동 횟수", name: "trainingDaysPerWeek" },
-                        { label: "체중 (kg)", name: "bodyWeightKg" },
                         { label: "체지방률 (%)", name: "bodyFatPct" },
                     ].map((field) => (
                         <div key={field.name} className="space-y-1.5">
@@ -413,6 +414,26 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                             />
                         </div>
                     ))}
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-semibold text-gray-700">체중 ({weightUnit})</label>
+                        <input
+                            type="number"
+                            name="bodyWeightKg"
+                            value={
+                                formData.bodyWeightKg
+                                    ? weightUnit === "lbs"
+                                        ? +(formData.bodyWeightKg * 2.20462).toFixed(1)
+                                        : formData.bodyWeightKg
+                                    : ""
+                            }
+                            onChange={(e) => {
+                                const raw = parseFloat(e.target.value)
+                                const inKg = isNaN(raw) ? 0 : weightUnit === "lbs" ? raw / 2.20462 : raw
+                                setFormData((prev) => ({ ...prev, bodyWeightKg: inKg }))
+                            }}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                        />
+                    </div>
                 </div>
             </section>
 
@@ -432,15 +453,24 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <label className="space-y-1">
-                                    <span className="text-xs font-semibold text-gray-600">중량 kg</span>
+                                    <span className="text-xs font-semibold text-gray-600">중량 {weightUnit}</span>
                                     <input
                                         type="number"
                                         min="0"
-                                        step="2.5"
-                                        value={item.workingWeightKg}
-                                        onChange={(e) =>
-                                            handleStrengthBaselineChange(item.exerciseId, "workingWeightKg", e.target.value)
+                                        step={weightUnit === "lbs" ? 5 : 2.5}
+                                        value={
+                                            weightUnit === "lbs"
+                                                ? Math.round(item.workingWeightKg * 2.20462)
+                                                : item.workingWeightKg
                                         }
+                                        onChange={(e) => {
+                                            const raw = e.target.value
+                                            const inKg =
+                                                weightUnit === "lbs"
+                                                    ? String(Number(raw) / 2.20462)
+                                                    : raw
+                                            handleStrengthBaselineChange(item.exerciseId, "workingWeightKg", inKg)
+                                        }}
                                         className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
                                     />
                                 </label>

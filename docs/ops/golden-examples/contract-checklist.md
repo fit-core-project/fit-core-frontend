@@ -10,16 +10,16 @@
 
 ## Backend Adapter
 
-- [ ] BE maps public `currentPainAreas` to AI `painAreas`.
-- [ ] BE maps public `currentDoms[]` to AI `domsData` with spreadsheet slug keys.
+- [ ] BE preserves public `currentPainAreas` values when building AI `painAreas`.
+- [ ] BE preserves public `currentDoms[].bodyPart` values when building AI `domsData`; it only converts DOMS level text to integers.
 - [ ] BE maps public `unavailableEquipment` to AI `equipment`.
 - [ ] BE never exposes `bodyPartConditions[]` as public request.
 - [ ] BE owns authoritative `routineDraftId`.
 
 ## AI Pain Filtering
 
-- [ ] AI must not compare UI pain slugs directly against `exercise_tier.pain_triggers`.
-- [ ] `exercise_tier.pain_triggers` stores FE-facing pain slugs that can be matched from public `currentPainAreas`.
+- [ ] AI compares public pain slugs directly against `exercise_tier.pain_triggers`.
+- [ ] `exercise_tier.pain_triggers` stores FE-facing pain slugs that match public `currentPainAreas`.
 - [ ] The same pain slug filtering is used in post-validation (`_candidate_is_safe`), not only in SQL.
 - [ ] The active golden case `currentPainAreas: ["front-deltoids"]` must exclude candidates whose `pain_triggers` include `front-deltoids`.
 - [ ] Do not change public `currentPainAreas` to DB tokens; public request remains UI-friendly.

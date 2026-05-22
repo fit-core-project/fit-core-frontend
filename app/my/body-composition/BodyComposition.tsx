@@ -6,6 +6,7 @@ import StatCard from "@/app/my/body-composition/StatCard"
 import BodyCompositionChart from "@/app/my/body-composition/BodyCompositionChart"
 import { BodyCompositionEditPage } from "@/app/my/body-composition/BodyCompositionEditPage"
 import { BodyComposition, UserResponse } from "@/types/project"
+import { useSettingsStore } from "@/store/settingsStore"
 
 interface Props {
     profile: UserResponse | null
@@ -103,9 +104,15 @@ function BodyCompositionRangeSlider({ value, onChange }: { value: number; onChan
     )
 }
 
+function kgToDisplay(kg: number | undefined, unit: "kg" | "lbs"): number | undefined {
+    if (kg == null) return undefined
+    return unit === "lbs" ? +(kg * 2.20462).toFixed(1) : kg
+}
+
 export default function BodyCompositionPage({ profile, onSave }: Props) {
     const [isEditing, setIsEditing] = useState(false)
     const [rangeIndex, setRangeIndex] = useState(2)
+    const { weightUnit } = useSettingsStore()
     const snapshots = useMemo(() => profile?.bodyCompositionSnapshot || [], [profile?.bodyCompositionSnapshot])
     const latest = snapshots[0]
     const previous = snapshots[1]
@@ -127,19 +134,24 @@ export default function BodyCompositionPage({ profile, onSave }: Props) {
         })
     }, [rangeIndex, snapshots])
 
+    const weightVal = kgToDisplay(latest?.bodyWeightKg, weightUnit)
+    const prevWeightVal = kgToDisplay(previous?.bodyWeightKg, weightUnit)
+    const muscleVal = kgToDisplay(latest?.skeletalMuscleMassKg, weightUnit)
+    const prevMuscleVal = kgToDisplay(previous?.skeletalMuscleMassKg, weightUnit)
+
     const latestData = {
         weight: {
-            value: latest?.bodyWeightKg?.toFixed(1) || "-",
-            unit: "kg",
-            diff: calculateDiff(latest?.bodyWeightKg, previous?.bodyWeightKg, "kg"),
+            value: weightVal?.toFixed(1) ?? "-",
+            unit: weightUnit,
+            diff: calculateDiff(weightVal, prevWeightVal, weightUnit),
         },
         muscle: {
-            value: latest?.skeletalMuscleMassKg?.toFixed(1) || "-",
-            unit: "kg",
-            diff: calculateDiff(latest?.skeletalMuscleMassKg, previous?.skeletalMuscleMassKg, "kg"),
+            value: muscleVal?.toFixed(1) ?? "-",
+            unit: weightUnit,
+            diff: calculateDiff(muscleVal, prevMuscleVal, weightUnit),
         },
         fat: {
-            value: latest?.bodyFatPct?.toFixed(1) || "-",
+            value: latest?.bodyFatPct?.toFixed(1) ?? "-",
             unit: "%",
             diff: calculateDiff(latest?.bodyFatPct, previous?.bodyFatPct, "%"),
         },
@@ -197,7 +209,7 @@ export default function BodyCompositionPage({ profile, onSave }: Props) {
                 <div className="mb-3">
                     <BodyCompositionRangeSlider value={rangeIndex} onChange={setRangeIndex} />
                 </div>
-                <BodyCompositionChart data={filteredSnapshots} />
+                <BodyCompositionChart data={filteredSnapshots} weightUnit={weightUnit} />
             </section>
 
             <button
