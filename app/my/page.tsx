@@ -9,28 +9,21 @@ import { useAuthStore } from "@/store/authStore"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
 import BodyCompositionPage from "@/app/my/body-composition/BodyComposition"
 import WorkoutList from "@/app/my/workout/WorkoutList"
+import AttendanceSection from "@/app/my/stats/AttendanceSection"
+import PrSection from "@/app/my/stats/PrSection"
+import Routine from "@/app/my/routine/Routine"
+import SettingsPanel from "@/app/my/settings/Settings"
 
 type TabId = "profile" | "stats" | "routine" | "workout" | "settings"
 
 const tabs: { id: TabId; label: string; icon: ReactNode }[] = [
     { id: "profile", label: "프로필", icon: <User size={18} /> },
-    { id: "stats", label: "체성분", icon: <Trophy size={18} /> },
+    { id: "stats", label: "통계", icon: <Trophy size={18} /> },
     { id: "routine", label: "루틴", icon: <Dumbbell size={18} /> },
     { id: "workout", label: "운동이력", icon: <ClipboardList size={18} /> },
     { id: "settings", label: "설정", icon: <Settings size={18} /> },
 ]
 
-function PlaceholderPanel({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
-    return (
-        <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl bg-white px-6 py-16 text-center shadow-sm">
-            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                {icon}
-            </div>
-            <h2 className="mb-2 text-lg font-extrabold text-slate-800">{title}</h2>
-            <p className="max-w-xs text-sm leading-relaxed text-slate-500">{description}</p>
-        </div>
-    )
-}
 
 export default function Page() {
     const [isEditing, setIsEditing] = useState(false)
@@ -121,22 +114,16 @@ export default function Page() {
                     ) : (
                         <Profile profile={profile} logout={logout} onEdit={() => setIsEditing(true)} />
                     ))}
-                {activeTab === "stats" && <BodyCompositionPage profile={profile} onSave={onBodyCompositionSave} />}
-                {activeTab === "routine" && (
-                    <PlaceholderPanel
-                        icon={<Dumbbell className="h-8 w-8" />}
-                        title="루틴 준비 중입니다"
-                        description="저장한 루틴과 반복 사용 기능이 준비되면 이곳에서 확인할 수 있습니다."
-                    />
+                {activeTab === "stats" && (
+                    <>
+                        <BodyCompositionPage profile={profile} onSave={onBodyCompositionSave} />
+                        <AttendanceSection />
+                        <PrSection />
+                    </>
                 )}
+                {activeTab === "routine" && <Routine />}
                 {activeTab === "workout" && <WorkoutList />}
-                {activeTab === "settings" && (
-                    <PlaceholderPanel
-                        icon={<Settings className="h-8 w-8" />}
-                        title="설정 준비 중입니다"
-                        description="계정 및 앱 설정 메뉴가 준비되면 이곳에서 관리할 수 있습니다."
-                    />
-                )}
+                {activeTab === "settings" && <SettingsPanel />}
             </div>
         </div>
     )

@@ -104,6 +104,23 @@ export interface Doms {
     level?: string
 }
 
+export interface PrResponse {
+    exerciseId: string
+    exerciseNameSnapshot: string
+    estimated1RM: number
+    weightKg: number
+    reps: number
+    achievedDate: string
+}
+
+export interface AttendanceWeekResponse {
+    weekStart: string
+    weekEnd: string
+    actualDays: number
+    targetDays: number | null
+    rate: number | null
+}
+
 export interface WorkoutSetResponse {
     id: string
     exerciseOrder: number

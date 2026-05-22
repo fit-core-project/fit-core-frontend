@@ -1,5 +1,5 @@
 import AxiosController from "@/lib/axios/AxiosController"
-import { Page, WorkoutSessionResponse } from "@/types/project"
+import { AttendanceWeekResponse, Page, PrResponse, WorkoutSessionResponse } from "@/types/project"
 import { guardWorkoutSaveRequest } from "@/utils/responseGuard"
 import { demoProfile, getDemoRecentWorkouts, isDemoMode } from "@/utils/demoMode"
 
@@ -80,6 +80,16 @@ const workoutApiClient = {
         isDemoMode()
             ? Promise.resolve(getDemoRecentWorkouts(page, size))
             : AxiosController.get<Page<WorkoutSessionResponse>>(`/api/workouts/recent?page=${page}&size=${size}`),
+
+    getPrs: (): Promise<PrResponse[]> =>
+        isDemoMode()
+            ? Promise.resolve([])
+            : AxiosController.get<PrResponse[]>("/api/workouts/prs"),
+
+    getAttendance: (): Promise<AttendanceWeekResponse[]> =>
+        isDemoMode()
+            ? Promise.resolve([])
+            : AxiosController.get<AttendanceWeekResponse[]>("/api/workouts/attendance"),
 }
 
 export default workoutApiClient

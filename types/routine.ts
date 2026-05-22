@@ -31,6 +31,29 @@ export interface RoutineBlock {
     substitutionCandidates?: SubstitutionCandidate[]
 }
 
+export interface FinalRoutinePayload {
+    fallback: boolean
+    generationStatus: GenerationStatus
+    statusReasonCode: StatusReasonCode
+    rationaleSummary: string[]
+    routineBlocks: RoutineBlock[]
+    summaryTitle: string
+    totalEstimatedTime: number
+    warnings: string[]
+}
+
+export interface RoutineFinalResponse {
+    routineFinalId: string
+    routineDraftId: string
+    userId: string
+    targetWorkoutDate: string
+    targetSplitLabel: string
+    finalRoutinePayload: FinalRoutinePayload
+    acceptedWithoutEdits: boolean
+    userEditSummary: string[]
+    savedAt: string
+}
+
 export interface RoutineDraft {
     routineDraftId: string
 

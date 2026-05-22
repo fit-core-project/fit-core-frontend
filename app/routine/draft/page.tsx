@@ -19,6 +19,7 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { RoutineDraft, RoutineBlock, SetPrescription } from "@/types/routine"
+import { useSettingsStore } from "@/store/settingsStore"
 import { getExerciseCatalog, getRecentRecord } from "@/services/exerciseService"
 import { ExerciseCatalogItem } from "@/services/mockDataFactory"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
@@ -45,7 +46,8 @@ export default function RoutineReviewPage() {
     const router = useRouter()
     const [draft, setDraft] = useState<RoutineDraft | null>(null)
     const [finalizeStatus, setFinalizeStatus] = useState<FinalizeState>("loading")
-    const [displayUnit, setDisplayUnit] = useState<"kg" | "lbs">("kg")
+    const { weightUnit } = useSettingsStore()
+    const [displayUnit, setDisplayUnit] = useState<"kg" | "lbs">(weightUnit)
     const initialDraftRef = useRef<RoutineDraft | null>(null)
 
     // ── DnD sensors ────────────────────────────────────────────────────────

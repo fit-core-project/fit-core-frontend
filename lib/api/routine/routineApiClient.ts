@@ -1,7 +1,8 @@
 import AxiosController from "@/lib/axios/AxiosController"
-import { RoutineDraft, RoutineBlock } from "@/types/routine"
+import { RoutineDraft, RoutineBlock, RoutineFinalResponse } from "@/types/routine"
 import { RoutineGenerateRequest } from "@/utils/requestAssembler"
 import { guardGenerateResponse, guardFinalizeResponse } from "@/utils/responseGuard"
+import { Page } from "@/types/project"
 
 // Golden 계약 기준: finalRoutinePayload는 전체 draft가 아닌 routineBlocks 중심 clean payload
 export interface FinalizeCleanPayload {
@@ -34,6 +35,11 @@ const routineApiClient = {
         }
         return finalId
     },
+
+    getMyFinals: (page = 0, size = 20): Promise<Page<RoutineFinalResponse>> =>
+        AxiosController.get<Page<RoutineFinalResponse>>(
+            `/api/routines/finals?page=${page}&size=${size}`
+        ),
 }
 
 export default routineApiClient
