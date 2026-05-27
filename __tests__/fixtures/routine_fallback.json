@@ -1,0 +1,31 @@
+{
+  "routineDraftId": "66666666-6666-6666-6666-666666666666",
+  "generationStatus": "fallback",
+  "statusReasonCode": "llmTimeout",
+  "isFallback": true,
+  "totalEstimatedTime": 5,
+  "summaryTitle": "안전 대체 루틴",
+  "rationaleSummary": [
+    "AI 서버 응답을 사용할 수 없어 exercise_tier 카탈로그에서 요청 부위와 제한 조건을 반영한 안전 대체 운동을 선택했습니다."
+  ],
+  "warnings": [
+    "통증이 있거나 불편하면 즉시 중단하고 프로필의 부상 부위를 확인하세요."
+  ],
+  "routineBlocks": [
+    {
+      "order": 1,
+      "exerciseId": "117",
+      "exerciseName": "Push-up",
+      "movementPattern": null,
+      "primaryMuscles": ["chest", "triceps"],
+      "equipmentType": "BODYWEIGHT",
+      "defaultRestSec": 75,
+      "exerciseRationale": "AI 응답 실패 시에도 부상 부위를 피하도록 구성한 저위험 대체 운동입니다.",
+      "substitutionCandidates": [],
+      "prescription": [
+        { "setIndex": 1, "setType": "working", "targetReps": 10, "targetWeightKg": null, "targetRir": 3, "targetRestSec": 75 },
+        { "setIndex": 2, "setType": "working", "targetReps": 10, "targetWeightKg": null, "targetRir": 3, "targetRestSec": 75 }
+      ]
+    }
+  ]
+}

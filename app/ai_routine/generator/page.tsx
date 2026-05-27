@@ -413,6 +413,9 @@ export default function RoutineGenerator() {
 
                     {/* 3. 하단 고정 버튼 영역 */}
                     <div className="p-4 bg-white border-t border-slate-100 shrink-0">
+                        <p className="text-xs text-slate-400 text-center pb-3 leading-relaxed">
+                            본 서비스에서 제공하는 루틴 및 중량 처방은 AI 기술에 기반한 가이드라인이며, 의학적 진단이나 의료적 조언을 대신할 수 없습니다. 운동 중 통증이나 이상 징후가 발생할 경우 즉시 수행을 중단하십시오.
+                        </p>
                         <button
                             onClick={handleSubmit}
                             disabled={status === "loading" || formData.targetMuscles.length === 0}

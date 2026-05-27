@@ -1,11 +1,14 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { FlaskConical, UserCircle } from "lucide-react"
+import { UserCircle } from "lucide-react"
 import SocialButton from "@/app/components/SocialButton"
 import AxiosController from "@/lib/axios/AxiosController"
 import { useAuthStore } from "@/store/authStore"
-import { createDemoToken, seedDemoSession } from "@/utils/demoMode"
+
+// NODE_ENV is inlined at build time; webpack eliminates the demo branch entirely
+// in production builds, tree-shaking demoMode imports and the button JSX.
+const IS_PROD = process.env.NODE_ENV === "production"
 
 export default function LoginPage() {
     const router = useRouter()
@@ -22,7 +25,10 @@ export default function LoginPage() {
         window.location.href = `${baseUrl}/oauth2/authorization/${provider}`
     }
 
-    const handleDemoLogin = () => {
+    // handleDemoLogin and its dynamic import are dead code when IS_PROD=true,
+    // so webpack eliminates demoMode.ts from the production bundle.
+    const handleDemoLogin = async () => {
+        const { seedDemoSession, createDemoToken } = await import("@/utils/demoMode")
         seedDemoSession()
         setToken(createDemoToken())
         useAuthStore.getState().setIsLoading(false)
@@ -46,20 +52,23 @@ export default function LoginPage() {
                     <SocialButton provider="google" imageSrc="/images/google.png" onClick={handleSocialLogin} />
                 </div>
 
-                <div className="my-6 flex items-center gap-3">
-                    <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[11px] font-bold text-slate-400">PORTFOLIO DEMO</span>
-                    <div className="h-px flex-1 bg-slate-100" />
-                </div>
+                {!IS_PROD && (
+                    <>
+                        <div className="my-6 flex items-center gap-3">
+                            <div className="h-px flex-1 bg-slate-100" />
+                            <span className="text-[11px] font-bold text-slate-400">PORTFOLIO DEMO</span>
+                            <div className="h-px flex-1 bg-slate-100" />
+                        </div>
 
-                <button
-                    type="button"
-                    onClick={handleDemoLogin}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-extrabold text-emerald-700 transition-colors hover:bg-emerald-100 active:scale-[0.99]"
-                >
-                    <FlaskConical className="h-4 w-4" />
-                    테스트 모드 로그인
-                </button>
+                        <button
+                            type="button"
+                            onClick={handleDemoLogin}
+                            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm font-extrabold text-emerald-700 transition-colors hover:bg-emerald-100 active:scale-[0.99]"
+                        >
+                            테스트 모드 로그인
+                        </button>
+                    </>
+                )}
 
                 <button
                     type="button"

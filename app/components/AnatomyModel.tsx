@@ -5,17 +5,20 @@ interface AnatomyModelProps {
     data: Record<string, number>
     onMuscleClick: (muscle: string) => void
     mode: "doms" | "target" | "injury"
+    lockedMuscles?: readonly string[]
 }
 
 const COLORS = {
     level1: "#FFD600",
     level2: "#FF6600",
+    locked: "#ef4444",
 }
 
-export default function AnatomyModel({ data, onMuscleClick, mode }: AnatomyModelProps) {
+export default function AnatomyModel({ data, onMuscleClick, mode, lockedMuscles = [] }: AnatomyModelProps) {
     const muscles2 = Object.keys(data).filter((k) => data[k] === 2) as Muscle[]
     const muscles1 = Object.keys(data).filter((k) => data[k] === 1) as Muscle[]
     const targetMuscles = Object.keys(data).filter((k) => data[k] > 0) as Muscle[]
+    const lockedMuscleList = [...lockedMuscles] as Muscle[]
 
     // 🌟 타겟 모드 (루틴 생성기)
     if (mode === "target" || mode === "injury") {
@@ -95,6 +98,20 @@ export default function AnatomyModel({ data, onMuscleClick, mode }: AnatomyModel
                                 />
                             </div>
                         )}
+                        {lockedMuscleList.length > 0 && (
+                            <div
+                                className="absolute top-0 left-0 w-full h-full z-30 pointer-events-none mix-blend-multiply"
+                                aria-disabled="true"
+                            >
+                                <Model
+                                    type="anterior"
+                                    data={[{ name: "Locked", muscles: lockedMuscleList }]}
+                                    style={{ width: "100%" }}
+                                    highlightedColors={[COLORS.locked]}
+                                    bodyColor="transparent"
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -130,6 +147,20 @@ export default function AnatomyModel({ data, onMuscleClick, mode }: AnatomyModel
                                     data={[{ name: "2", muscles: muscles2 }]}
                                     style={{ width: "100%" }}
                                     highlightedColors={[COLORS.level2]}
+                                    bodyColor="transparent"
+                                />
+                            </div>
+                        )}
+                        {lockedMuscleList.length > 0 && (
+                            <div
+                                className="absolute top-0 left-0 w-full h-full z-30 pointer-events-none mix-blend-multiply"
+                                aria-disabled="true"
+                            >
+                                <Model
+                                    type="posterior"
+                                    data={[{ name: "Locked", muscles: lockedMuscleList }]}
+                                    style={{ width: "100%" }}
+                                    highlightedColors={[COLORS.locked]}
                                     bodyColor="transparent"
                                 />
                             </div>

@@ -2,6 +2,8 @@ import React, { useState } from "react"
 import { BodyComposition } from "@/types/project"
 import { Scale } from "lucide-react"
 import { useSettingsStore } from "@/store/settingsStore"
+import { useForm } from "react-hook-form"
+import { NUMERIC_RANGES, numericRules, toDisplayBound } from "@/utils/numericValidation"
 
 type props = {
     onCancel: () => void
@@ -18,6 +20,11 @@ const WEIGHT_KG_FIELDS: (keyof BodyComposition)[] = [
 export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
     const [formData, setFormData] = useState<BodyComposition | null>()
     const { weightUnit } = useSettingsStore()
+    const {
+        register,
+        trigger,
+        formState: { errors },
+    } = useForm<Record<string, unknown>>({ mode: "onChange" })
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type } = e.target
@@ -29,6 +36,8 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        const isValid = await trigger()
+        if (!isValid) return
 
         if (formData) {
             if (weightUnit === "lbs") {
@@ -45,6 +54,10 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
             }
         }
     }
+
+    const bodyWeightRegister = register("bodyWeightKg", numericRules("bodyWeightKg", weightUnit))
+    const skeletalMuscleRegister = register("skeletalMuscleMassKg", numericRules("skeletalMuscleMassKg", weightUnit))
+    const bodyFatPctRegister = register("bodyFatPct", numericRules("bodyFatPct"))
 
     return (
         <form
@@ -88,12 +101,21 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
                         <label className="text-xs font-semibold text-gray-500">체중 ({weightUnit})</label>
                         <input
                             type="number"
-                            step="0.1"
-                            name="bodyWeightKg"
+                            min={toDisplayBound(NUMERIC_RANGES.bodyWeightKg.min, weightUnit)}
+                            max={toDisplayBound(NUMERIC_RANGES.bodyWeightKg.max, weightUnit)}
+                            step={NUMERIC_RANGES.bodyWeightKg.step}
+                            {...bodyWeightRegister}
                             value={formData?.bodyWeightKg || ""}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                bodyWeightRegister.onChange(e)
+                                handleChange(e)
+                                void trigger("bodyWeightKg")
+                            }}
                             className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
                         />
+                        {errors.bodyWeightKg?.message && (
+                            <p className="text-xs text-red-600">{String(errors.bodyWeightKg.message)}</p>
+                        )}
                     </div>
 
                     {/* 골격근량 */}
@@ -101,12 +123,21 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
                         <label className="text-xs font-semibold text-gray-500">골격근량 ({weightUnit})</label>
                         <input
                             type="number"
-                            step="0.1"
-                            name="skeletalMuscleMassKg"
+                            min={toDisplayBound(NUMERIC_RANGES.skeletalMuscleMassKg.min, weightUnit)}
+                            max={toDisplayBound(NUMERIC_RANGES.skeletalMuscleMassKg.max, weightUnit)}
+                            step={NUMERIC_RANGES.skeletalMuscleMassKg.step}
+                            {...skeletalMuscleRegister}
                             value={formData?.skeletalMuscleMassKg || ""}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                skeletalMuscleRegister.onChange(e)
+                                handleChange(e)
+                                void trigger("skeletalMuscleMassKg")
+                            }}
                             className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
                         />
+                        {errors.skeletalMuscleMassKg?.message && (
+                            <p className="text-xs text-red-600">{String(errors.skeletalMuscleMassKg.message)}</p>
+                        )}
                     </div>
 
                     {/* 체지방량 */}
@@ -127,12 +158,21 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
                         <label className="text-xs font-semibold text-gray-500">체지방률 (%)</label>
                         <input
                             type="number"
-                            step="0.1"
-                            name="bodyFatPct"
+                            min={NUMERIC_RANGES.bodyFatPct.min}
+                            max={NUMERIC_RANGES.bodyFatPct.max}
+                            step={NUMERIC_RANGES.bodyFatPct.step}
+                            {...bodyFatPctRegister}
                             value={formData?.bodyFatPct || ""}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                bodyFatPctRegister.onChange(e)
+                                handleChange(e)
+                                void trigger("bodyFatPct")
+                            }}
                             className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
                         />
+                        {errors.bodyFatPct?.message && (
+                            <p className="text-xs text-red-600">{String(errors.bodyFatPct.message)}</p>
+                        )}
                     </div>
 
                     {/* 제지방량 */}

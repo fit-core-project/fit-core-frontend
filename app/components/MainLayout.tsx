@@ -1,17 +1,27 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import LogViewer from "@/app/components/LogViewer"
+import dynamic from "next/dynamic"
 import { useAuthStore } from "@/store/authStore"
 import { isDemoMode } from "@/utils/demoMode"
 
+// In production builds, NODE_ENV is inlined to 'production' by webpack,
+// making the dynamic import dead code that is eliminated from the bundle.
+const IS_PROD = process.env.NODE_ENV === "production"
+
+const LogViewer = IS_PROD
+    ? () => null
+    : dynamic(() => import("@/app/components/LogViewer"), { ssr: false })
+
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     const token = useAuthStore((state) => state.token)
-    const [showLogs, setShowLogs] = useState(false)
+    const [isDemoActive, setIsDemoActive] = useState(false)
 
     useEffect(() => {
-        setShowLogs(!!token && isDemoMode())
+        setIsDemoActive(!IS_PROD && !!token && isDemoMode())
     }, [token])
+
+    const showLogs = isDemoActive
 
     return (
         <main className="flex h-full w-full justify-center overflow-hidden">

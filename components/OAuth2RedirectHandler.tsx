@@ -2,7 +2,12 @@
 
 import { useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { jwtDecode, JwtPayload } from "jwt-decode"
 import { useAuthStore } from "@/store/authStore"
+
+interface FitCoreJwt extends JwtPayload {
+    auth: string
+}
 
 export default function OAuth2RedirectHandler() {
     const router = useRouter()
@@ -16,15 +21,21 @@ export default function OAuth2RedirectHandler() {
         if (token) {
             setToken(token)
 
-            // 2. 모드에 따라 분기
             if (mode === "link") {
                 router.replace("/my")
             } else {
-                // 일반 로그인/신규 가입
-                router.replace("/")
+                try {
+                    const decoded = jwtDecode<FitCoreJwt>(token)
+                    if (decoded.auth?.includes("ROLE_ADMIN")) {
+                        router.replace("/admin")
+                    } else {
+                        router.replace("/")
+                    }
+                } catch {
+                    router.replace("/")
+                }
             }
         } else {
-            // 토큰이 없으면 로그인 실패로 간주
             router.replace("/login")
         }
     }, [searchParams, router, setToken])

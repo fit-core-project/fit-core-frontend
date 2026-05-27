@@ -12,7 +12,10 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = { title: "Fit Core" }
 
-const isMockMode = process.env.NEXT_PUBLIC_API_MODE === "mock"
+// NODE_ENV guard prevents MSW from activating in production even if
+// NEXT_PUBLIC_API_MODE is accidentally set to "mock" in deploy config.
+const isMockMode =
+    process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_API_MODE === "mock"
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     const content = (

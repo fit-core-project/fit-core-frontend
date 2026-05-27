@@ -3,11 +3,12 @@
 import React, { useEffect, useState } from "react"
 import { StrengthBaseline, UserResponse } from "@/types/project"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
-import { Activity, Bandage, Calendar, ChevronDown, Dumbbell, User } from "lucide-react"
+import { Activity, Bandage, ChevronDown, Dumbbell, User } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
 import { useSettingsStore } from "@/store/settingsStore"
+import { useForm } from "react-hook-form"
+import { NUMERIC_RANGES, numericRules, toDisplayBound } from "@/utils/numericValidation"
 
-// 1. 타입을 순회하기 위한 상수 배열 정의
 const GOAL_OPTIONS: { label: string; value: string }[] = [
     { label: "근력 강화", value: "strength" },
     { label: "근비대", value: "hypertrophy" },
@@ -103,6 +104,9 @@ const PAIN_AREA_LABELS: Record<string, string> = {
     abductors: "외전근",
 }
 
+const INPUT_CLS = "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+const SELECT_CLS = `${INPUT_CLS} appearance-none cursor-pointer`
+
 interface ProfileEditFormProps {
     initialProfile: UserResponse | null
     onSave: (updateProfile: Partial<UserResponse>) => void
@@ -116,7 +120,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
         nickname: initialProfile?.nickname || "",
         gender: initialProfile?.gender || "NONE",
         birthDate: initialProfile?.birthDate ? String(initialProfile?.birthDate).split("T")[0] : "",
-        notes: initialProfile?.notes || "", // 추가된 필드
+        notes: initialProfile?.notes || "",
         goalType: initialProfile?.goalType || "strength",
         splitType: initialProfile?.splitType || "fullBody",
         experienceLevel: initialProfile?.experienceLevel || "beginner",
@@ -141,43 +145,40 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
         )
     })
     const [isExpanded, setIsExpanded] = useState(true)
+    const {
+        register,
+        trigger,
+        formState: { errors },
+    } = useForm<Record<string, unknown>>({ mode: "onChange" })
 
     useEffect(() => {
         const timer = setTimeout(async () => {
-            // 공백을 제거한 값을 생성
             const trimmedNickname = formData.nickname.trim()
-
-            // 1. 기존 닉네임과 같거나 (변경 없음)
-            // 2. 공백만 입력했거나 빈 값일 경우 (trimmedNickname === "")
-            // 체크를 수행하지 않고 idle 상태로 유지
             if (trimmedNickname === initialProfile?.nickname || trimmedNickname === "") {
                 setNicknameStatus("idle")
                 return
             }
-
             setNicknameStatus("checking")
             try {
-                // API 호출 시에도 trim된 값을 보내는 것이 더 안전합니다
                 const res = await profileApiClient.checkNickname(trimmedNickname)
                 setNicknameStatus(res ? "duplicate" : "available")
             } catch {
                 setNicknameStatus("idle")
             }
         }, 500)
-
         return () => clearTimeout(timer)
     }, [formData.nickname, initialProfile?.nickname])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        const isValid = await trigger()
+        if (!isValid) return
 
-        // 1. 필수 입력 체크 (공백 제거 후 체크)
         if (!formData.nickname || formData.nickname.trim() === "") {
             alert("닉네임을 입력해주세요.")
             return
         }
 
-        // 2. 닉네임이 변경된 경우에만 최종 중복 체크
         if (formData.nickname !== initialProfile?.nickname) {
             try {
                 const res = await profileApiClient.checkNickname(formData.nickname)
@@ -192,56 +193,43 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
             }
         }
 
-        // 3. 최종 통과 시 저장
         onSave(formData)
     }
 
+    const bodyFatPctRegister = register("bodyFatPct", numericRules("bodyFatPct"))
+    const bodyWeightRegister = register("bodyWeightKg", numericRules("bodyWeightKg", weightUnit))
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target
-
-        // input type이 number면 숫자로 변환, 아니면 문자열 그대로 저장
         const finalValue = type === "number" ? (value === "" ? 0 : parseFloat(value)) : value
-
         setFormData((prev) => ({ ...prev, [name]: finalValue }))
     }
 
     const handleEquipmentToggle = (value: string) => {
         setFormData((prev) => {
-            // 1. 현재 선택된 장비 목록을 가져옵니다.
             const currentList = prev.equipmentAccess
-
-            // 2. 이미 포함되어 있는지 확인합니다.
             const isSelected = currentList.includes(value)
-
             return {
                 ...prev,
-                equipmentAccess: isSelected
-                    ? currentList.filter((item) => item !== value) // 이미 있다면 제거
-                    : [...currentList, value], // 없다면 추가
+                equipmentAccess: isSelected ? currentList.filter((item) => item !== value) : [...currentList, value],
             }
         })
     }
 
     const handleDayToggle = (day: string) => {
         setFormData((prev) => {
-            // 1. 이미 선택된 요일인지 확인
             const isSelected = prev.availableDays.includes(day)
-
             return {
                 ...prev,
-                availableDays: isSelected
-                    ? prev.availableDays.filter((d) => d !== day) // 이미 있다면 제거
-                    : [...prev.availableDays, day], // 없다면 추가
+                availableDays: isSelected ? prev.availableDays.filter((d) => d !== day) : [...prev.availableDays, day],
             }
         })
     }
 
     const handleMuscleClick = (muscleName: string) => {
-        // 1. domsData (UI 상태) 먼저 업데이트
         setDomsData((prev) => {
             const newData = { ...prev }
             const isSelected = !!newData[muscleName]
-
             if (isSelected) {
                 delete newData[muscleName]
             } else {
@@ -250,25 +238,13 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
             return newData
         })
 
-        // 2. formData (서버 전송 상태) 업데이트
         setFormData((prev) => {
-            // 현재 상태(prev)를 기반으로 이미 존재하는지 확인
             const exists = prev.painAreas.some((p) => p.area === muscleName)
-
             if (exists) {
-                // 이미 있다면 -> 제거 (토글 방식)
-                return {
-                    ...prev,
-                    painAreas: prev.painAreas.filter((p) => p.area !== muscleName),
-                }
+                return { ...prev, painAreas: prev.painAreas.filter((p) => p.area !== muscleName) }
             } else {
-                // 없다면 -> 안전하게 추가
-                // 혹시 모르니 여기서도 filter를 한번 더 해서 이중 추가 방지
                 const cleanList = prev.painAreas.filter((p) => p.area !== muscleName)
-                return {
-                    ...prev,
-                    painAreas: [...cleanList, { area: muscleName, note: "" }],
-                }
+                return { ...prev, painAreas: [...cleanList, { area: muscleName, note: "" }] }
             }
         })
     }
@@ -295,305 +271,366 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
     }
 
     return (
-        <form
-            onSubmit={handleSubmit}
-            className="w-full max-w-2xl mx-auto p-8 bg-white rounded-3xl shadow-xl border border-gray-100 space-y-6 relative" // space-y-10 -> space-y-6
-        >
-            {/* 헤더 섹션 */}
-            <div className="space-y-1">
-                <h1 className="text-2xl font-bold text-gray-900">프로필 설정</h1>
-                <p className="text-sm text-gray-500">당신의 맞춤형 피트니스 정보를 입력해주세요.</p>
-            </div>
+        <form onSubmit={handleSubmit} className="w-full space-y-4">
 
-            {/* 1. 기본 정보 */}
-
-            <section>
-                {/* mb-6 -> mb-3 으로 변경: 제목과 필드 사이를 좁힘 */}
-                <div className="flex items-center gap-2 mb-3">
+            {/* Section 1: 계정 및 기본 신체 정보 */}
+            <div className="bg-blue-50/50 rounded-2xl border border-blue-100 p-5 space-y-4">
+                <div className="flex items-center gap-2">
                     <User className="w-5 h-5 text-blue-600" />
-                    <h2 className="text-lg font-bold text-gray-900">기본 정보</h2>
+                    <h2 className="text-base font-bold text-slate-800">계정 및 기본 신체 정보</h2>
                 </div>
 
-                {/* gap-6 -> gap-y-3 으로 변경: 필드들 사이의 행 간격을 좁힘 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
-                    {/* space-y-1.5 -> space-y-0.5 으로 변경: 라벨과 인풋 사이를 좁힘 */}
+                <div className="grid grid-cols-1 gap-3">
+                    {/* 닉네임 */}
                     <div className="space-y-0.5">
-                        <label className="text-xs font-semibold text-gray-500">닉네임</label>
+                        <label className="text-xs font-semibold text-slate-500">닉네임</label>
                         <input
                             name="nickname"
                             value={formData.nickname}
                             onChange={handleChange}
-                            className="w-full mt-1 p-2 border rounded-md"
+                            className={INPUT_CLS}
                             placeholder="사용할 닉네임"
                         />
-                        {/* 2. 상태에 따른 피드백 메시지 추가 */}
-                        <div className="mt-1 text-xs h-4">
-                            {nicknameStatus === "checking" && <span className="text-gray-500">중복 확인 중...</span>}
-                            {nicknameStatus === "available" && (
-                                <span className="text-green-600">사용 가능한 닉네임입니다.</span>
-                            )}
-                            {nicknameStatus === "duplicate" && (
-                                <span className="text-red-600">이미 사용 중인 닉네임입니다.</span>
-                            )}
+                        <div className="h-4 text-xs">
+                            {nicknameStatus === "checking" && <span className="text-slate-400">중복 확인 중...</span>}
+                            {nicknameStatus === "available" && <span className="text-green-600">사용 가능한 닉네임입니다.</span>}
+                            {nicknameStatus === "duplicate" && <span className="text-red-600">이미 사용 중인 닉네임입니다.</span>}
                         </div>
                     </div>
 
-                    <div className="space-y-0.5">
-                        <label className="text-xs font-semibold text-gray-500">생년월일</label>
-                        <input
-                            type="date"
-                            name="birthDate"
-                            value={formData.birthDate}
-                            onChange={handleChange}
-                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
-                        />
+                    <div className="grid grid-cols-2 gap-3">
+                        {/* 생년월일 */}
+                        <div className="space-y-0.5">
+                            <label className="text-xs font-semibold text-slate-500">생년월일</label>
+                            <input
+                                type="date"
+                                name="birthDate"
+                                value={formData.birthDate}
+                                onChange={handleChange}
+                                className={INPUT_CLS}
+                            />
+                        </div>
+
+                        {/* 성별 */}
+                        <div className="space-y-0.5">
+                            <label className="text-xs font-semibold text-slate-500">성별</label>
+                            <div className="relative">
+                                <select
+                                    name="gender"
+                                    value={formData.gender}
+                                    onChange={handleChange}
+                                    className={SELECT_CLS}
+                                >
+                                    {GENDER_OPTIONS.map((opt) => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="space-y-0.5 col-span-full md:col-span-1">
-                        <label className="text-xs font-semibold text-gray-500">성별</label>
-                        <select
-                            name="gender"
-                            value={formData.gender}
-                            onChange={handleChange}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl appearance-none focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
-                        >
-                            {GENDER_OPTIONS.map((opt) => (
-                                <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </option>
-                            ))}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <div className="grid grid-cols-2 gap-3">
+                        {/* 체중 */}
+                        <div className="space-y-0.5">
+                            <label className="text-xs font-semibold text-slate-500">체중 ({weightUnit})</label>
+                            <input
+                                type="number"
+                                name="bodyWeightKg"
+                                min={toDisplayBound(NUMERIC_RANGES.bodyWeightKg.min, weightUnit)}
+                                max={toDisplayBound(NUMERIC_RANGES.bodyWeightKg.max, weightUnit)}
+                                step={NUMERIC_RANGES.bodyWeightKg.step}
+                                value={
+                                    formData.bodyWeightKg
+                                        ? weightUnit === "lbs"
+                                            ? +(formData.bodyWeightKg * 2.20462).toFixed(1)
+                                            : formData.bodyWeightKg
+                                        : ""
+                                }
+                                onChange={(e) => {
+                                    bodyWeightRegister.onChange(e)
+                                    const raw = parseFloat(e.target.value)
+                                    const inKg = isNaN(raw) ? 0 : weightUnit === "lbs" ? raw / 2.20462 : raw
+                                    setFormData((prev) => ({ ...prev, bodyWeightKg: inKg }))
+                                    void trigger("bodyWeightKg")
+                                }}
+                                className={INPUT_CLS}
+                            />
+                            {errors.bodyWeightKg?.message && (
+                                <p className="text-xs text-red-600">{String(errors.bodyWeightKg.message)}</p>
+                            )}
+                        </div>
+
+                        {/* 체지방률 */}
+                        <div className="space-y-0.5">
+                            <label className="text-xs font-semibold text-slate-500">체지방률 (%)</label>
+                            <input
+                                type="number"
+                                name="bodyFatPct"
+                                min={NUMERIC_RANGES.bodyFatPct.min}
+                                max={NUMERIC_RANGES.bodyFatPct.max}
+                                step={NUMERIC_RANGES.bodyFatPct.step}
+                                value={String(formData.bodyFatPct)}
+                                onChange={(e) => {
+                                    bodyFatPctRegister.onChange(e)
+                                    void trigger("bodyFatPct")
+                                    handleChange(e)
+                                }}
+                                className={INPUT_CLS}
+                            />
+                            {errors.bodyFatPct?.message && (
+                                <p className="text-xs text-red-600">{String(errors.bodyFatPct.message)}</p>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </section>
+            </div>
 
-            {/* 2. 피트니스 상세 정보 */}
-            <section>
-                <div className="flex items-center gap-2 mb-4">
-                    <Activity className="w-5 h-5 text-orange-500" />
-                    <h2 className="text-lg font-bold text-gray-900">피트니스 상세 정보</h2>
+            {/* Section 2: 피트니스 설정 */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-slate-600" />
+                    <h2 className="text-base font-bold text-slate-800">피트니스 설정</h2>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* 셀렉트 박스 스타일 통일 */}
+
+                <div className="grid grid-cols-1 gap-3">
+                    {/* 운동 목표 / 분할 방식 / 경력 */}
                     {[
                         { label: "운동 목표", name: "goalType", options: GOAL_OPTIONS },
                         { label: "분할 방식", name: "splitType", options: SPLIT_OPTIONS },
                         { label: "운동 경력", name: "experienceLevel", options: EXP_OPTIONS },
                     ].map((field) => (
-                        <div key={field.name} className="space-y-1.5">
-                            <label className="text-sm font-semibold text-gray-700">{field.label}</label>
-                            <select
-                                name={field.name}
-                                value={String(formData[field.name as keyof typeof formData])}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:outline-none"
-                            >
-                                {field.options.map((opt) => (
-                                    <option key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                    </option>
-                                ))}
-                            </select>
+                        <div key={field.name} className="space-y-0.5">
+                            <label className="text-xs font-semibold text-slate-500">{field.label}</label>
+                            <div className="relative">
+                                <select
+                                    name={field.name}
+                                    value={String(formData[field.name as keyof typeof formData])}
+                                    onChange={handleChange}
+                                    className={SELECT_CLS}
+                                >
+                                    {field.options.map((opt) => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            </div>
                         </div>
                     ))}
 
-                    {/* 숫자 입력 필드도 스타일 통일 */}
-                    {[
-                        { label: "주당 운동 횟수", name: "trainingDaysPerWeek" },
-                        { label: "체지방률 (%)", name: "bodyFatPct" },
-                    ].map((field) => (
-                        <div key={field.name} className="space-y-1.5">
-                            <label className="text-sm font-semibold text-gray-700">{field.label}</label>
-                            <input
-                                type="number"
-                                name={field.name}
-                                value={String(formData[field.name as keyof typeof formData])}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:outline-none"
-                            />
-                        </div>
-                    ))}
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-semibold text-gray-700">체중 ({weightUnit})</label>
+                    {/* 주당 운동 횟수 */}
+                    <div className="space-y-0.5">
+                        <label className="text-xs font-semibold text-slate-500">주당 운동 횟수</label>
                         <input
                             type="number"
-                            name="bodyWeightKg"
-                            value={
-                                formData.bodyWeightKg
-                                    ? weightUnit === "lbs"
-                                        ? +(formData.bodyWeightKg * 2.20462).toFixed(1)
-                                        : formData.bodyWeightKg
-                                    : ""
-                            }
-                            onChange={(e) => {
-                                const raw = parseFloat(e.target.value)
-                                const inKg = isNaN(raw) ? 0 : weightUnit === "lbs" ? raw / 2.20462 : raw
-                                setFormData((prev) => ({ ...prev, bodyWeightKg: inKg }))
-                            }}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                            name="trainingDaysPerWeek"
+                            min={1}
+                            max={7}
+                            value={String(formData.trainingDaysPerWeek)}
+                            onChange={handleChange}
+                            className={INPUT_CLS}
                         />
                     </div>
                 </div>
-            </section>
 
-            <section>
-                <div className="flex items-center gap-2 mb-4">
-                    <Dumbbell className="w-5 h-5 text-slate-700" />
-                    <h2 className="text-lg font-bold text-gray-900">4대 운동 기준 중량</h2>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {formData.strengthBaseline.map((item) => (
-                        <div key={item.exerciseId} className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
-                            <div>
-                                <p className="text-sm font-bold text-gray-900">
-                                    {BIG_FOUR_LABELS[item.exerciseId] || item.exerciseNameSnapshot}
-                                </p>
-                                <p className="text-xs text-gray-500">{item.exerciseNameSnapshot}</p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <label className="space-y-1">
-                                    <span className="text-xs font-semibold text-gray-600">중량 {weightUnit}</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step={weightUnit === "lbs" ? 5 : 2.5}
-                                        value={
-                                            weightUnit === "lbs"
-                                                ? Math.round(item.workingWeightKg * 2.20462)
-                                                : item.workingWeightKg
-                                        }
-                                        onChange={(e) => {
-                                            const raw = e.target.value
-                                            const inKg =
-                                                weightUnit === "lbs"
-                                                    ? String(Number(raw) / 2.20462)
-                                                    : raw
-                                            handleStrengthBaselineChange(item.exerciseId, "workingWeightKg", inKg)
-                                        }}
-                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
-                                    />
-                                </label>
-                                <label className="space-y-1">
-                                    <span className="text-xs font-semibold text-gray-600">반복</span>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        step="1"
-                                        value={item.reps}
-                                        onChange={(e) =>
-                                            handleStrengthBaselineChange(item.exerciseId, "reps", e.target.value)
-                                        }
-                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
-                                    />
-                                </label>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </section>
-
-            <section>
-                <div className="flex items-center gap-2 mb-4">
-                    <Calendar className="w-5 h-5 text-indigo-600" />
-                    <h2 className="text-lg font-bold text-gray-900">운동 가능 요일</h2>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                    {DAYS_OF_WEEK.map((day) => (
-                        <button
-                            key={day.value}
-                            type="button"
-                            onClick={() => handleDayToggle(day.value)}
-                            className={`w-10 h-10 flex items-center justify-center rounded-full text-sm font-bold transition-all border ${
-                                formData.availableDays.includes(day.value)
-                                    ? "border-indigo-600 bg-indigo-600 text-white shadow-md"
-                                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                            }`}
-                        >
-                            {day.label}
-                        </button>
-                    ))}
-                </div>
-            </section>
-
-            {/* 3. 장비 선택 */}
-            <section>
-                <div className="flex items-center gap-2 mb-4">
-                    <Dumbbell className="w-5 h-5 text-purple-600" />
-                    <h2 className="text-lg font-bold text-gray-900">사용 가능한 장비</h2>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    {EQUIPMENTS.map((item) => (
-                        <button
-                            key={item.value}
-                            type="button"
-                            onClick={() => handleEquipmentToggle(item.value)}
-                            className={`px-4 py-2 rounded-full text-sm font-semibold transition-all border ${
-                                formData.equipmentAccess.includes(item.value)
-                                    ? "border-purple-500 bg-purple-50 text-purple-700 shadow-sm"
-                                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                            }`}
-                        >
-                            {item.label}
-                        </button>
-                    ))}
-                </div>
-            </section>
-
-            <section>
-                <div className="flex items-center gap-2 mb-4">
-                    <Bandage className="w-6 h-6 text-amber-600" />
-                    <h2 className="text-lg font-bold text-gray-900">부상 부위</h2>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    {/* 분리된 컴포넌트 사용 */}
-                    <AnatomyModel data={domsData} onMuscleClick={handleMuscleClick} mode="injury" />
-                </div>
-                {formData.painAreas.length > 0 && (
-                    <div className="space-y-3 pt-4 border-gray-100">
-                        <button
-                            type="button"
-                            onClick={() => setIsExpanded(!isExpanded)}
-                            className="flex items-center justify-between w-full pb-3 cursor-pointer"
-                        >
-                            <h3 className="text-sm font-semibold text-gray-700">부위별 상세 메모</h3>
-                            <ChevronDown
-                                className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
-                            />
-                        </button>
-                        {isExpanded && (
-                            <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                                {formData.painAreas.map((item) => (
-                                    <div key={item.area} className="flex items-center gap-3">
-                                        <input
-                                            type="text"
-                                            placeholder={`${PAIN_AREA_LABELS[item.area] || item.area} 부상 설명`}
-                                            value={item.note}
-                                            onChange={(e) => handleNoteChange(item.area, e.target.value)}
-                                            className="flex-1 px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                {/* 운동 가능 요일 */}
+                <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-500">운동 가능 요일</p>
+                    <div className="flex flex-wrap gap-2">
+                        {DAYS_OF_WEEK.map((day) => (
+                            <button
+                                key={day.value}
+                                type="button"
+                                onClick={() => handleDayToggle(day.value)}
+                                className={`w-10 h-10 flex items-center justify-center rounded-full text-sm font-bold transition-all border ${
+                                    formData.availableDays.includes(day.value)
+                                        ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+                                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                                }`}
+                            >
+                                {day.label}
+                            </button>
+                        ))}
                     </div>
-                )}
-            </section>
+                </div>
 
-            <div className="sticky bottom-0 -mx-8 bg-white/95 backdrop-blur-sm border-t border-gray-100 p-3 z-50">
-                <div className="max-w-2xl mx-auto flex gap-3">
+                {/* 사용 가능한 장비 */}
+                <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                        <Dumbbell className="w-4 h-4 text-slate-500" />
+                        <p className="text-xs font-semibold text-slate-500">사용 가능한 장비</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {EQUIPMENTS.map((item) => (
+                            <button
+                                key={item.value}
+                                type="button"
+                                onClick={() => handleEquipmentToggle(item.value)}
+                                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
+                                    formData.equipmentAccess.includes(item.value)
+                                        ? "border-slate-600 bg-slate-800 text-white shadow-sm"
+                                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                                }`}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Section 3: 스트렝스 베이스라인 */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                    <Dumbbell className="w-5 h-5 text-slate-600" />
+                    <h2 className="text-base font-bold text-slate-800">4대 운동 기준 중량 (1RM 참고)</h2>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                    {formData.strengthBaseline.map((item, index) => {
+                        const weightField = `strengthBaseline.${index}.workingWeightKg`
+                        const repsField = `strengthBaseline.${index}.reps`
+                        const weightRegister = register(weightField, numericRules("workingWeightKg", weightUnit))
+                        const repsRegister = register(repsField, numericRules("reps"))
+
+                        return (
+                            <div key={item.exerciseId} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+                                <div>
+                                    <p className="text-sm font-bold text-slate-800">
+                                        {BIG_FOUR_LABELS[item.exerciseId] || item.exerciseNameSnapshot}
+                                    </p>
+                                    <p className="text-xs text-slate-400">{item.exerciseNameSnapshot}</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <label className="space-y-1">
+                                        <span className="text-xs font-semibold text-slate-500">중량 {weightUnit}</span>
+                                        <input
+                                            type="number"
+                                            min={toDisplayBound(NUMERIC_RANGES.workingWeightKg.min, weightUnit)}
+                                            max={toDisplayBound(NUMERIC_RANGES.workingWeightKg.max, weightUnit)}
+                                            step={weightUnit === "lbs" ? 5 : NUMERIC_RANGES.workingWeightKg.step}
+                                            value={
+                                                weightUnit === "lbs"
+                                                    ? Math.round(item.workingWeightKg * 2.20462)
+                                                    : item.workingWeightKg
+                                            }
+                                            onChange={(e) => {
+                                                weightRegister.onChange(e)
+                                                const raw = e.target.value
+                                                const inKg = weightUnit === "lbs" ? String(Number(raw) / 2.20462) : raw
+                                                handleStrengthBaselineChange(item.exerciseId, "workingWeightKg", inKg)
+                                                void trigger(weightField)
+                                            }}
+                                            className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
+                                        />
+                                        {errors.strengthBaseline &&
+                                            Array.isArray(errors.strengthBaseline) &&
+                                            errors.strengthBaseline[index]?.workingWeightKg?.message && (
+                                                <p className="text-xs text-red-600">
+                                                    {String(errors.strengthBaseline[index]?.workingWeightKg?.message)}
+                                                </p>
+                                            )}
+                                    </label>
+                                    <label className="space-y-1">
+                                        <span className="text-xs font-semibold text-slate-500">반복</span>
+                                        <input
+                                            type="number"
+                                            min={NUMERIC_RANGES.reps.min}
+                                            max={NUMERIC_RANGES.reps.max}
+                                            step={NUMERIC_RANGES.reps.step}
+                                            value={item.reps}
+                                            onChange={(e) => {
+                                                repsRegister.onChange(e)
+                                                handleStrengthBaselineChange(item.exerciseId, "reps", e.target.value)
+                                                void trigger(repsField)
+                                            }}
+                                            className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
+                                        />
+                                        {errors.strengthBaseline &&
+                                            Array.isArray(errors.strengthBaseline) &&
+                                            errors.strengthBaseline[index]?.reps?.message && (
+                                                <p className="text-xs text-red-600">
+                                                    {String(errors.strengthBaseline[index]?.reps?.message)}
+                                                </p>
+                                            )}
+                                    </label>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+
+            {/* Section 4: 부상 및 관리 부위 */}
+            <div className="bg-red-50/30 border border-red-100 rounded-2xl p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                    <Bandage className="w-5 h-5 text-red-400" />
+                    <h2 className="text-base font-bold text-slate-800">부상 및 관리 부위</h2>
+                </div>
+
+                <AnatomyModel data={domsData} onMuscleClick={handleMuscleClick} mode="injury" />
+
+                {formData.painAreas.length > 0 && (
+                    <>
+                        <div className="flex flex-wrap gap-2">
+                            {formData.painAreas.map((p) => (
+                                <span
+                                    key={p.area}
+                                    className="border border-red-500 bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 rounded-full"
+                                >
+                                    {PAIN_AREA_LABELS[p.area] || p.area}
+                                </span>
+                            ))}
+                        </div>
+
+                        <div className="space-y-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                className="flex items-center justify-between w-full text-left"
+                            >
+                                <span className="text-xs font-semibold text-slate-500">부위별 상세 메모</span>
+                                <ChevronDown
+                                    className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                                />
+                            </button>
+                            {isExpanded && (
+                                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    {formData.painAreas.map((item) => (
+                                        <div key={item.area}>
+                                            <input
+                                                type="text"
+                                                placeholder={`${PAIN_AREA_LABELS[item.area] || item.area} 부상 설명`}
+                                                value={item.note}
+                                                onChange={(e) => handleNoteChange(item.area, e.target.value)}
+                                                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-300 focus:outline-none"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </>
+                )}
+            </div>
+
+            {/* 면책 고지 + 저장 버튼 */}
+            <div className="sticky bottom-0 -mx-4 bg-white/95 backdrop-blur-sm border-t border-slate-100 px-4 pt-3 pb-4 z-50">
+                <p className="text-xs text-slate-400 text-center pb-3 leading-relaxed">
+                    본 서비스에서 제공하는 루틴 및 중량 처방은 AI 기술에 기반한 가이드라인이며, 의학적 진단이나 의료적 조언을 대신할 수 없습니다. 운동 중 통증이나 이상 징후가 발생할 경우 즉시 수행을 중단하십시오.
+                </p>
+                <div className="flex gap-3">
                     <button
                         type="button"
                         onClick={onCancel}
-                        className="px-6 py-3 border border-gray-200 rounded-xl font-semibold hover:bg-gray-50 transition-colors flex-1"
+                        className="flex-1 py-3 border border-slate-200 rounded-xl font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
                     >
                         취소
                     </button>
                     <button
                         type="submit"
                         disabled={nicknameStatus === "duplicate" || nicknameStatus === "checking"}
-                        className="flex-2 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all disabled:opacity-50 shadow-lg shadow-blue-200"
+                        className="flex-[2] py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all disabled:opacity-50 shadow-lg shadow-blue-200"
                     >
                         저장하기
                     </button>

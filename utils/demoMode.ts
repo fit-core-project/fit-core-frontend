@@ -20,7 +20,7 @@ export const demoProfile: UserResponse = {
     gender: "MALE",
     birthDate: "1994-05-21",
     status: "ACTIVE",
-    roles: ["ROLE_USER"],
+    roles: ["ROLE_ADMIN"],
     linkedProviders: ["demo"],
     notes: "면접 시연용으로 모든 초기 데이터가 세팅된 데모 계정입니다.",
     goalType: "hypertrophy",
@@ -358,7 +358,7 @@ export function createDemoToken(): string {
         encode({ alg: "none", typ: "JWT" }),
         encode({
             sub: demoProfile.email,
-            auth: "ROLE_USER",
+            auth: "ROLE_ADMIN",
             profileImage: demoProfile.profileImageUrl,
             iat: now,
             exp: now + 60 * 60 * 24 * 30,

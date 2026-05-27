@@ -81,8 +81,12 @@ export function normalizeRoutineResponse(rawData: unknown, context: AdapterConte
     // ─── Path B: Legacy exercises[] ──────────────────────────────────────────
     // Gemini direct 또는 구형 백엔드 대응. routineDraftId 없으면 임시 생성 (dev 전용).
     const draftId = safeData.routineDraftId ?? context.draftId ?? `draft_${crypto.randomUUID().slice(0, 8)}`
+    const legacyExercises = Array.isArray(safeData.exercises) ? safeData.exercises : []
+    if (contextStatus === "success" && legacyExercises.length === 0) {
+        throw new Error("[normalizeRoutineResponse] Missing exercises in legacy success response")
+    }
 
-    const routineBlocks: RoutineBlock[] = (Array.isArray(safeData.exercises) ? safeData.exercises : []).map(
+    const routineBlocks: RoutineBlock[] = legacyExercises.map(
         (raw, index: number) => {
             const ex = raw as Record<string, unknown>
             return {

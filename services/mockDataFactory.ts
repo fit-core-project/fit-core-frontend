@@ -1,6 +1,10 @@
 import { GoalType, SplitType } from "@/types/enums"
 
-export interface UserCondition {
+export interface UserPainProfile {
+    readonly painAreas: readonly string[]
+}
+
+export interface UserCondition extends UserPainProfile {
     doms: Partial<Record<string, 1 | 2>>
     painAreas: string[]
 }

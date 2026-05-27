@@ -3,7 +3,7 @@ export interface RoutineFormState {
     domsData: Record<string, number>
     equipment: string[]
     timeAvailable: number
-    painAreas: string[]
+    readonly painAreas: readonly string[]
     goal: "strength" | "hypertrophy" | "fatLoss" | "recomposition" | "generalFitness"
     userNote: string
     targetSplitLabel?: string
@@ -50,7 +50,7 @@ export function assembleRoutineRequest(state: Partial<RoutineFormState>): Routin
     const req: RoutineGenerateRequest = {
         targetMuscles: state.targetMuscles || [],
         timeAvailableMin: safeTime,
-        currentPainAreas: state.painAreas || [],
+        currentPainAreas: [...(state.painAreas || [])],
         unavailableEquipment,
         currentDoms,
         goal: safeGoal,

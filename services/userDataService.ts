@@ -1,4 +1,4 @@
-import { getMockUserCondition, getMockUserPreferences, UserCondition, UserPreferences } from "./mockDataFactory"
+import { getMockUserCondition, getMockUserPreferences, UserCondition, UserPainProfile, UserPreferences } from "./mockDataFactory"
 import AxiosController from "@/lib/axios/AxiosController"
 import { demoUserCondition, demoUserPreferences, isDemoMode } from "@/utils/demoMode"
 
@@ -16,6 +16,16 @@ export async function getUserCondition(): Promise<UserCondition> {
         return getMockUserCondition()
     }
     return AxiosController.get<UserCondition>("/api/users/condition")
+}
+
+export async function getUserPainProfile(): Promise<UserPainProfile> {
+    if (isDemoMode()) return { painAreas: demoUserCondition.painAreas }
+
+    if (IS_MOCK) {
+        await delay(500)
+        return { painAreas: getMockUserCondition().painAreas }
+    }
+    return AxiosController.get<UserPainProfile>("/api/users/condition")
 }
 
 export async function getUserPreferences(): Promise<UserPreferences> {

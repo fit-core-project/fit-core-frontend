@@ -1,9 +1,11 @@
 "use client"
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import { UserResponse } from "@/types/project"
-import { Edit3, User, X } from "lucide-react"
+import { Edit3, ShieldCheck, User, X } from "lucide-react"
 import SocialButton from "@/app/components/SocialButton"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
+import { useAuthStore } from "@/store/authStore"
 
 interface ProfileProps {
     profile: UserResponse | null
@@ -14,6 +16,9 @@ interface ProfileProps {
 export default function Profile({ profile, logout, onEdit }: ProfileProps) {
     const [isImageModalOpen, setIsImageModalOpen] = useState(false)
     const [isNickName, setIsNickname] = useState(false)
+    const router = useRouter()
+    const userRole = useAuthStore((state) => state.user?.role)
+    const isAdmin = userRole?.includes("ROLE_ADMIN") ?? false
 
     const toggleImageModal = () => {
         setIsImageModalOpen(!isImageModalOpen)
@@ -94,6 +99,15 @@ export default function Profile({ profile, logout, onEdit }: ProfileProps) {
                             isConnect={!profile.linkedProviders?.includes("google")}
                         />
                     </div>
+                    {isAdmin && (
+                        <button
+                            className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
+                            onClick={() => router.push("/admin")}
+                        >
+                            <ShieldCheck size={18} />
+                            관리자 페이지
+                        </button>
+                    )}
                     <button
                         className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium border border-red-100"
                         onClick={logout}
