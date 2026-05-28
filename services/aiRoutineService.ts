@@ -210,7 +210,9 @@ async function callGeminiDirect(req: RoutineGenerateRequest): Promise<RoutineDra
 
 export async function generateRoutine(requestPayload: RoutineGenerateRequest): Promise<RoutineDraft> {
     // ?섍꼍 蹂?섎? ?⑥닔 ?대??먯꽌 ?덉쟾?섍쾶 ?뺤씤
-    const isDirect = process.env.NEXT_PUBLIC_AI_ROUTE?.trim() === "direct"
+    const isDirect =
+        process.env.NODE_ENV !== "production" &&
+        process.env.NEXT_PUBLIC_AI_ROUTE?.trim() === "direct"
 
     if (isDirect) {
         try {

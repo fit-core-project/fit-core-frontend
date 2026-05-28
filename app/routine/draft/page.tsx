@@ -255,10 +255,10 @@ export default function RoutineReviewPage() {
                 block.prescription.every(
                     (s) =>
                         s.targetReps >= 1 &&
-                        s.targetReps <= 100 &&
-                        (s.targetWeightKg === null || s.targetWeightKg > 0) &&
+                        s.targetReps <= 50 &&
+                        (s.targetWeightKg === null || (s.targetWeightKg > 0 && s.targetWeightKg <= 500)) &&
                         s.targetRestSec >= 0 &&
-                        s.targetRestSec <= 300
+                        s.targetRestSec <= 600
                 )
         )
     }, [draft])

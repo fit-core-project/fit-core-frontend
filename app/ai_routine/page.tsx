@@ -4,24 +4,22 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Activity, ArrowRight } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
-import { getUserPainProfile } from "@/services/userDataService"
+import { getUserCondition } from "@/services/userDataService"
 
 const LOCKED_PAIN_MESSAGE = "해당 부위는 프로필에서 수정 가능합니다"
 
 export default function RoutineHome() {
     const router = useRouter()
-    const [domsData, setDomsData] = useState<Record<string, number>>(() => {
-        if (typeof window === "undefined") return {}
-        const raw = localStorage.getItem("fitcore_doms_data")
-        if (!raw) return {}
-        try { return JSON.parse(raw) as Record<string, number> } catch { return {} }
-    })
+    const [domsData, setDomsData] = useState<Record<string, number>>({})
     const [painAreas, setPainAreas] = useState<string[]>([])
     const [toastMessage, setToastMessage] = useState("")
 
     useEffect(() => {
-        getUserPainProfile()
-            .then((profile) => setPainAreas([...profile.painAreas]))
+        getUserCondition()
+            .then((condition) => {
+                setDomsData(condition.doms as Record<string, number>)
+                setPainAreas([...condition.painAreas])
+            })
             .catch(() => {})
     }, [])
 

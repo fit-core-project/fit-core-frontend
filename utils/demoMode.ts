@@ -140,6 +140,42 @@ export const demoUserCondition: UserCondition = {
     painAreas: demoProfile.painAreas.map((painArea) => painArea.area),
 }
 
+const SPLIT_MUSCLES: Record<string, string[]> = {
+    push: ["chest", "triceps", "front-deltoids"],
+    pull: ["upper-back", "biceps"],
+    legs: ["quadriceps", "gluteal", "hamstring"],
+    core: ["abs"],
+}
+
+export function computeDemoCondition(): UserCondition {
+    const sessions = [...demoWorkoutSessions].sort(
+        (a, b) => new Date(b.workoutDate).getTime() - new Date(a.workoutDate).getTime()
+    )
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const domsMap: Partial<Record<string, 1 | 2>> = {}
+
+    sessions.forEach((session, index) => {
+        // 가장 최근 세션을 어제로 간주, 이후는 2일 간격으로 처리
+        const daysAgo = index + 1
+        if (daysAgo >= 2) return
+
+        const splitKey = (session.targetSplitLabel ?? "").toLowerCase()
+        const muscles = SPLIT_MUSCLES[splitKey] ?? []
+        const level: 1 | 2 = daysAgo === 0 ? 2 : 1
+        muscles.forEach((m) => {
+            if (!(m in domsMap)) domsMap[m] = level
+        })
+    })
+
+    return {
+        doms: domsMap,
+        painAreas: getDemoProfile().painAreas.map((p) => p.area),
+    }
+}
+
 export const demoUserPreferences: UserPreferences = {
     timeAvailable: 75,
     goal: demoProfile.goalType,
@@ -409,6 +445,9 @@ export function getDemoProfile(): UserResponse {
 export function updateDemoProfile(request: UserUpdateRequest): UserResponse {
     const updated = { ...getDemoProfile(), ...request, updatedAt: new Date().toISOString() }
     writeJson(DEMO_PROFILE_STORAGE_KEY, updated)
+    if (request.painAreas !== undefined) {
+        writeJson("fitcore_pain_areas", updated.painAreas.map((p) => p.area))
+    }
     return updated
 }
 
