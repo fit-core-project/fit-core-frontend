@@ -28,8 +28,7 @@ import { FinalizeState } from "@/types/state"
 import { useForm } from "react-hook-form"
 import { NUMERIC_RANGES, NumericFieldName, numericRules, toDisplayBound, validateNumericRange } from "@/utils/numericValidation"
 
-// ???? applyWeightToAllSets ??????????????????????????????????????????????????????????????????????????????????????????????????????????
-// exerciseId嚥?筌ㅼ뮄??疫꿸퀡以??鈺곌퀬????됰뗀以??筌뤴뫀諭??紐낅뱜??餓λ쵎????쏅땾????⑦겣 ?怨몄뒠??뺣뼄.
+// Fetch recent record for exerciseId and apply default weight/reps to all sets.
 async function applyRecentRecordDefaults(block: RoutineBlock, exerciseId: string): Promise<RoutineBlock> {
     const record = await getRecentRecord(exerciseId)
     if (!record) return block
@@ -67,16 +66,16 @@ export default function RoutineReviewPage() {
     const [displayUnit, setDisplayUnit] = useState<"kg" | "lbs">(weightUnit)
     const initialDraftRef = useRef<RoutineDraft | null>(null)
 
-    // ???? DnD sensors ????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+    // DnD sensors
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
-    // ???? Exercise swap state ??????????????????????????????????????????????????????????????????????????????????????????????????
+    // Exercise swap state
     const [catalog, setCatalog] = useState<ExerciseCatalogItem[]>([])
     const [swapBlockId, setSwapBlockId] = useState<string | null>(null)
     const [swapQuery, setSwapQuery] = useState("")
     const [swapLoading, setSwapLoading] = useState(false)
 
-    // ???? 1. Load routine + catalog, then apply weights to all blocks ??????????????????
+    // 1. Load routine + catalog, then apply weights to all blocks
     useEffect(() => {
         const init = async () => {
             try {
@@ -98,7 +97,7 @@ export default function RoutineReviewPage() {
                 initialDraftRef.current = JSON.parse(JSON.stringify(hydratedDraft))
                 setDraft(hydratedDraft)
             } catch (err) {
-                console.error("?룐뫂??嚥≪뮆諭???쎈솭:", err)
+                console.error("루틴 초기화 오류:", err)
             } finally {
                 setFinalizeStatus("idle")
             }
@@ -106,7 +105,7 @@ export default function RoutineReviewPage() {
         init()
     }, [])
 
-    // ???? Set / Block mutations (keep existing logic) ??????????????????????????????????????????????????
+    // Set / Block mutations
 
     const updateSet = (blockId: string, arrayIndex: number, field: keyof SetPrescription, value: number | null) => {
         if (!draft) return
@@ -172,7 +171,7 @@ export default function RoutineReviewPage() {
 
     const deleteBlock = (blockId: string) => {
         if (!draft) return
-        if (!confirm("????猷???룐뫂??癒?퐣 ????醫됲돱??")) return
+        if (!confirm("이 운동을 루틴에서 삭제할까요?")) return
         setDraft({ ...draft, routineBlocks: draft.routineBlocks.filter((b) => b.clientBlockId !== blockId) })
     }
 
@@ -196,7 +195,7 @@ export default function RoutineReviewPage() {
         setSwapQuery("")
     }
 
-    // ???? 3. Exercise replacement with recent-record auto-fill (all sets) ????????????
+    // 3. Exercise replacement with recent-record auto-fill (all sets)
     const replaceExercise = async (blockId: string, item: ExerciseCatalogItem) => {
         if (!draft) return
         setSwapLoading(true)
@@ -208,7 +207,7 @@ export default function RoutineReviewPage() {
                 ...currentBlock,
                 exerciseId: item.id,
                 exerciseName: item.nameKr,
-                exerciseRationale: `${item.primaryMuscle} 雅??癒?젅 ??猷?(${item.equipment})`,
+                exerciseRationale: `${item.primaryMuscle} 주동근 운동 (${item.equipment})`,
             }
             const enrichedBlock = await applyRecentRecordDefaults(baseBlock, item.id)
 
@@ -226,7 +225,7 @@ export default function RoutineReviewPage() {
         }
     }
 
-    // ???? Derived state ??????????????????????????????????????????????????????????????????????????????????????????????????????????????
+    // Derived state
 
     const totalTime = useMemo(() => {
         if (!draft || !initialDraftRef.current) return 0
@@ -246,7 +245,7 @@ export default function RoutineReviewPage() {
         return Math.ceil((warmupSec + transitionSec + workAndRestSec) / 60)
     }, [draft])
 
-    // ???? Validation: gate finalize when any set violates bounds ??????????????????????????????????
+    // Validation: gate finalize when any set violates bounds
     const isRoutineValid = useMemo(() => {
         if (!draft) return false
         return draft.routineBlocks.every(
@@ -276,7 +275,7 @@ export default function RoutineReviewPage() {
 
     const filteredCatalog = useMemo(
         () =>
-            // catalog揶쎛 筌욊쑴彛?獄쏄퀣肉?Array)?????춸 filter?????봺?? ?袁⑤빍筌???獄쏄퀣肉?[])??獄쏆꼹???몃빍??
+            // guard: catalog may arrive as non-array; fall back to [] before filter
             (Array.isArray(catalog) ? catalog : []).filter(
                 (item) =>
                     item.nameKr?.includes(swapQuery) ||
@@ -286,7 +285,7 @@ export default function RoutineReviewPage() {
         [catalog, swapQuery]
     )
 
-    // ???? 4. Hidden Finalize: save draft ??call finalize API ??navigate to player
+    // 4. Hidden Finalize: save draft → call finalize API → navigate to player
     const handleFinalize = async () => {
         if (!draft || finalizeStatus === "loading") return
         setFinalizeStatus("loading")
@@ -314,7 +313,7 @@ export default function RoutineReviewPage() {
             if (finalId) localStorage.setItem("fitcore_routine_final_id", finalId)
             setFinalizeStatus("finalized")
         } catch (err) {
-            console.error("[draft] finalize failed ??navigating without finalId:", err)
+            console.error("[draft] finalize failed — navigating without finalId:", err)
             localStorage.removeItem("fitcore_routine_final_id")
             setFinalizeStatus("failed")
         }
@@ -322,8 +321,8 @@ export default function RoutineReviewPage() {
         router.push("/ai_routine/player")
     }
 
-    if (finalizeStatus === "loading" && !draft) return <div className="p-10 text-center text-slate-500">?룐뫂????븍뜄???삳뮉 餓?..</div>
-    if (!draft) return <div className="p-10 text-center text-slate-500">???貫留??룐뫂?????곷뮸??덈뼄.</div>
+    if (finalizeStatus === "loading" && !draft) return <div className="p-10 text-center text-slate-500">루틴 불러오는 중...</div>
+    if (!draft) return <div className="p-10 text-center text-slate-500">저장된 루틴이 없습니다.</div>
 
     return (
         <div className="flex flex-col w-full">
@@ -349,7 +348,7 @@ export default function RoutineReviewPage() {
             )}
         <div className="flex flex-col w-full max-w-2xl mx-auto p-4 space-y-6 pb-44">
 
-            {/* ???? Status badge + estimated time ???? */}
+            {/* Status badge + estimated time */}
             <div
                 className={`p-4 rounded-2xl flex items-center justify-between ${
                     draft.isFallback ? "bg-amber-50 border border-amber-100" : "bg-blue-50 border border-blue-100"
@@ -369,7 +368,7 @@ export default function RoutineReviewPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    {/* kg / lbs ??μ맄 ?醫? */}
+                    {/* kg / lbs toggle */}
                     <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
                         <button
                             onClick={() => setDisplayUnit("kg")}
@@ -393,11 +392,12 @@ export default function RoutineReviewPage() {
                         </button>
                     </div>
                     <span className="text-blue-600 font-bold flex items-center gap-1">
-                        <Clock className="w-4 h-4" /> {totalTime}??                    </span>
+                        <Clock className="w-4 h-4" /> {totalTime}분
+                    </span>
                 </div>
             </div>
 
-            {/* ???? Routine summary card (title + rationale) ???? */}
+            {/* Routine summary card */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
                 <h1 className="text-lg font-extrabold text-slate-800">{draft.summaryTitle}</h1>
 
@@ -426,7 +426,7 @@ export default function RoutineReviewPage() {
                 </div>
             </div>
 
-            {/* ???? Exercise block list ???? */}
+            {/* Exercise block list */}
             <section className="space-y-4">
                 <DndContext
                     sensors={sensors}
@@ -464,15 +464,15 @@ export default function RoutineReviewPage() {
                     onClick={addNewExerciseBlock}
                     className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-sm text-slate-400 font-bold hover:bg-slate-50 hover:border-blue-300 hover:text-blue-500 transition-colors flex items-center justify-center gap-2"
                 >
-                    <Plus className="w-4 h-4" /> ??덉쨮????猷??곕떽?
+                    <Plus className="w-4 h-4" /> 운동 추가
                 </button>
             </section>
 
-            {/* ???? Bottom action bar ???? */}
+            {/* Bottom action bar */}
             <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-100 shadow-[0_-4px_24px_-2px_rgba(0,0,0,0.08)] px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
                 {!isRoutineValid && (
                     <p className="text-center text-xs text-red-500 font-bold mb-2">
-                        ??낆젾揶쏅????類ㅼ뵥??雅뚯눘苑??(??쏅땾 1??00, ?얜떯苡?0 ?λ뜃?? ??곷뻼 0??00??
+                        세트 값이 유효하지 않습니다 (횟수 1~50, 무게 0~500, 휴식 0~600초)
                     </p>
                 )}
                 <button
@@ -480,11 +480,11 @@ export default function RoutineReviewPage() {
                     disabled={finalizeStatus === "loading" || !isRoutineValid}
                     className="w-full max-w-2xl mx-auto bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-center gap-2 transition-transform active:scale-[0.98] block"
                 >
-                    <Save className="w-5 h-5" /> {finalizeStatus === "loading" ? "餓Β??餓?.." : "??猷???뽰삂"}
+                    <Save className="w-5 h-5" /> {finalizeStatus === "loading" ? "저장 중..." : "루틴 저장"}
                 </button>
             </div>
 
-            {/* ???? Exercise swap modal ???? */}
+            {/* Exercise swap modal */}
             {swapBlockId && (
                 <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center">
                     <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[80vh] flex flex-col shadow-2xl">
@@ -505,7 +505,7 @@ export default function RoutineReviewPage() {
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
                                     type="text"
-                                    placeholder="??猷???已? 域뱀눘??野꺜??.."
+                                    placeholder="운동 이름, 근육 검색..."
                                     value={swapQuery}
                                     onChange={(e) => setSwapQuery(e.target.value)}
                                     autoFocus
@@ -518,15 +518,15 @@ export default function RoutineReviewPage() {
                         <div className="overflow-y-auto flex-1">
                             {swapLoading ? (
                                 <div className="p-10 text-center text-slate-400 text-sm animate-pulse">
-                                    筌ㅼ뮄??疫꿸퀡以???븍뜄???삳뮉 餓?..
+                                    운동 정보 불러오는 중...
                                 </div>
                             ) : (
                                 <>
-                                    {/* AI ?곕뗄荑???筌???猷??諭??*/}
+                                    {/* AI candidates */}
                                     {aiCandidates.length > 0 && (
                                         <div>
                                             <p className="px-5 pt-4 pb-2 text-[10px] font-black text-purple-500 uppercase tracking-widest">
-                                                ??AI ?곕뗄荑???筌???猷?
+                                                ✨ AI 추천 운동
                                             </p>
                                             {aiCandidates.map((item) => (
                                                 <button
@@ -537,7 +537,7 @@ export default function RoutineReviewPage() {
                                                     <div>
                                                         <p className="font-bold text-slate-800 text-sm">{item.nameKr}</p>
                                                         <p className="text-xs text-slate-400 mt-0.5">
-                                                            {item.primaryMuscle} 夷?{item.equipment}
+                                                            {item.primaryMuscle} · {item.equipment}
                                                         </p>
                                                     </div>
                                                     <span className="text-[10px] font-bold text-purple-600 bg-purple-100 border border-purple-200 px-2 py-1 rounded-full shrink-0">
@@ -546,14 +546,14 @@ export default function RoutineReviewPage() {
                                                 </button>
                                             ))}
                                             <p className="px-5 pt-4 pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                                ?袁⑷퍥 ??猷?
+                                                전체 운동
                                             </p>
                                         </div>
                                     )}
 
-                                    {/* ?袁⑷퍥 ??猷?野꺜???귐딅뮞??*/}
+                                    {/* All exercises list */}
                                     {filteredCatalog.length === 0 ? (
-                                        <div className="p-10 text-center text-slate-400 text-sm">野꺜??野껉퀗?드첎? ??곷뮸??덈뼄.</div>
+                                        <div className="p-10 text-center text-slate-400 text-sm">검색 결과가 없습니다.</div>
                                     ) : (
                                         filteredCatalog.map((item) => (
                                             <button
@@ -564,7 +564,7 @@ export default function RoutineReviewPage() {
                                                 <div>
                                                     <p className="font-bold text-slate-800 text-sm">{item.nameKr}</p>
                                                     <p className="text-xs text-slate-400 mt-0.5">
-                                                        {item.primaryMuscle} 夷?{item.equipment}
+                                                        {item.primaryMuscle} · {item.equipment}
                                                     </p>
                                                 </div>
                                                 <span className="text-[10px] font-bold text-blue-500 bg-blue-50 border border-blue-100 px-2 py-1 rounded-full shrink-0">
@@ -584,7 +584,7 @@ export default function RoutineReviewPage() {
     )
 }
 
-// ???? SortableExerciseCard ????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// SortableExerciseCard
 
 function SortableExerciseCard(props: ExerciseCardProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -601,7 +601,7 @@ function SortableExerciseCard(props: ExerciseCardProps) {
     )
 }
 
-// ???? ExerciseCard ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// ExerciseCard
 
 interface ExerciseCardProps {
     block: RoutineBlock
@@ -645,7 +645,7 @@ function ExerciseCard({
                     <GripVertical className="w-4 h-4" />
                 </div>
                 <h4 className="min-w-0 font-bold text-slate-800 truncate">
-                    {block.exerciseName || <span className="text-slate-300 font-medium">??猷??醫뤾문 ?袁⑹뒄</span>}
+                    {block.exerciseName || <span className="text-slate-300 font-medium">운동을 선택하세요</span>}
                 </h4>
             </div>
             {isFallback && (
@@ -690,20 +690,20 @@ function ExerciseCard({
                 onClick={() => onAddSet(block.clientBlockId!)}
                 className="w-full mt-3 py-2 border-2 border-dashed border-slate-100 rounded-xl text-xs text-slate-400 font-bold hover:bg-slate-50 hover:border-blue-200 hover:text-blue-500 transition-colors flex items-center justify-center gap-1"
             >
-                <Plus className="w-3.5 h-3.5" /> ?紐낅뱜 ?곕떽?
+                <Plus className="w-3.5 h-3.5" /> 세트 추가
             </button>
 
             <button
                 onClick={() => onSwapRequest(block.clientBlockId!)}
                 className="w-full mt-2 py-2 border-2 border-dashed border-slate-100 rounded-xl text-xs text-slate-400 font-bold hover:bg-slate-50 hover:border-purple-200 hover:text-purple-500 transition-colors"
             >
-                ??삘뀲 ??猷??곗쨮 ?대Ŋ猿??띾┛
+                다른 운동으로 교체 ↻
             </button>
         </div>
     )
 }
 
-// ???? SetRow ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// SetRow
 
 interface SetRowProps {
     set: SetPrescription
@@ -729,7 +729,7 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
     const weightRegister = register("weightKg", numericRules("weightKg", displayUnit))
     const repsRegister = register("reps", numericRules("reps"))
     const restRegister = register("restSec", numericRules("restSec"))
-    // View: kg(Model) ???遺얇늺 ??뽯뻻揶? Model?? ??湲?kg嚥≪뮆彛??醫?.
+    // View converts kg→lbs when needed; model always stores kg
     const weightDisplay =
         set.targetWeightKg === null
             ? ""
@@ -809,7 +809,8 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
                     onClick={() => handleRestStep(30)}
                     className="w-full text-[9px] font-bold text-slate-400 hover:text-blue-500 leading-none py-0.5 hover:bg-blue-50 rounded transition-colors"
                 >
-                    塋?                </button>
+                    ▲
+                </button>
                 <input
                     type="number"
                     min={NUMERIC_RANGES.restSec.min}
@@ -830,7 +831,8 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
                     disabled={set.targetRestSec <= 0}
                     className="w-full text-[9px] font-bold text-slate-400 hover:text-blue-500 leading-none py-0.5 hover:bg-blue-50 rounded transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                 >
-                    塋?                </button>
+                    ▼
+                </button>
             </div>
 
             <button
