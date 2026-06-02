@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 import { useAuthStore } from "@/store/authStore"
 import { isDemoMode } from "@/utils/demoMode"
@@ -15,13 +14,7 @@ const LogViewer = IS_PROD
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     const token = useAuthStore((state) => state.token)
-    const [isDemoActive, setIsDemoActive] = useState(false)
-
-    useEffect(() => {
-        setIsDemoActive(!IS_PROD && !!token && isDemoMode())
-    }, [token])
-
-    const showLogs = isDemoActive
+    const showLogs = !IS_PROD && !!token && isDemoMode()
 
     return (
         <main className="flex h-full w-full justify-center overflow-hidden">
