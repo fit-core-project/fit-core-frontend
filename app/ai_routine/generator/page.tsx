@@ -1,9 +1,11 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
     Activity,
+    BookOpen,
     Clock,
     Target,
     Dumbbell,
@@ -222,18 +224,26 @@ export default function RoutineGenerator() {
             <div className="flex-1 w-full h-full flex flex-col items-center px-4 py-4 md:px-8 relative">
                 <div className="w-full max-w-3xl flex-1 min-h-0 flex flex-col bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative">
                     {/* 1. 상단 고정 헤더 */}
-                    <div className="bg-blue-50/50 p-5 border-b border-blue-100 flex items-center justify-between shrink-0">
-                        <div className="flex items-center space-x-3">
+                    <div className="bg-blue-50/50 p-5 border-b border-blue-100 flex items-center justify-between gap-3 shrink-0">
+                        <div className="flex min-w-0 items-center space-x-3">
                             <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-md shadow-blue-200">
                                 <Dumbbell className="w-6 h-6 text-white" />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <h1 className="text-lg font-extrabold text-slate-800">루틴 세부 설정</h1>
                                 <p className="text-xs text-blue-600 font-medium">
                                     목표와 장비를 선택하면 AI가 최적의 루틴을 설계합니다.
                                 </p>
                             </div>
                         </div>
+                        <Link
+                            href="/ai_routine/prompt-explain"
+                            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-white text-blue-600 shadow-sm transition-colors hover:bg-blue-50"
+                            aria-label="프롬프트 설계 보기"
+                            title="프롬프트 설계 보기"
+                        >
+                            <BookOpen className="h-4 w-4" aria-hidden="true" />
+                        </Link>
                     </div>
 
                     {/* 2. 폼 영역 */}

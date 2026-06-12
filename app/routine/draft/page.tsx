@@ -51,6 +51,20 @@ function fallbackReasonLabel(reasonCode: RoutineDraft["statusReasonCode"]): stri
             return "AI \uc751\ub2f5 \ud615\uc2dd \uc624\ub958"
         case "networkError":
             return "AI \uc5f0\uacb0 \uc2e4\ud328"
+        case "ai_server_unavailable":
+        case "ai_connection_refused":
+            return "AI \uc11c\ubc84 \uc5f0\uacb0 \uc2e4\ud328"
+        case "ai_timeout":
+            return "AI \uc751\ub2f5 \uc9c0\uc5f0"
+        case "ai_bad_response":
+        case "ai_schema_mismatch":
+            return "AI \uc751\ub2f5 \ud615\uc2dd \uc624\ub958"
+        case "ai_remote_error":
+            return "AI \uc11c\ubc84 \uc751\ub2f5 \uc624\ub958"
+        case "ai_disabled":
+            return "AI \uae30\ub2a5 \ube44\ud65c\uc131\ud654"
+        case "unknown_ai_error":
+            return "AI \uc751\ub2f5 \uc0ac\uc6a9 \ubd88\uac00"
         case "emptyCandidate":
             return "\uc0ac\uc6a9 \uac00\ub2a5\ud55c \uc6b4\ub3d9 \ud6c4\ubcf4 \uc5c6\uc74c"
         default:

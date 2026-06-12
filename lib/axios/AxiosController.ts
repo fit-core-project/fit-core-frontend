@@ -70,7 +70,7 @@ const dateTransformer = (data: unknown, header: AxiosRequestHeaders): unknown =>
 }
 
 const AxiosController: IAxiosController = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_BASE_URL,
+    baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_BASE_URL,
     withCredentials: true,
     paramsSerializer: (params: unknown) => {
         return qs.stringify(params, { arrayFormat: "repeat" })

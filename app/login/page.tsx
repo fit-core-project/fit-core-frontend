@@ -3,30 +3,19 @@
 import { useRouter } from "next/navigation"
 import { UserCircle } from "lucide-react"
 import SocialButton from "@/app/components/SocialButton"
-import AxiosController from "@/lib/axios/AxiosController"
 import { useAuthStore } from "@/store/authStore"
 
-// NODE_ENV is inlined at build time; webpack eliminates the demo branch entirely
-// in production builds, tree-shaking demoMode imports and the button JSX.
-const IS_PROD = process.env.NODE_ENV === "production"
+// NEXT_PUBLIC_ENABLE_DEMO_LOGIN: show demo login unless explicitly set to 'false'
+const SHOW_DEMO_LOGIN = process.env.NEXT_PUBLIC_ENABLE_DEMO_LOGIN !== "false"
 
 export default function LoginPage() {
     const router = useRouter()
     const setToken = useAuthStore((state) => state.setToken)
 
     const handleSocialLogin = (provider: string) => {
-        const baseUrl = AxiosController.defaults.baseURL
-
-        if (!baseUrl) {
-            alert("백엔드 서버 주소(BASE_URL)가 설정되지 않았습니다.")
-            return
-        }
-
-        window.location.href = `${baseUrl}/oauth2/authorization/${provider}`
+        window.location.href = `/oauth2/authorization/${provider}`
     }
 
-    // handleDemoLogin and its dynamic import are dead code when IS_PROD=true,
-    // so webpack eliminates demoMode.ts from the production bundle.
     const handleDemoLogin = async () => {
         const { seedDemoSession, createDemoToken } = await import("@/utils/demoMode")
         seedDemoSession()
@@ -52,7 +41,7 @@ export default function LoginPage() {
                     <SocialButton provider="google" imageSrc="/images/google.png" onClick={handleSocialLogin} />
                 </div>
 
-                {!IS_PROD && (
+                {SHOW_DEMO_LOGIN && (
                     <>
                         <div className="my-6 flex items-center gap-3">
                             <div className="h-px flex-1 bg-slate-100" />

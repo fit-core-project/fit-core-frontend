@@ -16,6 +16,22 @@ interface Message {
     role: "user" | "ai"
     content: string
     sources?: SourceDetail[]
+    mode?: "full" | "degraded" | "fallback"
+    fallbackReason?: string
+}
+
+interface SttResponse {
+    text: string
+    status?: "success" | "unavailable"
+    message?: string
+    fallbackReason?: string
+}
+
+interface SupplementResponse {
+    answer: string
+    sources?: SourceDetail[]
+    mode?: "full" | "degraded" | "fallback"
+    fallback_reason?: string
 }
 
 const SUGGESTED_QUESTIONS = [
@@ -76,8 +92,21 @@ export default function SupplementChatPage() {
                 formData.append("audio_file", audioBlob, "voice_record.webm")
 
                 try {
-                    const data = await AxiosController.post<{ text: string }>("/api/ai/stt", formData)
-                    if (data.text) setInputText((prev) => (prev ? `${prev} ${data.text}` : data.text))
+                    const data = await AxiosController.post<SttResponse>("/api/ai/stt", formData)
+                    if (data.status === "unavailable") {
+                        setMessages((prev) => [
+                            ...prev,
+                            {
+                                id: Date.now().toString(),
+                                role: "ai",
+                                content: data.message ?? "음성 인식 서버가 닫혀 있어 텍스트 입력을 사용해 주세요.",
+                                mode: "fallback",
+                                fallbackReason: data.fallbackReason,
+                            },
+                        ])
+                    } else if (data.text) {
+                        setInputText((prev) => (prev ? `${prev} ${data.text}` : data.text))
+                    }
                 } catch (err: unknown) {
                     const msg = (err as { message?: string }).message ?? "알 수 없는 오류"
                     setMessages((prev) => [
@@ -123,7 +152,7 @@ export default function SupplementChatPage() {
         setIsLoading(true)
 
         try {
-            const data = await AxiosController.post<{ answer: string; sources?: SourceDetail[] }>(
+            const data = await AxiosController.post<SupplementResponse>(
                 "/api/ai/supplement-chat",
                 { question: textToSubmit }
             )
@@ -132,6 +161,8 @@ export default function SupplementChatPage() {
                 role: "ai",
                 content: data.answer,
                 sources: data.sources,
+                mode: data.mode,
+                fallbackReason: data.fallback_reason,
             }
             setMessages((prev) => [...prev, newAiMsg])
         } catch (error: unknown) {
@@ -205,6 +236,11 @@ export default function SupplementChatPage() {
                                             : "bg-white text-slate-700 border border-slate-100 rounded-3xl rounded-tl-none whitespace-pre-wrap"
                                     }`}
                                 >
+                                    {msg.mode === "fallback" && (
+                                        <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700">
+                                            AI 서버가 닫혀 있어 일반 안전 안내로 대체했습니다.
+                                        </div>
+                                    )}
                                     {msg.content}
                                 </div>
                             </div>
@@ -289,7 +325,7 @@ export default function SupplementChatPage() {
                                 />
 
                                 <button
-                                    onClick={() => handleSendMessage}
+                                    onClick={() => handleSendMessage()}
                                     disabled={isLoading || inputText.length === 0 || isRecording || isSttLoading}
                                     className="shrink-0 mb-1.5 mr-1.5 w-10 h-10 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white rounded-xl transition-colors flex items-center justify-center"
                                 >

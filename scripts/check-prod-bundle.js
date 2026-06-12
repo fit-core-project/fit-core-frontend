@@ -9,10 +9,10 @@ const path = require("path")
 
 const BUILD_DIR = path.join(__dirname, "..", ".next")
 
-// Strings that must never appear in a production bundle
+// Strings that must never appear in a production bundle.
+// Note: "테스트 모드 로그인" and "PORTFOLIO DEMO" are intentionally allowed in prod
+// when NEXT_PUBLIC_ENABLE_DEMO_LOGIN is not 'false' (demo deployment use case).
 const FORBIDDEN = [
-    "테스트 모드 로그인",
-    "PORTFOLIO DEMO",
     "/api/dev/logs",
     "/api/dev/",
 ]

@@ -10,6 +10,15 @@ interface ParsedData {
     diet_logs: { food_name: string; estimated_calories: number; protein_g: number; carbs_g: number; fat_g: number }[]
     workout_logs: { exercise_name: string; weight_kg: number | null; sets: number | null; reps: number | null }[]
     overall_summary: string
+    status?: "success" | "fallback"
+    fallback_reason?: string
+}
+
+interface SttResponse {
+    text: string
+    status?: "success" | "unavailable"
+    message?: string
+    fallbackReason?: string
 }
 
 // --- 로딩 메시지 목록 ---
@@ -76,8 +85,12 @@ export default function QuickLogPage() {
                 formData.append("audio_file", audioBlob, "voice_record.webm")
 
                 try {
-                    const data = await AxiosController.post<{ text: string }>("/api/ai/stt", formData)
-                    if (data.text) setInputText((prev) => (prev ? `${prev} ${data.text}` : data.text))
+                    const data = await AxiosController.post<SttResponse>("/api/ai/stt", formData)
+                    if (data.status === "unavailable") {
+                        setError(data.message ?? "음성 인식 서버가 닫혀 있어 텍스트 입력을 사용해 주세요.")
+                    } else if (data.text) {
+                        setInputText((prev) => (prev ? `${prev} ${data.text}` : data.text))
+                    }
                 } catch {
                     setError("음성 인식 중 오류가 발생했습니다. 다시 말씀해 주세요.")
                 } finally {
@@ -224,6 +237,16 @@ export default function QuickLogPage() {
                     {/* 파싱 결과 렌더링 영역 */}
                     {parsedData && (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6 pb-4">
+                            {parsedData.status === "fallback" && (
+                                <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-start text-amber-800">
+                                    <AlertCircle className="w-5 h-5 mr-3 mt-0.5 shrink-0" />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold">AI 서버가 닫혀 있어 간단 파싱으로 처리했습니다.</p>
+                                        <p className="text-xs opacity-80">{parsedData.fallback_reason}</p>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* 코치 아바타 피드백 */}
                             <div className="flex items-start space-x-4 mb-2">
                                 <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 mt-1">
