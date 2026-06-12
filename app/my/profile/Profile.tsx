@@ -6,6 +6,7 @@ import { Edit3, ShieldCheck, User, X } from "lucide-react"
 import SocialButton from "@/app/components/SocialButton"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
 import { useAuthStore } from "@/store/authStore"
+import { getBackendBaseUrl } from "@/utils/backendBaseUrl"
 
 interface ProfileProps {
     profile: UserResponse | null
@@ -25,9 +26,8 @@ export default function Profile({ profile, logout, onEdit }: ProfileProps) {
     }
 
     const handleSocialLogin = async (provider: string) => {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
         await profileApiClient.setLinkMode()
-        window.location.href = `${baseUrl}/oauth2/authorization/${provider}`
+        window.location.href = `${getBackendBaseUrl()}/oauth2/authorization/${provider}`
     }
 
     if (!profile) return <div>로딩 중...</div>

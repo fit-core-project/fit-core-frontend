@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { UserCircle } from "lucide-react"
 import SocialButton from "@/app/components/SocialButton"
 import { useAuthStore } from "@/store/authStore"
+import { getBackendBaseUrl } from "@/utils/backendBaseUrl"
 
 // NEXT_PUBLIC_ENABLE_DEMO_LOGIN: show demo login unless explicitly set to 'false'
 const SHOW_DEMO_LOGIN = process.env.NEXT_PUBLIC_ENABLE_DEMO_LOGIN !== "false"
@@ -13,7 +14,7 @@ export default function LoginPage() {
     const setToken = useAuthStore((state) => state.setToken)
 
     const handleSocialLogin = (provider: string) => {
-        window.location.href = `/oauth2/authorization/${provider}`
+        window.location.href = `${getBackendBaseUrl()}/oauth2/authorization/${provider}`
     }
 
     const handleDemoLogin = async () => {
