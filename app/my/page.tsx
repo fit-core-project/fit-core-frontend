@@ -2,6 +2,7 @@
 
 import { ReactNode, useCallback, useEffect, useState } from "react"
 import { ClipboardList, Dumbbell, Settings, Trophy, User } from "lucide-react"
+import { toast } from "sonner"
 import Profile from "@/app/my/profile/Profile"
 import ProfileEditForm from "@/app/my/profile/ProfileEditForm"
 import { BodyComposition, UserResponse, UserUpdateRequest } from "@/types/project"
@@ -47,19 +48,19 @@ export default function Page() {
 
     const onSave = async (updatedData: Partial<UserResponse>) => {
         if (!profile?.email) {
-            alert("사용자 정보를 찾을 수 없습니다.")
+            toast.error("사용자 정보를 찾을 수 없습니다.")
             return
         }
 
         profileApiClient
             .updateMe(updatedData as UserUpdateRequest)
             .then((res) => {
-                alert("프로필이 성공적으로 업데이트되었습니다.")
+                toast.success("프로필이 성공적으로 업데이트되었습니다.")
                 setIsEditing(false)
                 setProfile(res)
             })
             .catch(() => {
-                alert("프로필 업데이트 중 오류가 발생했습니다.")
+                toast.error("프로필 업데이트 중 오류가 발생했습니다.")
             })
     }
 
@@ -73,12 +74,12 @@ export default function Page() {
                 bodyCompositionSnapshot: updatedSnapshots,
             } as UserUpdateRequest)
 
-            alert("체성분 정보가 성공적으로 업데이트되었습니다.")
+            toast.success("체성분 정보가 성공적으로 업데이트되었습니다.")
             setProfile(res)
             return true
         } catch (error) {
             console.error("Update Error:", error)
-            alert("체성분 업데이트 중 오류가 발생했습니다.")
+            toast.error("체성분 업데이트 중 오류가 발생했습니다.")
             return false
         }
     }

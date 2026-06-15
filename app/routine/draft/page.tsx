@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, X, Info, Search, GripVertical } from "lucide-react"
+import { AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, X, Info, Search, GripVertical, ArrowLeft } from "lucide-react"
 import {
     DndContext,
     closestCenter,
@@ -335,11 +335,29 @@ export default function RoutineReviewPage() {
         router.push("/ai_routine/player")
     }
 
+    const handleBack = () => {
+        if (window.confirm("편집 내용이 사라질 수 있어요. 돌아갈까요?")) {
+            router.push("/ai_routine/generator")
+        }
+    }
+
     if (finalizeStatus === "loading" && !draft) return <div className="p-10 text-center text-slate-500">루틴 불러오는 중...</div>
     if (!draft) return <div className="p-10 text-center text-slate-500">저장된 루틴이 없습니다.</div>
 
     return (
         <div className="flex flex-col w-full">
+
+            {/* 상단 뒤로가기 */}
+            <div className="sticky top-0 z-20 bg-white border-b border-slate-100 px-4 py-2 flex items-center shadow-sm">
+                <button
+                    type="button"
+                    onClick={handleBack}
+                    className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
+                >
+                    <ArrowLeft className="w-4 h-4" />
+                    뒤로
+                </button>
+            </div>
 
             {/* Fallback warning banner */}
             {draft.isFallback && (

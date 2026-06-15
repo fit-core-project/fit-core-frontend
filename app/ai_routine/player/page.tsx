@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Check, Timer, Play, Pause, Flame, Trophy, SkipForward } from "lucide-react"
+import { Check, Timer, Play, Pause, Flame, Trophy, SkipForward, X } from "lucide-react"
 import { RoutineDraft } from "@/types/routine"
 import workoutApiClient, { WorkoutSaveRequest } from "@/lib/api/workout/workoutApiClient"
 import { WorkoutState } from "@/types/state"
+import { toast } from "sonner"
 
 export default function WorkoutPlayer() {
     const router = useRouter()
@@ -35,10 +36,22 @@ export default function WorkoutPlayer() {
         const savedRoutine = localStorage.getItem("fitcore_active_routine")
         const savedFinalId = localStorage.getItem("fitcore_routine_final_id")
         if (savedRoutine) {
-            setRoutine(JSON.parse(savedRoutine) as RoutineDraft)
+            const parsedRoutine = JSON.parse(savedRoutine) as RoutineDraft
+            setRoutine(parsedRoutine)
             setWorkoutStatus("inProgress")
+            // 진행 상태 복원: routineId가 현재 루틴과 일치할 때만 적용
+            const savedProgress = localStorage.getItem("fitcore_player_progress")
+            if (savedProgress) {
+                try {
+                    const { routineId, checkedSets: saved } = JSON.parse(savedProgress) as { routineId: string; checkedSets: string[] }
+                    const currentId = savedFinalId ?? parsedRoutine.routineDraftId
+                    if (routineId === currentId && Array.isArray(saved) && saved.length > 0) {
+                        setCheckedSets(new Set(saved))
+                    }
+                } catch { /* malformed, ignore */ }
+            }
         } else {
-            alert("활성화된 루틴이 없습니다.")
+            toast.error("활성화된 루틴이 없습니다.")
             router.push("/ai_routine")
         }
         if (savedFinalId) setRoutineFinalId(savedFinalId)
@@ -118,6 +131,14 @@ export default function WorkoutPlayer() {
         scrollSetAboveTimer(nextKeyRef.current)
     }, [isTimerActive, scrollSetAboveTimer])
 
+    // 진행 상태(checkedSets) 영속화 — checkedSets 변경 시마다 저장
+    useEffect(() => {
+        if (!routine || workoutStatus !== "inProgress") return
+        const routineId = routineFinalId ?? routine.routineDraftId
+        if (!routineId) return
+        localStorage.setItem("fitcore_player_progress", JSON.stringify({ routineId, checkedSets: [...checkedSets] }))
+    }, [checkedSets, routine, routineFinalId, workoutStatus])
+
     if (workoutStatus === "idle" || !routine) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -178,6 +199,12 @@ export default function WorkoutPlayer() {
     }
 
     const handleSkip = () => finishRest()
+
+    const handleExit = () => {
+        if (window.confirm("운동을 중단하고 나갈까요? 진행 상황은 저장되어 나중에 이어서 할 수 있어요.")) {
+            router.push("/my")
+        }
+    }
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60)
@@ -251,6 +278,7 @@ export default function WorkoutPlayer() {
             localStorage.removeItem("fitcore_split_label")
             localStorage.removeItem("fitcore_unavailable_equipment")
             localStorage.removeItem("fitcore_failed_workout_save")
+            localStorage.removeItem("fitcore_player_progress")
             setWorkoutStatus("saved")
             router.push("/ai_routine")
         } catch (err) {
@@ -271,6 +299,8 @@ export default function WorkoutPlayer() {
         localStorage.removeItem("fitcore_routine_final_id")
         localStorage.removeItem("fitcore_split_label")
         localStorage.removeItem("fitcore_unavailable_equipment")
+        localStorage.removeItem("fitcore_failed_workout_save")
+        localStorage.removeItem("fitcore_player_progress")
         router.push("/ai_routine")
     }
 
@@ -356,7 +386,14 @@ export default function WorkoutPlayer() {
         <main className="absolute inset-0 bg-slate-50 flex flex-col overflow-hidden">
             {/* 상단 고정: 제목 + 진행 바 */}
             <div className="shrink-0 z-40 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
-                <div className="flex justify-between items-end mb-2 max-w-2xl mx-auto w-full gap-3">
+                <div className="flex items-center mb-2 max-w-2xl mx-auto w-full gap-3">
+                    <button
+                        onClick={handleExit}
+                        className="shrink-0 p-1 text-slate-400 hover:text-slate-700 transition-colors"
+                        aria-label="운동 중단"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
                     <h1 className="font-extrabold text-xl text-slate-900 flex items-center min-w-0 flex-1">
                         <Flame className="w-5 h-5 text-orange-500 mr-2 shrink-0" />
                         <span className="truncate">{routine.summaryTitle || "오늘의 루틴"}</span>

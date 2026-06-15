@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Plus, Search, Trash2 } from "lucide-react"
 import exerciseAdminClient, { AdminExercise, ExerciseRequest } from "@/lib/api/admin/exerciseAdminClient"
+import { toast } from "sonner"
 
 const MUSCLES = [
     "abductors", "abs", "adductor", "back-deltoids", "biceps", "calves",
@@ -210,12 +211,12 @@ function FormView({
 
     const handleSave = async () => {
         const err = validate(form)
-        if (err) { alert(err); return }
+        if (err) { toast.error(err); return }
         try {
             setSaving(true)
             await onSave(toRequest(form))
         } catch {
-            alert("저장 중 오류가 발생했습니다.")
+            toast.error("저장 중 오류가 발생했습니다.")
         } finally {
             setSaving(false)
         }
@@ -228,7 +229,7 @@ function FormView({
             setDeleting(true)
             await onDelete()
         } catch {
-            alert("삭제 중 오류가 발생했습니다.")
+            toast.error("삭제 중 오류가 발생했습니다.")
         } finally {
             setDeleting(false)
         }

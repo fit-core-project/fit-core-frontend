@@ -6,6 +6,7 @@ import AuthInitializer from "@/app/components/AuthInitializer"
 import MainLayout from "@/app/components/MainLayout"
 import Providers from "@/components/Providers"
 import MSWProvider from "@/app/components/MSWProvider"
+import { Toaster } from "sonner"
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                         {isMockMode ? <MSWProvider>{content}</MSWProvider> : content}
                     </section>
                 </MainLayout>
+                <Toaster richColors position="top-center" />
             </body>
         </html>
     )

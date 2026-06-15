@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { ChevronRight, Dumbbell, Users } from "lucide-react"
+import { ChevronRight, Dumbbell } from "lucide-react"
 import { useAuthStore } from "@/store/authStore"
 
 export default function AdminPage() {
@@ -25,22 +25,6 @@ export default function AdminPage() {
                         <div className="text-left">
                             <p className="text-sm font-semibold text-slate-800">운동 데이터 관리</p>
                             <p className="text-xs text-slate-400">exercise_tier 테이블 CRUD</p>
-                        </div>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-400" />
-                </button>
-                <button
-                    type="button"
-                    className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:bg-slate-50 active:bg-slate-100"
-                    onClick={() => {}}
-                >
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-50">
-                            <Users size={18} className="text-sky-600" />
-                        </div>
-                        <div className="text-left">
-                            <p className="text-sm font-semibold text-slate-800">회원 관리</p>
-                            <p className="text-xs text-slate-400">추후 구현 예정</p>
                         </div>
                     </div>
                     <ChevronRight size={16} className="text-slate-400" />

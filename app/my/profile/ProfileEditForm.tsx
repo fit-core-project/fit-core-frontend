@@ -8,6 +8,7 @@ import AnatomyModel from "@/app/components/AnatomyModel"
 import { useSettingsStore } from "@/store/settingsStore"
 import { useForm } from "react-hook-form"
 import { NUMERIC_RANGES, numericRules, toDisplayBound } from "@/utils/numericValidation"
+import { toast } from "sonner"
 
 const GOAL_OPTIONS: { label: string; value: string }[] = [
     { label: "근력 강화", value: "strength" },
@@ -175,7 +176,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
         if (!isValid) return
 
         if (!formData.nickname || formData.nickname.trim() === "") {
-            alert("닉네임을 입력해주세요.")
+            toast.error("닉네임을 입력해주세요.")
             return
         }
 
@@ -184,11 +185,11 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                 const res = await profileApiClient.checkNickname(formData.nickname)
                 if (res) {
                     setNicknameStatus("duplicate")
-                    alert("이미 사용 중인 닉네임입니다. 다시 확인해 주세요.")
+                    toast.error("이미 사용 중인 닉네임입니다. 다시 확인해 주세요.")
                     return
                 }
             } catch {
-                alert("중복 확인 중 오류가 발생했습니다.")
+                toast.error("중복 확인 중 오류가 발생했습니다.")
                 return
             }
         }

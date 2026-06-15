@@ -7,6 +7,7 @@ import SocialButton from "@/app/components/SocialButton"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
 import { useAuthStore } from "@/store/authStore"
 import { getBackendBaseUrl } from "@/utils/backendBaseUrl"
+import { toast } from "sonner"
 
 interface ProfileProps {
     profile: UserResponse | null
@@ -54,7 +55,7 @@ export default function Profile({ profile, logout, onEdit }: ProfileProps) {
                     className="mt-4 text-2xl font-bold"
                     onClick={() => {
                         if (!profile.nickname) {
-                            alert("프로필 수정 화면에서 닉네임을 먼저 설정해주세요.")
+                            toast.error("프로필 수정 화면에서 닉네임을 먼저 설정해주세요.")
                             return
                         }
 

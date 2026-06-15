@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/authStore"
 import { jwtDecode } from "jwt-decode"
+import { toast } from "sonner"
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
     const token = useAuthStore((state) => state.token)
@@ -39,7 +40,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         // 1. 토큰이 존재할 때만 만료 체크
         if (token) {
             if (isTokenExpired(token)) {
-                alert("세션이 만료되었습니다. 다시 로그인해주세요.")
+                toast.error("세션이 만료되었습니다. 다시 로그인해주세요.")
                 clearToken()
                 router.replace("/login")
                 return
