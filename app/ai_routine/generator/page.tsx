@@ -1,11 +1,9 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
     Activity,
-    BookOpen,
     Clock,
     Target,
     Dumbbell,
@@ -236,14 +234,6 @@ export default function RoutineGenerator() {
                                 </p>
                             </div>
                         </div>
-                        <Link
-                            href="/ai_routine/prompt-explain"
-                            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-white text-blue-600 shadow-sm transition-colors hover:bg-blue-50"
-                            aria-label="프롬프트 설계 보기"
-                            title="프롬프트 설계 보기"
-                        >
-                            <BookOpen className="h-4 w-4" aria-hidden="true" />
-                        </Link>
                     </div>
 
                     {/* 2. 폼 영역 */}
