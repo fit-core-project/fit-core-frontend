@@ -507,9 +507,9 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                                         <span className="text-xs font-semibold text-slate-500">중량 {weightUnit}</span>
                                         <input
                                             type="number"
-                                            min={toDisplayBound(NUMERIC_RANGES.workingWeightKg.min, weightUnit)}
+                                            min={0}
                                             max={toDisplayBound(NUMERIC_RANGES.workingWeightKg.max, weightUnit)}
-                                            step={weightUnit === "lbs" ? 5 : NUMERIC_RANGES.workingWeightKg.step}
+                                            step="any"
                                             value={
                                                 weightUnit === "lbs"
                                                     ? Math.round(item.workingWeightKg * 2.20462)
@@ -536,9 +536,9 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                                         <span className="text-xs font-semibold text-slate-500">반복</span>
                                         <input
                                             type="number"
-                                            min={NUMERIC_RANGES.reps.min}
+                                            min={1}
                                             max={NUMERIC_RANGES.reps.max}
-                                            step={NUMERIC_RANGES.reps.step}
+                                            step={1}
                                             value={item.reps}
                                             onChange={(e) => {
                                                 repsRegister.onChange(e)
