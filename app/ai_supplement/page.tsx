@@ -15,6 +15,7 @@ interface Message {
     id: string
     role: "user" | "ai"
     content: string
+    caution?: string | null
     sources?: SourceDetail[]
     mode?: "full" | "degraded" | "fallback"
     fallbackReason?: string
@@ -29,9 +30,11 @@ interface SttResponse {
 
 interface SupplementResponse {
     answer: string
+    caution?: string | null
     sources?: SourceDetail[]
     mode?: "full" | "degraded" | "fallback"
     fallback_reason?: string
+    fallbackReason?: string
 }
 
 const SUGGESTED_QUESTIONS = [
@@ -160,9 +163,10 @@ export default function SupplementChatPage() {
                 id: (Date.now() + 1).toString(),
                 role: "ai",
                 content: data.answer,
+                caution: data.caution ?? null,
                 sources: data.sources,
                 mode: data.mode,
-                fallbackReason: data.fallback_reason,
+                fallbackReason: data.fallback_reason ?? data.fallbackReason,
             }
             setMessages((prev) => [...prev, newAiMsg])
         } catch (error: unknown) {
@@ -241,7 +245,13 @@ export default function SupplementChatPage() {
                                             AI 서버가 닫혀 있어 일반 안전 안내로 대체했습니다.
                                         </div>
                                     )}
-                                    {msg.content}
+                                    <div>{msg.content}</div>
+                                    {msg.role === "ai" && msg.caution && msg.caution.trim().length > 0 && (
+                                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+                                            <div className="mb-1 font-semibold">주의사항</div>
+                                            <p className="whitespace-pre-wrap">{msg.caution}</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
