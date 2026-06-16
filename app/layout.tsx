@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import Header from "./components/header"
 import AuthInitializer from "@/app/components/AuthInitializer"
+import AuthGuard from "@/app/components/AuthGuard"
 import MainLayout from "@/app/components/MainLayout"
 import Providers from "@/components/Providers"
 import MSWProvider from "@/app/components/MSWProvider"
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <Providers>
             <AuthInitializer />
             <Header />
-            <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-y-auto">{children}</div>
+            <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-y-auto">
+                <AuthGuard>{children}</AuthGuard>
+            </div>
         </Providers>
     )
 

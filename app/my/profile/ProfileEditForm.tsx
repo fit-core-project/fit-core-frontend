@@ -199,16 +199,37 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
     }, [])
 
     const handleSaveTarget = async () => {
+        const toNum = (s: string) => (s !== "" ? parseFloat(s) : null)
+        const proteinMin = toNum(targetForm.proteinGMin)
+        const proteinMax = toNum(targetForm.proteinGMax)
+        const carbsMin = toNum(targetForm.carbsGMin)
+        const carbsMax = toNum(targetForm.carbsGMax)
+        const fatMin = toNum(targetForm.fatGMin)
+        const fatMax = toNum(targetForm.fatGMax)
+
+        if (proteinMin != null && proteinMax != null && proteinMin > proteinMax) {
+            toast.error("단백질 최솟값이 최댓값보다 클 수 없습니다.")
+            return
+        }
+        if (carbsMin != null && carbsMax != null && carbsMin > carbsMax) {
+            toast.error("탄수화물 최솟값이 최댓값보다 클 수 없습니다.")
+            return
+        }
+        if (fatMin != null && fatMax != null && fatMin > fatMax) {
+            toast.error("지방 최솟값이 최댓값보다 클 수 없습니다.")
+            return
+        }
+
         setIsSavingTarget(true)
         try {
             const req: NutritionTarget = {
                 kcalGoal: targetForm.kcalGoal !== "" ? Math.round(parseFloat(targetForm.kcalGoal)) : null,
-                proteinGMin: targetForm.proteinGMin !== "" ? parseFloat(targetForm.proteinGMin) : null,
-                proteinGMax: targetForm.proteinGMax !== "" ? parseFloat(targetForm.proteinGMax) : null,
-                carbsGMin: targetForm.carbsGMin !== "" ? parseFloat(targetForm.carbsGMin) : null,
-                carbsGMax: targetForm.carbsGMax !== "" ? parseFloat(targetForm.carbsGMax) : null,
-                fatGMin: targetForm.fatGMin !== "" ? parseFloat(targetForm.fatGMin) : null,
-                fatGMax: targetForm.fatGMax !== "" ? parseFloat(targetForm.fatGMax) : null,
+                proteinGMin: proteinMin,
+                proteinGMax: proteinMax,
+                carbsGMin: carbsMin,
+                carbsGMax: carbsMax,
+                fatGMin: fatMin,
+                fatGMax: fatMax,
             }
             await nutritionTargetApiClient.saveTarget(req)
             toast.success("영양 목표가 저장되었습니다.")

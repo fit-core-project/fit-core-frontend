@@ -3,7 +3,8 @@
 import { startTransition, useCallback, useEffect, useState } from "react"
 import { Plus, Utensils } from "lucide-react"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
-import type { DietLogResponse, DietSummaryResponse } from "@/types/project"
+import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
+import type { DietLogResponse, DietSummaryResponse, NutritionTarget } from "@/types/project"
 import ManualEntryModal from "@/app/my/nutrition/ManualEntryModal"
 
 const MEAL_ORDER: Record<string, number> = {
@@ -57,11 +58,58 @@ function groupByMeal(items: DietLogResponse[]) {
         }))
 }
 
+// ---------- 색상 헬퍼 ----------
+
+function kcalBarPct(current: number, goal: number | null | undefined): number {
+    if (!goal) return 0
+    return Math.min((current / goal) * 100, 100)
+}
+
+function kcalBarColor(current: number, goal: number | null | undefined): string {
+    if (!goal) return "bg-slate-300"
+    return current > goal ? "bg-red-400" : "bg-emerald-400"
+}
+
+type MacroStatus = "normal" | "under" | "over" | "neutral"
+
+function macroStatus(
+    current: number,
+    min: number | null | undefined,
+    max: number | null | undefined,
+    isProtein = false,
+): MacroStatus {
+    if (min == null && max == null) return "neutral"
+    if (max != null && current > max && !isProtein) return "over"
+    if (min != null && current < min) return "under"
+    return "normal"
+}
+
+function macroBarColor(status: MacroStatus): string {
+    if (status === "normal") return "bg-emerald-400"
+    if (status === "under") return "bg-amber-400"
+    if (status === "over") return "bg-red-400"
+    return "bg-slate-300"
+}
+
+function macroBarPct(current: number, min: number | null | undefined, max: number | null | undefined): number {
+    const ref = max ?? min
+    if (!ref) return 0
+    return Math.min((current / ref) * 100, 100)
+}
+
+function macroGoalText(min: number | null | undefined, max: number | null | undefined): string | null {
+    if (min != null && max != null) return `${min}~${max}g`
+    if (max != null) return `~${max}g`
+    if (min != null) return `${min}g~`
+    return null
+}
+
 export default function NutritionTab() {
     const [summary, setSummary] = useState<DietSummaryResponse | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
     const [showModal, setShowModal] = useState(false)
+    const [target, setTarget] = useState<NutritionTarget | null>(null)
 
     const fetchToday = useCallback(() => {
         startTransition(() => {
@@ -78,6 +126,27 @@ export default function NutritionTab() {
     useEffect(() => {
         fetchToday()
     }, [fetchToday])
+
+    useEffect(() => {
+        nutritionTargetApiClient.getTarget().then((t) => startTransition(() => setTarget(t)))
+    }, [])
+
+    const totalKcal = summary?.totalKcal ?? 0
+    const totalCarbsG = Number(summary?.totalCarbsG ?? 0)
+    const totalProteinG = Number(summary?.totalProteinG ?? 0)
+    const totalFatG = Number(summary?.totalFatG ?? 0)
+
+    const kcalPct = kcalBarPct(totalKcal, target?.kcalGoal)
+    const kcalColor = kcalBarColor(totalKcal, target?.kcalGoal)
+    const hasKcalGoal = !!target?.kcalGoal
+
+    const proteinStatus = macroStatus(totalProteinG, target?.proteinGMin, target?.proteinGMax, true)
+    const carbsStatus = macroStatus(totalCarbsG, target?.carbsGMin, target?.carbsGMax)
+    const fatStatus = macroStatus(totalFatG, target?.fatGMin, target?.fatGMax)
+
+    const proteinPct = macroBarPct(totalProteinG, target?.proteinGMin, target?.proteinGMax)
+    const carbsPct = macroBarPct(totalCarbsG, target?.carbsGMin, target?.carbsGMax)
+    const fatPct = macroBarPct(totalFatG, target?.fatGMin, target?.fatGMax)
 
     if (loading) {
         return (
@@ -151,34 +220,84 @@ export default function NutritionTab() {
                 <div className="flex items-baseline gap-1">
                     <span className="text-3xl font-extrabold text-slate-800">{summary?.totalKcal ?? 0}</span>
                     <span className="text-sm font-semibold text-slate-400">kcal</span>
+                    {hasKcalGoal && (
+                        <span className="ml-1 text-xs text-slate-400">/ 목표 {target!.kcalGoal!.toLocaleString()}</span>
+                    )}
                 </div>
 
+                {/* kcal 진행 바 */}
                 <div className="mb-1 mt-3 h-3 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full w-0 rounded-full bg-slate-300" />
+                    <div
+                        className={`h-full rounded-full transition-all duration-500 ${kcalColor}`}
+                        style={{ width: hasKcalGoal ? `${kcalPct}%` : "0%" }}
+                    />
                 </div>
-                <p className="mb-5 text-[11px] text-slate-400">목표를 설정하면 진행률이 표시됩니다</p>
+                <p className="mb-5 text-[11px] text-slate-400">
+                    {hasKcalGoal
+                        ? `${totalKcal.toLocaleString()} / ${target!.kcalGoal!.toLocaleString()} kcal`
+                        : "목표를 설정하면 진행률이 표시됩니다"}
+                </p>
 
+                {/* 탄/단/지 */}
                 <div className="grid grid-cols-3 gap-4">
+                    {/* 탄수화물 */}
                     <div className="flex flex-col items-center">
                         <span className="mb-1 text-xs font-bold text-slate-400">탄수화물</span>
                         <span className="text-sm font-extrabold text-slate-700">
-                            {summary?.totalCarbsG ?? 0}
+                            {totalCarbsG}
                             <span className="ml-0.5 text-[10px] font-normal text-slate-400">g</span>
                         </span>
+                        {macroGoalText(target?.carbsGMin, target?.carbsGMax) && (
+                            <span className="mt-0.5 text-[10px] text-slate-400">
+                                {macroGoalText(target?.carbsGMin, target?.carbsGMax)}
+                            </span>
+                        )}
+                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                            <div
+                                className={`h-full rounded-full transition-all duration-500 ${macroBarColor(carbsStatus)}`}
+                                style={{ width: `${carbsPct}%` }}
+                            />
+                        </div>
                     </div>
+
+                    {/* 단백질 */}
                     <div className="flex flex-col items-center border-l border-r border-slate-100">
                         <span className="mb-1 text-xs font-bold text-slate-400">단백질</span>
                         <span className="text-sm font-extrabold text-slate-700">
-                            {summary?.totalProteinG ?? 0}
+                            {totalProteinG}
                             <span className="ml-0.5 text-[10px] font-normal text-slate-400">g</span>
                         </span>
+                        {macroGoalText(target?.proteinGMin, target?.proteinGMax) && (
+                            <span className="mt-0.5 text-[10px] text-slate-400">
+                                {macroGoalText(target?.proteinGMin, target?.proteinGMax)}
+                            </span>
+                        )}
+                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                            <div
+                                className={`h-full rounded-full transition-all duration-500 ${macroBarColor(proteinStatus)}`}
+                                style={{ width: `${proteinPct}%` }}
+                            />
+                        </div>
                     </div>
+
+                    {/* 지방 */}
                     <div className="flex flex-col items-center">
                         <span className="mb-1 text-xs font-bold text-slate-400">지방</span>
                         <span className="text-sm font-extrabold text-slate-700">
-                            {summary?.totalFatG ?? 0}
+                            {totalFatG}
                             <span className="ml-0.5 text-[10px] font-normal text-slate-400">g</span>
                         </span>
+                        {macroGoalText(target?.fatGMin, target?.fatGMax) && (
+                            <span className="mt-0.5 text-[10px] text-slate-400">
+                                {macroGoalText(target?.fatGMin, target?.fatGMax)}
+                            </span>
+                        )}
+                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                            <div
+                                className={`h-full rounded-full transition-all duration-500 ${macroBarColor(fatStatus)}`}
+                                style={{ width: `${fatPct}%` }}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>

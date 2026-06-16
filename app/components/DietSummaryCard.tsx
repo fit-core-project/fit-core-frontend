@@ -3,13 +3,25 @@
 import { startTransition, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
-import type { DietSummaryResponse } from "@/types/project"
+import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
+import type { DietSummaryResponse, NutritionTarget } from "@/types/project"
+
+function kcalBarPct(current: number, goal: number | null | undefined): number {
+    if (!goal) return 0
+    return Math.min((current / goal) * 100, 100)
+}
+
+function kcalBarColor(current: number, goal: number | null | undefined): string {
+    if (!goal) return "bg-slate-300"
+    return current > goal ? "bg-red-400" : "bg-emerald-400"
+}
 
 export default function DietSummaryCard() {
     const router = useRouter()
     const [summary, setSummary] = useState<DietSummaryResponse | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
+    const [target, setTarget] = useState<NutritionTarget | null>(null)
 
     useEffect(() => {
         startTransition(() => {
@@ -21,6 +33,8 @@ export default function DietSummaryCard() {
             .then((data) => startTransition(() => setSummary(data)))
             .catch(() => startTransition(() => setError(true)))
             .finally(() => startTransition(() => setLoading(false)))
+
+        nutritionTargetApiClient.getTarget().then((t) => startTransition(() => setTarget(t)))
     }, [])
 
     const handleClick = () => router.push("/my?tab=nutrition")
@@ -30,13 +44,18 @@ export default function DietSummaryCard() {
     const totalProteinG = summary?.totalProteinG ?? 0
     const totalFatG = summary?.totalFatG ?? 0
 
+    const hasKcalGoal = !!target?.kcalGoal
+    const barPct = kcalBarPct(totalKcal, target?.kcalGoal)
+    const barColor = kcalBarColor(totalKcal, target?.kcalGoal)
+
     return (
         <section>
             <div className="flex justify-between items-end mb-3 px-1">
                 <h2 className="text-lg font-bold text-slate-800">오늘의 영양</h2>
                 {!loading && !error && (
                     <span className="text-xs font-semibold text-slate-400">
-                        {totalKcal.toLocaleString()} kcal
+                        {totalKcal.toLocaleString()}
+                        {hasKcalGoal && ` / ${target!.kcalGoal!.toLocaleString()}`} kcal
                     </span>
                 )}
             </div>
@@ -75,9 +94,12 @@ export default function DietSummaryCard() {
                     className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md transition-all"
                     onClick={handleClick}
                 >
-                    {/* 진행 바 — 목표 미설정, 회색 */}
+                    {/* kcal 진행 바 */}
                     <div className="w-full h-3 bg-slate-100 rounded-full mb-6 overflow-hidden">
-                        <div className="h-full w-0 rounded-full bg-slate-300" />
+                        <div
+                            className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                            style={{ width: hasKcalGoal ? `${barPct}%` : "0%" }}
+                        />
                     </div>
 
                     {/* 탄/단/지 요약 */}
