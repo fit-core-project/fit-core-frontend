@@ -18,7 +18,7 @@ export default function Header() {
             </Link>
 
             <div className="flex items-center gap-3">
-                <AiStatusIndicator />
+                {process.env.NODE_ENV === "development" && <AiStatusIndicator />}
                 {/* 로그인 상태에 따른 조건부 렌더링 */}
                 <Link
                     href={user ? "/my" : "/login"}
