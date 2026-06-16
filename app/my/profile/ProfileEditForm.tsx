@@ -3,12 +3,14 @@
 import React, { useEffect, useState } from "react"
 import { StrengthBaseline, UserResponse } from "@/types/project"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
-import { Activity, Bandage, ChevronDown, Dumbbell, User } from "lucide-react"
+import { Activity, Bandage, ChevronDown, Dumbbell, User, Utensils } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
 import { useSettingsStore } from "@/store/settingsStore"
 import { useForm } from "react-hook-form"
 import { NUMERIC_RANGES, numericRules, toDisplayBound } from "@/utils/numericValidation"
 import { toast } from "sonner"
+import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
+import type { NutritionTarget } from "@/types/project"
 
 const GOAL_OPTIONS: { label: string; value: string }[] = [
     { label: "근력 강화", value: "strength" },
@@ -146,6 +148,16 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
         )
     })
     const [isExpanded, setIsExpanded] = useState(true)
+    const [targetForm, setTargetForm] = useState({
+        kcalGoal: "",
+        proteinGMin: "",
+        proteinGMax: "",
+        carbsGMin: "",
+        carbsGMax: "",
+        fatGMin: "",
+        fatGMax: "",
+    })
+    const [isSavingTarget, setIsSavingTarget] = useState(false)
     const {
         register,
         trigger,
@@ -169,6 +181,43 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
         }, 500)
         return () => clearTimeout(timer)
     }, [formData.nickname, initialProfile?.nickname])
+
+    useEffect(() => {
+        nutritionTargetApiClient.getTarget().then((target) => {
+            if (target) {
+                setTargetForm({
+                    kcalGoal: target.kcalGoal != null ? String(target.kcalGoal) : "",
+                    proteinGMin: target.proteinGMin != null ? String(target.proteinGMin) : "",
+                    proteinGMax: target.proteinGMax != null ? String(target.proteinGMax) : "",
+                    carbsGMin: target.carbsGMin != null ? String(target.carbsGMin) : "",
+                    carbsGMax: target.carbsGMax != null ? String(target.carbsGMax) : "",
+                    fatGMin: target.fatGMin != null ? String(target.fatGMin) : "",
+                    fatGMax: target.fatGMax != null ? String(target.fatGMax) : "",
+                })
+            }
+        })
+    }, [])
+
+    const handleSaveTarget = async () => {
+        setIsSavingTarget(true)
+        try {
+            const req: NutritionTarget = {
+                kcalGoal: targetForm.kcalGoal !== "" ? Math.round(parseFloat(targetForm.kcalGoal)) : null,
+                proteinGMin: targetForm.proteinGMin !== "" ? parseFloat(targetForm.proteinGMin) : null,
+                proteinGMax: targetForm.proteinGMax !== "" ? parseFloat(targetForm.proteinGMax) : null,
+                carbsGMin: targetForm.carbsGMin !== "" ? parseFloat(targetForm.carbsGMin) : null,
+                carbsGMax: targetForm.carbsGMax !== "" ? parseFloat(targetForm.carbsGMax) : null,
+                fatGMin: targetForm.fatGMin !== "" ? parseFloat(targetForm.fatGMin) : null,
+                fatGMax: targetForm.fatGMax !== "" ? parseFloat(targetForm.fatGMax) : null,
+            }
+            await nutritionTargetApiClient.saveTarget(req)
+            toast.success("영양 목표가 저장되었습니다.")
+        } catch {
+            toast.error("영양 목표 저장 중 오류가 발생했습니다.")
+        } finally {
+            setIsSavingTarget(false)
+        }
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -480,7 +529,117 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                 </div>
             </div>
 
-            {/* Section 3: 스트렝스 베이스라인 */}
+            {/* Section 3: 영양 목표 */}
+            <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                    <Utensils className="w-5 h-5 text-amber-600" />
+                    <h2 className="text-base font-bold text-slate-800">영양 목표</h2>
+                </div>
+
+                <div className="space-y-3">
+                    {/* 칼로리 목표 */}
+                    <div className="space-y-0.5">
+                        <label className="text-xs font-semibold text-slate-500">일일 칼로리 목표 (kcal)</label>
+                        <input
+                            type="number"
+                            step="any"
+                            min={0}
+                            value={targetForm.kcalGoal}
+                            onChange={(e) => setTargetForm((prev) => ({ ...prev, kcalGoal: e.target.value }))}
+                            placeholder="예: 2000"
+                            className={INPUT_CLS}
+                        />
+                    </div>
+
+                    {/* 단백질 min/max */}
+                    <div className="space-y-0.5">
+                        <label className="text-xs font-semibold text-slate-500">단백질 목표 (g)</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <input
+                                type="number"
+                                step="any"
+                                min={0}
+                                value={targetForm.proteinGMin}
+                                onChange={(e) => setTargetForm((prev) => ({ ...prev, proteinGMin: e.target.value }))}
+                                placeholder="최솟값"
+                                className={INPUT_CLS}
+                            />
+                            <input
+                                type="number"
+                                step="any"
+                                min={0}
+                                value={targetForm.proteinGMax}
+                                onChange={(e) => setTargetForm((prev) => ({ ...prev, proteinGMax: e.target.value }))}
+                                placeholder="최댓값"
+                                className={INPUT_CLS}
+                            />
+                        </div>
+                    </div>
+
+                    {/* 탄수화물 min/max */}
+                    <div className="space-y-0.5">
+                        <label className="text-xs font-semibold text-slate-500">탄수화물 목표 (g)</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <input
+                                type="number"
+                                step="any"
+                                min={0}
+                                value={targetForm.carbsGMin}
+                                onChange={(e) => setTargetForm((prev) => ({ ...prev, carbsGMin: e.target.value }))}
+                                placeholder="최솟값"
+                                className={INPUT_CLS}
+                            />
+                            <input
+                                type="number"
+                                step="any"
+                                min={0}
+                                value={targetForm.carbsGMax}
+                                onChange={(e) => setTargetForm((prev) => ({ ...prev, carbsGMax: e.target.value }))}
+                                placeholder="최댓값"
+                                className={INPUT_CLS}
+                            />
+                        </div>
+                    </div>
+
+                    {/* 지방 min/max */}
+                    <div className="space-y-0.5">
+                        <label className="text-xs font-semibold text-slate-500">지방 목표 (g)</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <input
+                                type="number"
+                                step="any"
+                                min={0}
+                                value={targetForm.fatGMin}
+                                onChange={(e) => setTargetForm((prev) => ({ ...prev, fatGMin: e.target.value }))}
+                                placeholder="최솟값"
+                                className={INPUT_CLS}
+                            />
+                            <input
+                                type="number"
+                                step="any"
+                                min={0}
+                                value={targetForm.fatGMax}
+                                onChange={(e) => setTargetForm((prev) => ({ ...prev, fatGMax: e.target.value }))}
+                                placeholder="최댓값"
+                                className={INPUT_CLS}
+                            />
+                        </div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-400">빈 칸은 미설정으로 처리됩니다. 부분 설정 허용.</p>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={handleSaveTarget}
+                    disabled={isSavingTarget}
+                    className="w-full py-2.5 bg-amber-500 text-white rounded-xl font-semibold text-sm hover:bg-amber-600 transition-colors disabled:opacity-50"
+                >
+                    {isSavingTarget ? "저장 중..." : "목표 저장"}
+                </button>
+            </div>
+
+            {/* Section 4: 스트렝스 베이스라인 */}
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center gap-2">
                     <Dumbbell className="w-5 h-5 text-slate-600" />
@@ -562,7 +721,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                 </div>
             </div>
 
-            {/* Section 4: 부상 및 관리 부위 */}
+            {/* Section 5: 부상 및 관리 부위 */}
             <div className="bg-red-50/30 border border-red-100 rounded-2xl p-4 space-y-4">
                 <div className="flex items-center gap-2">
                     <Bandage className="w-5 h-5 text-red-400" />

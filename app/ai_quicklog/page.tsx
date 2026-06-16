@@ -1,16 +1,26 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Send, Sparkles, Mic, Bot, StopCircle, AlertCircle, Activity, Save, Apple, Dumbbell } from "lucide-react"
+import { Send, Sparkles, Mic, Bot, StopCircle, AlertCircle, Activity, Save, Apple } from "lucide-react"
+import { toast } from "sonner"
 import AxiosController from "@/lib/axios/AxiosController"
-import { useSettingsStore } from "@/store/settingsStore"
+import dietApiClient from "@/lib/api/diet/dietApiClient"
+import type { DietLogRequest } from "@/types/project"
 
-// --- TypeScript 타입 정의 ---
-interface ParsedData {
-    diet_logs: { food_name: string; estimated_calories: number; protein_g: number; carbs_g: number; fat_g: number }[]
-    workout_logs: { exercise_name: string; weight_kg: number | null; sets: number | null; reps: number | null }[]
-    overall_summary: string
-    status?: "success" | "fallback"
+interface ParseDietItem {
+    food_name: string
+    amount?: number | null
+    unit?: string | null
+    protein_g?: number | null
+    carbs_g?: number | null
+    fat_g?: number | null
+    meal_type?: string | null
+    time_of_day?: string | null
+}
+
+interface ParsedDietData {
+    items: ParseDietItem[]
+    status?: "fallback"
     fallback_reason?: string
 }
 
@@ -18,39 +28,66 @@ interface SttResponse {
     text: string
     status?: "success" | "unavailable"
     message?: string
-    fallbackReason?: string
 }
 
-// --- 로딩 메시지 목록 ---
+const GRAM_UNITS = new Set(["g", "gram", "grams", "그램", "그람"])
+
 const QUICK_LOG_MESSAGES = [
     "냉장고 속 음식들이 긴장하고 있습니다...",
     "영양 성분표를 돋보기로 분석 중입니다...",
     "오늘의 치팅을 근육으로 승화시키는 설계 중...",
     "단백질 섭취량이 부족한지 매의 눈으로 체크 중...",
     "식단 기록을 보고 트레이너가 미소 짓게 만드는 중...",
-    "칼로리 소모량을 소수점까지 정밀 계산하고 있습니다...",
     "방금 먹은 음식의 매크로를 분해 중입니다...",
-    "내일의 성장을 위해 일지를 정리하고 있습니다...",
 ]
+
+function getKstDate(): string {
+    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
+function mealTypeLabel(mealType: string | null | undefined): string {
+    if (mealType === "breakfast") return "아침"
+    if (mealType === "lunch") return "점심"
+    if (mealType === "dinner") return "저녁"
+    if (mealType === "snack") return "간식"
+    return ""
+}
+
+function toDietLogRequests(items: ParseDietItem[]): DietLogRequest[] {
+    const logDate = getKstDate()
+    return items.map((item) => {
+        const unitLower = (item.unit ?? "").toLowerCase()
+        const isGram = GRAM_UNITS.has(unitLower)
+        const amountG = isGram && item.amount != null ? item.amount : null
+        const amountRaw = item.amount != null && item.unit ? `${item.amount}${item.unit}` : null
+        return {
+            logDate,
+            mealType: item.meal_type ?? null,
+            loggedAt: item.time_of_day ?? null,
+            foodName: item.food_name,
+            amountG,
+            amountRaw,
+            proteinG: item.protein_g ?? null,
+            carbsG: item.carbs_g ?? null,
+            fatG: item.fat_g ?? null,
+            kcal: null,
+            source: "ai" as const,
+        }
+    })
+}
 
 export default function QuickLogPage() {
     const [inputText, setInputText] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [loadingMsgIndex, setLoadingMsgIndex] = useState(0)
     const [error, setError] = useState<string | null>(null)
-    const [parsedData, setParsedData] = useState<ParsedData | null>(null)
-
+    const [parsedData, setParsedData] = useState<ParsedDietData | null>(null)
     const [isRecording, setIsRecording] = useState(false)
     const [isSttLoading, setIsSttLoading] = useState(false)
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const audioChunksRef = useRef<BlobPart[]>([])
+    const [isSaving, setIsSaving] = useState(false)
 
-    const [displayedFeedback, setDisplayedFeedback] = useState("")
-    const [isSaving, setIsSaving] = useState(false) // 저장 중 상태 추가
-    const [saveSuccess, setSaveSuccess] = useState(false)
-    const { weightUnit } = useSettingsStore()
-
-    // 로딩 메시지 순환 효과
     useEffect(() => {
         let interval: NodeJS.Timeout
         if (isLoading) {
@@ -63,9 +100,6 @@ export default function QuickLogPage() {
         return () => clearInterval(interval)
     }, [isLoading])
 
-    // ==========================================
-    // 🎙오디오 녹음 및 Whisper STT 전송
-    // ==========================================
     const startRecording = async () => {
         setError(null)
         try {
@@ -113,19 +147,14 @@ export default function QuickLogPage() {
         }
     }
 
-    // ==========================================
-    // AI 파싱 요청 (Gemini)
-    // ==========================================
     const handleParse = async () => {
         if (!inputText.trim()) return
         setIsLoading(true)
         setError(null)
         setParsedData(null)
-        setDisplayedFeedback("")
-        setSaveSuccess(false)
 
         try {
-            const data = await AxiosController.post<ParsedData>("/api/ai/parse-log", { text: inputText })
+            const data = await AxiosController.post<ParsedDietData>("/api/ai/parse-diet", { text: inputText })
             setParsedData(data)
         } catch (err: unknown) {
             const e = err as { response?: { status?: number; data?: { detail?: string } }; message?: string }
@@ -134,49 +163,35 @@ export default function QuickLogPage() {
                 status === 503 || status === 500
                     ? "AI 서버가 현재 붐비고 있습니다. 잠시 후 다시 시도해 주세요."
                     : e.response?.data?.detail ?? e.message ?? "분석 중 오류가 발생했습니다."
-            console.error(err)
             setError(message)
         } finally {
             setIsLoading(false)
         }
     }
 
-    // 가상 DB 저장 로직 (UI 피드백용)
-    const handleSaveLog = () => {
+    const handleSaveLog = async () => {
+        if (!parsedData?.items.length) {
+            toast.info("저장할 식단 항목이 없습니다.")
+            return
+        }
         setIsSaving(true)
-        setTimeout(() => {
-            setIsSaving(false)
-            setSaveSuccess(true)
+        try {
+            const requests = toDietLogRequests(parsedData.items)
+            await dietApiClient.save(requests)
+            toast.success("식단이 저장되었습니다. 영양 탭에서 확인하세요.")
+            setParsedData(null)
             setInputText("")
-            // 잠시 후 초기 화면으로 돌아가기
-            setTimeout(() => {
-                setParsedData(null)
-                setSaveSuccess(false)
-            }, 2000)
-        }, 800)
+        } catch {
+            toast.error("저장 중 오류가 발생했습니다. 다시 시도해 주세요.")
+        } finally {
+            setIsSaving(false)
+        }
     }
 
-    // 코치 피드백 타이핑 효과
-    useEffect(() => {
-        if (parsedData?.overall_summary) {
-            setDisplayedFeedback("")
-            let i = 0
-            const text = parsedData.overall_summary
-            const interval = setInterval(() => {
-                setDisplayedFeedback(text.slice(0, i + 1))
-                i++
-                if (i >= text.length) clearInterval(interval)
-            }, 40)
-            return () => clearInterval(interval)
-        }
-    }, [parsedData])
-
-    const totalCalories = parsedData?.diet_logs.reduce((acc, curr) => acc + curr.estimated_calories, 0) || 0
-    const totalProtein = parsedData?.diet_logs.reduce((acc, curr) => acc + curr.protein_g, 0) || 0
+    const totalProtein = parsedData?.items.reduce((acc, item) => acc + (item.protein_g ?? 0), 0) ?? 0
 
     return (
         <div className="flex-1 w-full h-full flex flex-col items-center px-4 py-4 md:px-8 relative">
-            {/* 로딩 오버레이 */}
             {isLoading && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-sm w-11/12 text-center transform transition-all scale-100 animate-in zoom-in-95">
@@ -186,7 +201,7 @@ export default function QuickLogPage() {
                                 <Sparkles className="w-8 h-8 animate-spin" style={{ animationDuration: "3s" }} />
                             </div>
                         </div>
-                        <h3 className="text-xl font-extrabold text-slate-900 mb-2">AI 코치 분석 중</h3>
+                        <h3 className="text-xl font-extrabold text-slate-900 mb-2">AI 식단 분석 중</h3>
                         <p
                             key={loadingMsgIndex}
                             className="text-slate-500 font-medium h-12 flex items-center justify-center px-4 animate-in fade-in slide-in-from-bottom-2 duration-500"
@@ -198,24 +213,23 @@ export default function QuickLogPage() {
             )}
 
             <div className="w-full max-w-3xl flex-1 min-h-0 flex flex-col bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative">
-                {/* 1. 헤더 영역 */}
+                {/* 헤더 */}
                 <div className="bg-emerald-50/50 p-5 border-b border-emerald-100 flex items-center justify-between shrink-0">
                     <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-md shadow-emerald-200">
                             <Activity className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-extrabold text-slate-800">AI 퀵 로그</h1>
+                            <h1 className="text-lg font-extrabold text-slate-800">AI 식단 기록</h1>
                             <p className="text-xs text-emerald-600 font-medium">
-                                자연어로 편하게 식단과 운동을 기록하세요
+                                자연어로 편하게 식단을 기록하세요
                             </p>
                         </div>
                     </div>
                 </div>
 
-                {/* 2. 콘텐츠 영역 */}
+                {/* 콘텐츠 */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/50 flex flex-col gap-6">
-                    {/* 에러 메시지 */}
                     {error && (
                         <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start text-red-700 animate-in slide-in-from-top-2">
                             <AlertCircle className="w-5 h-5 mr-3 mt-0.5 shrink-0" />
@@ -226,15 +240,13 @@ export default function QuickLogPage() {
                         </div>
                     )}
 
-                    {/* 초기 화면 */}
                     {!parsedData && !isLoading && !error && (
                         <div className="flex-1 flex flex-col items-center justify-center text-slate-400 h-full animate-in fade-in">
                             <Bot className="w-12 h-12 mb-3 text-slate-300" />
-                            <p className="text-sm font-medium">하단 입력창에 오늘 먹은 음식이나 운동을 적어주세요.</p>
+                            <p className="text-sm font-medium">하단 입력창에 오늘 먹은 음식을 적어주세요.</p>
                         </div>
                     )}
 
-                    {/* 파싱 결과 렌더링 영역 */}
                     {parsedData && (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6 pb-4">
                             {parsedData.status === "fallback" && (
@@ -247,114 +259,79 @@ export default function QuickLogPage() {
                                 </div>
                             )}
 
-                            {/* 코치 아바타 피드백 */}
-                            <div className="flex items-start space-x-4 mb-2">
-                                <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0 mt-1">
-                                    <Bot className="w-6 h-6 text-emerald-600" />
-                                </div>
-                                <div className="bg-white p-5 rounded-3xl rounded-tl-none shadow-sm border border-slate-100 relative max-w-[85%]">
-                                    <p className="font-medium text-slate-700 leading-relaxed break-keep text-[15px]">
-                                        {displayedFeedback}
-                                        {displayedFeedback.length < parsedData.overall_summary.length && (
-                                            <span className="inline-block w-1.5 h-4 ml-1 bg-emerald-400 animate-pulse align-middle"></span>
-                                        )}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* 식단 기록 카드 */}
-                            {parsedData.diet_logs.length > 0 && (
+                            {parsedData.items.length > 0 ? (
                                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
                                     <h2 className="flex items-center text-base font-bold text-slate-800 mb-5">
                                         <Apple className="w-5 h-5 mr-2 text-rose-500" />
                                         식단 분석
-                                        <span className="ml-auto text-sm text-slate-500 font-medium">
-                                            총 {totalCalories} kcal
-                                        </span>
                                     </h2>
-
                                     <div className="space-y-4">
-                                        {parsedData.diet_logs.map((log, idx) => (
+                                        {parsedData.items.map((item, idx) => (
                                             <div
                                                 key={idx}
                                                 className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl"
                                             >
-                                                <div className="font-bold text-slate-700">{log.food_name}</div>
+                                                <div>
+                                                    <div className="font-bold text-slate-700">{item.food_name}</div>
+                                                    {(item.meal_type || item.time_of_day) && (
+                                                        <div className="text-[11px] text-slate-400 mt-0.5">
+                                                            {mealTypeLabel(item.meal_type)}
+                                                            {item.time_of_day ? ` · ${item.time_of_day}` : ""}
+                                                        </div>
+                                                    )}
+                                                </div>
                                                 <div className="text-right">
-                                                    <div className="text-sm font-bold text-slate-800">
-                                                        {log.estimated_calories} kcal
-                                                    </div>
-                                                    <div className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                                        탄 {log.carbs_g}g / 단 {log.protein_g}g / 지 {log.fat_g}g
-                                                    </div>
+                                                    {item.protein_g != null || item.carbs_g != null || item.fat_g != null ? (
+                                                        <div className="text-[11px] text-slate-500 font-medium">
+                                                            탄 {item.carbs_g ?? "?"}g · 단 {item.protein_g ?? "?"}g · 지 {item.fat_g ?? "?"}g
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-[11px] text-slate-400">매크로 미상</div>
+                                                    )}
+                                                    {item.amount != null && item.unit && (
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">
+                                                            {item.amount}{item.unit}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
 
-                                    {/* 단백질 프로그레스 바 */}
-                                    <div className="mt-6">
-                                        <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-2">
-                                            <span>단백질 섭취량</span>
-                                            <span className="text-rose-500">{totalProtein}g / 120g (권장)</span>
-                                        </div>
-                                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                                            <div
-                                                className="bg-rose-400 h-full rounded-full transition-all duration-1000 ease-out"
-                                                style={{ width: `${Math.min((totalProtein / 120) * 100, 100)}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* 🏋운동 기록 카드 */}
-                            {parsedData.workout_logs.length > 0 && (
-                                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                                    <h2 className="flex items-center text-base font-bold text-slate-800 mb-5">
-                                        <Dumbbell className="w-5 h-5 mr-2 text-blue-500" />
-                                        운동 기록
-                                    </h2>
-                                    <div className="space-y-3">
-                                        {parsedData.workout_logs.map((log, idx) => (
-                                            <div
-                                                key={idx}
-                                                className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100"
-                                            >
-                                                <div className="font-bold text-slate-700 flex items-center">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-2"></span>
-                                                    {log.exercise_name}
-                                                </div>
-                                                <div className="text-sm font-bold text-slate-600 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
-                                                    {log.weight_kg
-                                                        ? `${weightUnit === "lbs" ? Math.round(log.weight_kg * 2.20462) : log.weight_kg}${weightUnit} · `
-                                                        : ""}
-                                                    {log.sets ? `${log.sets}세트 ` : ""}
-                                                    {log.reps ? `· ${log.reps}회` : ""}
-                                                </div>
+                                    {totalProtein > 0 && (
+                                        <div className="mt-6">
+                                            <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-2">
+                                                <span>단백질 섭취량</span>
+                                                <span className="text-rose-500">
+                                                    {Math.round(totalProtein * 10) / 10}g / 120g (권장)
+                                                </span>
                                             </div>
-                                        ))}
-                                    </div>
+                                            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                                <div
+                                                    className="bg-rose-400 h-full rounded-full transition-all duration-1000 ease-out"
+                                                    style={{ width: `${Math.min((totalProtein / 120) * 100, 100)}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 text-center text-slate-400">
+                                    <p className="text-sm">인식된 식단 항목이 없습니다.</p>
+                                    <p className="text-xs mt-1">음식명을 더 구체적으로 입력해 주세요.</p>
                                 </div>
                             )}
 
-                            {/* 저장 버튼 */}
                             <button
                                 onClick={handleSaveLog}
-                                disabled={isSaving || saveSuccess}
-                                className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center transition-all ${
-                                    saveSuccess
-                                        ? "bg-emerald-100 text-emerald-700"
-                                        : "bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.98]"
-                                }`}
+                                disabled={isSaving || !parsedData.items.length}
+                                className="w-full py-4 rounded-2xl font-bold flex items-center justify-center transition-all bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isSaving ? (
                                     <Sparkles className="w-5 h-5 mr-2 animate-spin" />
-                                ) : saveSuccess ? (
-                                    "✨ 오늘의 기록 저장 완료!"
                                 ) : (
                                     <>
-                                        <Save className="w-5 h-5 mr-2" />내 대시보드에 기록 저장하기
+                                        <Save className="w-5 h-5 mr-2" />내 식단 저장하기
                                     </>
                                 )}
                             </button>
@@ -362,7 +339,7 @@ export default function QuickLogPage() {
                     )}
                 </div>
 
-                {/* 3. 하단 입력 영역 (음성 + 텍스트 통합) */}
+                {/* 하단 입력 */}
                 <div className="p-4 bg-white border-t border-slate-100 shrink-0">
                     <div className="flex items-end gap-2">
                         <button
@@ -389,7 +366,7 @@ export default function QuickLogPage() {
                                         }
                                     }
                                 }}
-                                placeholder={isSttLoading ? "음성 인식 중..." : "오늘의 식단과 운동을 알려주세요"}
+                                placeholder={isSttLoading ? "음성 인식 중..." : "오늘의 식단을 알려주세요"}
                                 disabled={isSttLoading || isLoading || isRecording}
                                 className="w-full bg-transparent text-slate-800 py-3.5 pl-4 pr-2 outline-none resize-none overflow-y-auto min-h-[52px] max-h-32 text-[15px] leading-relaxed"
                                 rows={1}

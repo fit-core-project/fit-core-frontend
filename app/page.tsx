@@ -1,4 +1,5 @@
 import Link from "next/link"
+import DietSummaryCard from "@/app/components/DietSummaryCard"
 
 export default function HomePage() {
     return (
@@ -25,43 +26,7 @@ export default function HomePage() {
 
             <main className="px-5 mt-8 flex flex-col gap-8">
                 {/* 2. 데일리 영양 상태 (매크로) */}
-                <section>
-                    <div className="flex justify-between items-end mb-3 px-1">
-                        <h2 className="text-lg font-bold text-slate-800">오늘의 영양</h2>
-                        <span className="text-xs font-semibold text-slate-400">1,850 / 2,500 kcal</span>
-                    </div>
-                    <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
-                        {/* 칼로리 프로그레스 바 */}
-                        <div className="w-full h-3 bg-slate-100 rounded-full mb-6 overflow-hidden">
-                            <div
-                                className="h-full bg-blue-500 rounded-full transition-all duration-1000 ease-out"
-                                style={{ width: "74%" }}
-                            ></div>
-                        </div>
-
-                        {/* 탄/단/지 요약 */}
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="flex flex-col items-center">
-                                <span className="text-xs font-bold text-slate-400 mb-1">탄수화물</span>
-                                <span className="text-sm font-extrabold text-slate-700">
-                                    180<span className="text-[10px] text-slate-400 ml-0.5">g</span>
-                                </span>
-                            </div>
-                            <div className="flex flex-col items-center border-l border-r border-slate-100">
-                                <span className="text-xs font-bold text-emerald-500 mb-1">단백질</span>
-                                <span className="text-sm font-extrabold text-slate-700">
-                                    120<span className="text-[10px] text-slate-400 ml-0.5">/150g</span>
-                                </span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                                <span className="text-xs font-bold text-slate-400 mb-1">지방</span>
-                                <span className="text-sm font-extrabold text-slate-700">
-                                    45<span className="text-[10px] text-slate-400 ml-0.5">g</span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                <DietSummaryCard />
 
                 {/* 3. 오늘의 운동 일정 */}
                 <section>

@@ -1,7 +1,8 @@
 "use client"
 
 import { ReactNode, useCallback, useEffect, useState } from "react"
-import { ClipboardList, Dumbbell, Settings, Trophy, User } from "lucide-react"
+import { useSearchParams } from "next/navigation"
+import { Dumbbell, Settings, Trophy, User, Utensils } from "lucide-react"
 import { toast } from "sonner"
 import Profile from "@/app/my/profile/Profile"
 import ProfileEditForm from "@/app/my/profile/ProfileEditForm"
@@ -9,26 +10,32 @@ import { BodyComposition, UserResponse, UserUpdateRequest } from "@/types/projec
 import { useAuthStore } from "@/store/authStore"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
 import BodyCompositionPage from "@/app/my/body-composition/BodyComposition"
-import WorkoutList from "@/app/my/workout/WorkoutList"
 import AttendanceSection from "@/app/my/stats/AttendanceSection"
 import PrSection from "@/app/my/stats/PrSection"
-import Routine from "@/app/my/routine/Routine"
 import SettingsPanel from "@/app/my/settings/Settings"
+import WorkoutTab from "@/app/my/workout/WorkoutTab"
+import NutritionTab from "@/app/my/nutrition/NutritionTab"
 
-type TabId = "profile" | "stats" | "routine" | "workout" | "settings"
+type TabId = "profile" | "stats" | "workout" | "nutrition" | "settings"
 
 const tabs: { id: TabId; label: string; icon: ReactNode }[] = [
     { id: "profile", label: "프로필", icon: <User size={18} /> },
     { id: "stats", label: "통계", icon: <Trophy size={18} /> },
-    { id: "routine", label: "루틴", icon: <Dumbbell size={18} /> },
-    { id: "workout", label: "운동이력", icon: <ClipboardList size={18} /> },
+    { id: "workout", label: "운동", icon: <Dumbbell size={18} /> },
+    { id: "nutrition", label: "영양", icon: <Utensils size={18} /> },
     { id: "settings", label: "설정", icon: <Settings size={18} /> },
 ]
 
 
+const VALID_TABS: TabId[] = ["profile", "stats", "workout", "nutrition", "settings"]
+
 export default function Page() {
+    const searchParams = useSearchParams()
     const [isEditing, setIsEditing] = useState(false)
-    const [activeTab, setActiveTab] = useState<TabId>("profile")
+    const [activeTab, setActiveTab] = useState<TabId>(() => {
+        const param = searchParams.get("tab")
+        return VALID_TABS.includes(param as TabId) ? (param as TabId) : "profile"
+    })
     const user = useAuthStore((state) => state.user)
     const [profile, setProfile] = useState<UserResponse | null>(null)
 
@@ -122,8 +129,8 @@ export default function Page() {
                         <PrSection />
                     </>
                 )}
-                {activeTab === "routine" && <Routine />}
-                {activeTab === "workout" && <WorkoutList />}
+                {activeTab === "workout" && <WorkoutTab />}
+                {activeTab === "nutrition" && <NutritionTab />}
                 {activeTab === "settings" && <SettingsPanel />}
             </div>
         </div>

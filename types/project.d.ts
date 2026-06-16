@@ -164,3 +164,53 @@ export interface WorkoutSessionResponse {
     // 연관된 세트 리스트
     sets: WorkoutSetResponse[]
 }
+
+export interface DietLogRequest {
+    logDate: string // "YYYY-MM-DD"
+    mealType?: string | null
+    loggedAt?: string | null // "HH:mm"
+    foodName: string
+    amountG?: number | null
+    amountRaw?: string | null
+    kcal?: number | null
+    proteinG?: number | null
+    carbsG?: number | null
+    fatG?: number | null
+    source: "db" | "ai" | "manual"
+}
+
+export interface DietLogResponse {
+    id: string
+    userId?: string
+    logDate: string // "YYYY-MM-DD"
+    mealType?: string | null
+    loggedAt?: string | null // ISO DateTime
+    foodName: string
+    amountG?: number | null
+    amountRaw?: string | null
+    kcal: number
+    proteinG?: number | null
+    carbsG?: number | null
+    fatG?: number | null
+    source: string
+    createdAt?: string
+}
+
+export interface DietSummaryResponse {
+    date: string // "YYYY-MM-DD"
+    totalKcal: number
+    totalProteinG: number
+    totalCarbsG: number
+    totalFatG: number
+    items: DietLogResponse[]
+}
+
+export interface NutritionTarget {
+    kcalGoal?: number | null
+    proteinGMin?: number | null
+    proteinGMax?: number | null
+    carbsGMin?: number | null
+    carbsGMax?: number | null
+    fatGMin?: number | null
+    fatGMax?: number | null
+}

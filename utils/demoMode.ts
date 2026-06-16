@@ -1,4 +1,13 @@
-import type { Page, UserResponse, UserUpdateRequest, WorkoutSessionResponse, WorkoutSetResponse } from "@/types/project"
+import type {
+    Page,
+    UserResponse,
+    UserUpdateRequest,
+    WorkoutSessionResponse,
+    WorkoutSetResponse,
+    DietLogResponse,
+    DietSummaryResponse,
+    NutritionTarget,
+} from "@/types/project"
 import type { RoutineDraft } from "@/types/routine"
 import type { UserCondition, UserPreferences } from "@/services/mockDataFactory"
 
@@ -7,6 +16,18 @@ const DEMO_DATA_VERSION = "2026-05-21-demo-v3"
 const DEMO_DATA_VERSION_STORAGE_KEY = "fitcore_demo_data_version"
 const DEMO_PROFILE_STORAGE_KEY = "fitcore_demo_profile"
 const DEMO_WORKOUTS_STORAGE_KEY = "fitcore_demo_workouts"
+export const DEMO_DIETS_STORAGE_KEY = "fitcore_demo_diets"
+export const DEMO_NUTRITION_TARGET_STORAGE_KEY = "fitcore_demo_nutrition_target"
+
+export const demoNutritionTarget: NutritionTarget = {
+    kcalGoal: 2000,
+    proteinGMin: 120,
+    proteinGMax: 160,
+    carbsGMin: 200,
+    carbsGMax: 260,
+    fatGMin: 50,
+    fatGMax: 70,
+}
 
 const allEquipment = ["BARBELL", "DUMBBELL", "MACHINE", "CABLE", "BODYWEIGHT"]
 const allAvailableDays = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
@@ -365,6 +386,97 @@ export const demoRoutineDraft: RoutineDraft = {
     ],
 }
 
+const _kstOffset = 9 * 60 * 60 * 1000
+const _today = new Date(Date.now() + _kstOffset).toISOString().slice(0, 10)
+const _yesterday = new Date(Date.now() + _kstOffset - 86400000).toISOString().slice(0, 10)
+
+export const demoDietLogs: DietLogResponse[] = [
+    {
+        id: "demo-diet-001",
+        logDate: _today,
+        mealType: "breakfast",
+        loggedAt: `${_today}T07:30:00`,
+        foodName: "잡곡밥",
+        amountG: 210,
+        amountRaw: "1공기",
+        kcal: 315,
+        proteinG: 6.5,
+        carbsG: 68.0,
+        fatG: 1.5,
+        source: "db",
+    },
+    {
+        id: "demo-diet-002",
+        logDate: _today,
+        mealType: "breakfast",
+        loggedAt: `${_today}T07:32:00`,
+        foodName: "삶은 달걀",
+        amountG: 100,
+        amountRaw: "2개",
+        kcal: 155,
+        proteinG: 13.0,
+        carbsG: 1.1,
+        fatG: 11.0,
+        source: "db",
+    },
+    {
+        id: "demo-diet-003",
+        logDate: _today,
+        mealType: "lunch",
+        loggedAt: `${_today}T12:15:00`,
+        foodName: "닭가슴살",
+        amountG: 150,
+        amountRaw: null,
+        kcal: 165,
+        proteinG: 35.0,
+        carbsG: 0.0,
+        fatG: 2.0,
+        source: "manual",
+    },
+    {
+        id: "demo-diet-004",
+        logDate: _today,
+        mealType: "lunch",
+        loggedAt: `${_today}T12:17:00`,
+        foodName: "고구마",
+        amountG: 130,
+        amountRaw: "중간 크기 1개",
+        kcal: 116,
+        proteinG: 1.6,
+        carbsG: 27.4,
+        fatG: 0.1,
+        source: "db",
+    },
+    {
+        id: "demo-diet-005",
+        logDate: _yesterday,
+        mealType: "lunch",
+        loggedAt: `${_yesterday}T12:00:00`,
+        foodName: "현미밥",
+        amountG: 200,
+        amountRaw: "1공기",
+        kcal: 290,
+        proteinG: 5.0,
+        carbsG: 62.0,
+        fatG: 1.2,
+        source: "db",
+    },
+    {
+        id: "demo-diet-006",
+        logDate: _yesterday,
+        mealType: "dinner",
+        loggedAt: `${_yesterday}T19:00:00`,
+        foodName: "연어 스테이크",
+        amountG: 200,
+        amountRaw: null,
+        kcal: 412,
+        proteinG: 40.0,
+        carbsG: 0.0,
+        fatG: 27.0,
+        source: "manual",
+    },
+]
+
 const readJson = <T>(key: string, fallback: T): T => {
     if (typeof window === "undefined") return fallback
 
@@ -411,6 +523,8 @@ export function seedDemoSession() {
     localStorage.setItem(DEMO_DATA_VERSION_STORAGE_KEY, DEMO_DATA_VERSION)
     writeJson(DEMO_PROFILE_STORAGE_KEY, demoProfile)
     writeJson(DEMO_WORKOUTS_STORAGE_KEY, demoWorkoutSessions)
+    writeJson(DEMO_DIETS_STORAGE_KEY, demoDietLogs)
+    writeJson(DEMO_NUTRITION_TARGET_STORAGE_KEY, demoNutritionTarget)
     writeJson("fitcore_doms_data", demoUserCondition.doms)
     writeJson("fitcore_pain_areas", demoUserCondition.painAreas)
     writeJson("fitcore_active_routine", demoRoutineDraft)
@@ -426,6 +540,8 @@ export function clearDemoSession() {
     localStorage.removeItem(DEMO_DATA_VERSION_STORAGE_KEY)
     localStorage.removeItem(DEMO_PROFILE_STORAGE_KEY)
     localStorage.removeItem(DEMO_WORKOUTS_STORAGE_KEY)
+    localStorage.removeItem(DEMO_DIETS_STORAGE_KEY)
+    localStorage.removeItem(DEMO_NUTRITION_TARGET_STORAGE_KEY)
     localStorage.removeItem("fitcore_doms_data")
     localStorage.removeItem("fitcore_pain_areas")
     localStorage.removeItem("fitcore_active_routine")
@@ -472,4 +588,27 @@ export function getDemoRecentWorkouts(page: number = 0, size: number = 10): Page
         numberOfElements: content.length,
         empty: content.length === 0,
     }
+}
+
+export function getDemoDietLogs(date: string): DietLogResponse[] {
+    if (typeof window !== "undefined" && localStorage.getItem(DEMO_DATA_VERSION_STORAGE_KEY) !== DEMO_DATA_VERSION) {
+        seedDemoSession()
+    }
+    const all = readJson<DietLogResponse[]>(DEMO_DIETS_STORAGE_KEY, demoDietLogs)
+    return all.filter((l) => l.logDate === date)
+}
+
+export function getDemoDietSummary(date: string): DietSummaryResponse {
+    const logs = getDemoDietLogs(date)
+    const sorted = [...logs].sort((a, b) => {
+        if (!a.loggedAt && !b.loggedAt) return 0
+        if (!a.loggedAt) return 1
+        if (!b.loggedAt) return -1
+        return a.loggedAt.localeCompare(b.loggedAt)
+    })
+    const totalKcal = sorted.reduce((sum, l) => sum + l.kcal, 0)
+    const totalProteinG = Math.round(sorted.reduce((sum, l) => sum + (l.proteinG ?? 0), 0) * 10) / 10
+    const totalCarbsG = Math.round(sorted.reduce((sum, l) => sum + (l.carbsG ?? 0), 0) * 10) / 10
+    const totalFatG = Math.round(sorted.reduce((sum, l) => sum + (l.fatG ?? 0), 0) * 10) / 10
+    return { date, totalKcal, totalProteinG, totalCarbsG, totalFatG, items: sorted }
 }
