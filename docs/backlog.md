@@ -6,11 +6,11 @@
 
 ---
 
-## 1. 완료됨 (Done) — 17건
+## 1. 완료됨 (Done) — 35건
 
 | # | 항목 | 코드 근거 |
 |---|------|-----------|
-| ✅ | FE Vercel / BE Hetzner / AI=PC+Tailscale / DB=VM MariaDB 배포 | `docker-compose.prod.yml`, Caddyfile |
+| ✅ | FE Vercel / BE Lightsail / AI=PC 로컬 / DB=MariaDB 배포 | `docker-compose.prod.yml`, Caddyfile |
 | ✅ | 403 CORS 수정 (`setAllowedOriginPatterns`) | BE SecurityConfig |
 | ✅ | AI 4기능 graceful fallback (AI 다운 시 안내) | `AiStatusIndicator.tsx`, player fallback 처리 |
 | ✅ | prod/local env 분리 + P0 환경변수 교정 | `.env.local`, `backendBaseUrl.ts` |
@@ -21,12 +21,30 @@
 | ✅ | Draft 뒤로가기 버튼 + confirm 대화상자 | `app/routine/draft/page.tsx:338-358` |
 | ✅ | `fitcore_failed_workout_save` 고아 키 정리 | `app/ai_routine/player/page.tsx` handleSaveLater |
 | ✅ | 프로필 strength baseline 중량 input step 수정 (`step="any"`, `min={0}`) | `app/my/profile/ProfileEditForm.tsx` |
-| ✅ | 헤더 AI 서버 상태 표시등 | `components/AiStatusIndicator.tsx`, `app/components/header.tsx` |
+| ✅ | 헤더 AI 서버 상태 표시등 (로컬 dev 전용, prod 숨김) | `components/AiStatusIndicator.tsx`, `app/components/header.tsx` |
 | ✅ | `/ai_routine/generator` 프롬프트 설계 보기 버튼 제거 | `app/ai_routine/generator/page.tsx` |
 | ✅ | 401 응답 시 자동 로그아웃 처리 | `lib/axios/AxiosController.ts:115-128` |
 | ✅ | 세션 만료 toast 표시 | `components/AuthProvider.tsx:43` |
 | ✅ | demo 모드 workout 저장 localStorage 분기 | `lib/api/workout/workoutApiClient.ts:37-74` |
 | ✅ | QuickLog 저장 연동 지점 분석 | `docs/quicklog_save_integration_analysis.md` |
+| ✅ | **[N0-1]** parse-diet AI 전용 엔드포인트 — 끼니/시간/float 매크로, deterministic 폴백, `_FOOD_PER_100G` 테이블 | `fit-core-ai/engines/quicklog/diet_parser.py` |
+| ✅ | **[N0-2]** `diet_logs` / `nutrition_targets` 테이블 마이그레이션 + JPA 엔티티 | `V7__add_diet_log.sql`, `V8__add_nutrition_targets.sql`, `DietLogEntity.java`, `NutritionTargetEntity.java` |
+| ✅ | **[N0-3]** FE 타입 — `DietLogRequest/Response`, `DietSummaryResponse`, `NutritionTarget` | `types/project.d.ts` |
+| ✅ | **[N0-4]** 데모 식단·목표 데이터 + `seedDemoSession` / `clearDemoSession` 갱신 | `utils/demoMode.ts` |
+| ✅ | **[N1-1]** BE Diet API — `POST /api/diet-logs`, `GET /api/diet-logs/summary`, 4·4·9 kcal 계산 | `DietLogController/Service/Repository.java` |
+| ✅ | **[N1-2]** FE `dietApiClient` — save / getToday / demo 분기 | `lib/api/diet/dietApiClient.ts` |
+| ✅ | **[N1-3]** QuickLog 식단 저장 실연결 — parse-diet → `dietApiClient.save()`, 운동 UI 전체 제거 | `app/ai_quicklog/page.tsx` |
+| ✅ | **[N1-4]** 영양 탭 신규 — 오늘 식단 목록 + 매크로 합계 바 + 수동 입력 진입 | `app/my/nutrition/NutritionTab.tsx` |
+| ✅ | **[N1-5]** 탭 재편 — 루틴+운동이력→운동 통합, 영양 탭 추가 (5탭 유지) | `app/my/MyPageContent.tsx` |
+| ✅ | **[N1-6]** 대시보드 `DietSummaryCard` 실연결 — 하드코딩 제거, `dietApiClient.getToday()` | `app/components/DietSummaryCard.tsx` |
+| ✅ | **[N1-7]** 수동 식단 입력 모달 — `ManualEntryModal`, `dietApiClient.save(source='manual')` 재사용 | `app/my/nutrition/ManualEntryModal.tsx` |
+| ✅ | **[N1-8]** BE NutritionTarget API — `GET/PUT /api/nutrition-targets/me`, upsert | `NutritionTargetController/Service.java` |
+| ✅ | **[N1-9]** FE `nutritionTargetApiClient` + 프로필 "영양 목표" 섹션 (GET/PUT 연결) | `lib/api/nutrition/nutritionTargetApiClient.ts`, `ProfileEditForm.tsx` |
+| ✅ | **[N1-10]** 진행 바 색상화 — kcal 단일 임계 / 단백질 min-focused / 탄·지 범위 over/under/neutral | `NutritionTab.tsx`, `DietSummaryCard.tsx` |
+| ✅ | 전역 인증 가드 — 비인증 보호 라우트 → `/login` 리다이렉트, Zustand hydration 게이트로 새로고침 깜빡임 방지 | `app/components/AuthGuard.tsx`, `app/layout.tsx` |
+| ✅ | parse-diet 매크로 null 버그 수정 — 프롬프트 강제 추정 + `_enrich_macros()` 테이블 보충 | `fit-core-ai/engines/quicklog/diet_parser.py` |
+| ✅ | 테스트 모드 prod 활성화 — SNS 로그인 없이 테스터 접근 | `application-prod.properties` |
+| ✅ | AI 상태 표시등 prod 숨김 — `NODE_ENV === "development"` 조건, 모바일 UX 개선 | `app/components/header.tsx` |
 
 ---
 
@@ -41,7 +59,7 @@
 | P1-2a | QuickLog (대안) | **AI 서버에서 exercise_id 반환** — `POST /api/ai/parse-log` 응답에 `exercise_id` 추가 | 한국어 변형("벤치"/"벤치프레스") 처리를 AI가 담당해 매칭 품질이 높음 | `quicklog_save_integration_analysis.md §8 대안B` | M | AI 서버 수정 필요 (P1-2의 대안) |
 | P1-3 | QuickLog | **reps null / weightKg ≤ 0 처리** — null 세트 skip 로직, 맨몸운동 weightKg 생략 | BE `@NotNull reps`, `weightKg > 0` 제약. 처리 없으면 400 에러 | `WorkoutSetRequest.java:38-39`, `quicklog_save_integration_analysis.md §3` | S | P1-1 동반 처리 |
 | P1-4 | QuickLog | **demo 모드 분기** — `isDemoMode()` 체크 추가 | demo 토큰 → BE 401 발생. `workoutApiClient.save()` 재사용 시 자동 해결 | `quicklog_save_integration_analysis.md §6`, `demoMode.ts:384` | S | P1-1 동반 처리 |
-| P1-5 | 식단 | **diet_logs 저장용 BE 신규 구축** — `diet_log` 엔티티 + 마이그레이션 + `POST /api/diet-logs` + 일별 집계 응답 | BE에 식단 관련 테이블/API 전무. QuickLog diet 파싱 결과 화면만 있고 저장 불가 | `quicklog_save_integration_analysis.md §2` ("없음"), BE 전체 탐색 | L | BE+FE 양측 작업 |
+| ~~P1-5~~ | ~~식단~~ | ~~**diet_logs 저장용 BE 신규 구축**~~ | ~~완료 (N0-2 + N1-1 + N1-2)~~ | — | — | — |
 
 ---
 
@@ -104,9 +122,15 @@
   └ P3-5: admin FE role 체크 (S)
 
 [묶음 5 — 대형 기능]  (충분한 시간 확보 후)
-  └ P1-5: 식단 저장 BE 신규 구축 (L — 독립 스프린트)
-  └ P2-15: 체성분 전용 엔드포인트 (M — P1-5와 별개)
+  └ P2-15: 체성분 전용 엔드포인트 (M)
   └ P3-4: localStorage → BE 동기화 (L — 아키텍처 결정 필요)
+
+[묶음 6 — 영양 v1.x]  (영양 MVP 완료 기준, 순서 우선순위)
+  └ 1순위: 항목 수정/삭제 UI + 매크로 미상 graceful 처리 + Ollama 헬스체크 (N2-4 선행)
+  └ 2순위: 음식 RAG 구축 — 공공 식품 DB 적재, FoodRAGEngine (N2-1)
+  └ 3순위: 추가 영양소 상한/하한 목표 (sodium, fiber 등, N2-5) → 사진 입력 v2 (N3-1, N2-1 완료 후)
+  └ 4순위: 달력 뷰 (N2-3) + 하루 상세/수정 (N2-4) → 통계 추세 차트 (N2-6)
+  └ 5순위: TDEE 자동 목표 계산 — Mifflin-St Jeor + 활동 계수 (N2-7)
 ```
 
 > **한 번에 한 티켓 원칙**: 각 묶음 내에서도 PR은 한 항목씩.  

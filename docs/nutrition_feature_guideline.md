@@ -2,7 +2,8 @@
 
 > 목적: 개념 가이드라인을 실제 코드(FE/BE/AI)에 매핑해 실사용 가능한 구현 지도 작성  
 > 코드 기준 날짜: 2026-06-16 / 분석 대상: FE(Next.js 16) + BE(Spring Boot) + AI(FastAPI+Ollama)  
-> 모든 근거 파일:라인 표기. 추측 항목은 "확인필요" 표시.
+> 모든 근거 파일:라인 표기. 추측 항목은 "확인필요" 표시.  
+> **MVP 완료**: 2026-06-17 — Phase 0(N0-1~4) + Phase 1(N1-1~10) 전체 구현 완료. 이하 §7 Phase 0/1 테이블은 이력 보존용.
 
 ---
 
@@ -395,47 +396,73 @@ const dietApiClient = {
 
 ## 7. MVP → v1.x 티켓 분해
 
-### Phase 0: 기반 준비 (선행, 의존성 없음)
+### Phase 0: 기반 준비 ✅ 완료
 
-| 티켓 | 대상 파일 | DoD | 규모 |
-|------|-----------|-----|------|
-| **N0-1** AI parse-diet 신규 엔드포인트 | `fit-core-ai/main.py`, `nlp_engine.py` | `POST /api/ai/parse-diet` 추가. ParseDietItem에 meal_type, time_of_day, float 매크로. 기존 parse-log 변경 없음 | S |
-| **N0-2** BE 마이그레이션 + 엔티티 | `V7__add_diet_log.sql`, `V8__add_nutrition_targets.sql`, DietLogEntity.java, NutritionTargetEntity.java | 로컬 DB에서 테이블 생성 확인 | M |
-| **N0-3** FE 타입 정의 | `types/project.d.ts` | DietLogResponse, DietSummaryResponse, NutritionTarget 타입 추가 | S |
-| **N0-4** 데모 데이터 추가 | `utils/demoMode.ts` | demoDietLogs, getDemoDietSummary, seed/clear 추가 | S |
-
----
-
-### Phase 1: MVP
-
-| 티켓 | 대상 파일 | DoD | 규모 | 의존성 |
-|------|-----------|-----|------|--------|
-| **N1-1** BE Diet API | `DietLogController.java`, `DietLogService.java`, `DietLogRepository.java`, `DietLogRequest.java`, `DietLogResponse.java`, `DietSummaryResponse.java` | `POST /api/diet-logs`, `GET /api/diet-logs/summary?date=` 정상 응답 | M | N0-2 |
-| **N1-2** FE dietApiClient | `lib/api/diet/dietApiClient.ts` | save, getToday, isDemoMode 분기 | S | N0-3, N0-4 |
-| **N1-3** QuickLog 식단 저장 실연결 | `app/ai_quicklog/page.tsx:144-157` | handleSaveLog에서 parse-diet 결과를 dietApiClient.save 호출. kcal=4·4·9 계산 후 전송. demo 분기 포함 | S | N1-2, N0-1 |
-| **N1-4** 영양 탭 신규 (오늘) | `app/my/nutrition/NutritionTab.tsx` (신규) | 오늘 식단 목록 + 매크로 합계 바. 미설정 목표 = 회색 바 | M | N1-2 |
-| **N1-5** 탭 재편 | `app/my/page.tsx:18-26` | routine+workout→workout 통합, nutrition 탭 추가 | S | N1-4 |
-| **N1-6** 대시보드 카드 실연결 | `app/page.tsx:27-64` | 하드코딩 제거, dietApiClient.getToday 연결 | S | N1-2 |
-| **N1-7** 수동 입력 UI | `app/ai_quicklog/page.tsx` 또는 신규 모달 | 음식명/양/끼니/시간 입력 폼, 저장 | M | N1-2 |
-| **N1-8** BE NutritionTarget API | `NutritionTargetController.java`, `GET/PUT /api/nutrition-targets/me` | 목표 저장/조회 | S | N0-2 |
-| **N1-9** 프로필 영양 목표 섹션 | `app/my/profile/ProfileEditForm.tsx:482` | 탄단지+kcal 목표 입력 필드, PUT API 연결 | S | N1-8 |
+| 티켓 | 대상 파일 | DoD | 규모 | 상태 |
+|------|-----------|-----|------|------|
+| **N0-1** AI parse-diet 신규 엔드포인트 | `engines/quicklog/diet_parser.py` | `POST /api/ai/parse-diet`. ParseDietItem meal_type/time_of_day/float 매크로. LLM 강제 추정 + `_enrich_macros()` 테이블 보충 | S | ✅ |
+| **N0-2** BE 마이그레이션 + 엔티티 | `V7__add_diet_log.sql`, `V8__add_nutrition_targets.sql`, `DietLogEntity.java`, `NutritionTargetEntity.java` | 테이블 생성 완료 | M | ✅ |
+| **N0-3** FE 타입 정의 | `types/project.d.ts` | `DietLogRequest/Response`, `DietSummaryResponse`, `NutritionTarget` 추가 | S | ✅ |
+| **N0-4** 데모 데이터 추가 | `utils/demoMode.ts` | `demoDietLogs`, `getDemoDietSummary`, `DEMO_NUTRITION_TARGET_STORAGE_KEY`, seed/clear 완료 | S | ✅ |
 
 ---
 
-### Phase v1.x (추후)
+### Phase 1: MVP ✅ 완료
+
+| 티켓 | 대상 파일 | DoD | 규모 | 상태 |
+|------|-----------|-----|------|------|
+| **N1-1** BE Diet API | `DietLogController/Service/Repository.java` | `POST /api/diet-logs`, `GET /api/diet-logs/summary?date=`, source별 4·4·9 kcal 계산 | M | ✅ |
+| **N1-2** FE dietApiClient | `lib/api/diet/dietApiClient.ts` | save, getToday, isDemoMode 분기, 4·4·9 demo 계산 | S | ✅ |
+| **N1-3** QuickLog 식단 저장 실연결 | `app/ai_quicklog/page.tsx` | parse-diet → `dietApiClient.save()`. 운동 UI 전면 제거, 식단 전용 | S | ✅ |
+| **N1-4** 영양 탭 신규 (오늘) | `app/my/nutrition/NutritionTab.tsx` | 오늘 식단 목록 + 매크로 합계 바 + 목표 대비 mini 바 + 수동 입력 진입 | M | ✅ |
+| **N1-5** 탭 재편 | `app/my/MyPageContent.tsx` | routine+workout→workout 통합, nutrition 탭 추가. `useSearchParams` Suspense 분리 | S | ✅ |
+| **N1-6** 대시보드 카드 실연결 | `app/components/DietSummaryCard.tsx` | 하드코딩 제거, `dietApiClient.getToday()` + kcal 진행 바 | S | ✅ |
+| **N1-7** 수동 입력 모달 | `app/my/nutrition/ManualEntryModal.tsx` | 음식명/매크로/kcal 입력, `source='manual'`, AI 입력 링크 포함 | M | ✅ |
+| **N1-8** BE NutritionTarget API | `NutritionTargetController/Service.java` | `GET/PUT /api/nutrition-targets/me`, upsert, min>max 검증 | S | ✅ |
+| **N1-9** 프로필 영양 목표 섹션 | `ProfileEditForm.tsx`, `nutritionTargetApiClient.ts` | 탄단지+kcal 목표 입력, GET/PUT 연결, FE min>max 사전 검증 | S | ✅ |
+| **N1-10** 진행 바 색상화 | `NutritionTab.tsx`, `DietSummaryCard.tsx` | kcal 단일 임계·단백질 min-focused·탄지 범위 over/under/neutral | S | ✅ |
+
+---
+
+### Phase v1.x — 권장 진행 순서
+
+> MVP 완료 이후 아래 순서로 진행 권장.
+
+**1순위 — 수정/삭제 + 안정화**
+
+| 티켓 | 설명 | 규모 | 비고 |
+|------|------|------|------|
+| **N2-4a** 항목 수정/삭제 UI | `NutritionTab` 각 항목 스와이프/버튼 → `DELETE /api/diet-logs/{id}`, `PATCH` | M | BE 엔드포인트 신규 |
+| **N2-4b** 매크로 미상 graceful 처리 | source='ai' 매크로 모두 null 시 FE 경고 표시 + 저장 차단 대신 안내 (현재 BE 400 → UX 개선) | S | 현재 버그성 UX |
+| **N2-4c** Ollama 헬스체크 개선 | `/api/ai/health`가 Lightsail→로컬 도달 불가 문제. 클라이언트 직접 체크 또는 터널 URL 구성 | S | BE-AI 분리 배포 문제 |
+
+**2순위 — 음식 RAG**
 
 | 티켓 | 설명 | 규모 | 의존성 |
 |------|------|------|--------|
-| **N2-1** 음식 RAG 구축 | `fit-core-ai/scripts/build_food_db.py` 신규, 공공 식품 DB 적재, FoodRAGEngine 파생 | L | N0-1 |
-| **N2-2** AI 역질문 (끼니·시간·양) | parse-log 응답에 missing_fields 추가 → FE 대화형 재질문 UI | M | N0-1 |
-| **N2-3** 달력 뷰 | `app/my/nutrition/NutritionCalendar.tsx` (신규) | L | N1-4 |
-| **N2-4** 하루 상세 / 수정 | `app/my/nutrition/[date]/page.tsx` | M | N2-3 |
-| **N2-5** 추가 영양소 목표 | sodium, fiber 등 → nutrition_targets 확장 | S | N1-8 |
+| **N2-1** 음식 RAG 구축 | `build_food_db.py` 신규, 공공 식품 DB 적재, `FoodRAGEngine` 파생 | L | N0-1 완료 |
+| **N2-2** AI 역질문 | parse-diet 응답에 `missing_fields` 추가 → FE 대화형 재질문 UI | M | N0-1 완료 |
+
+**3순위 — 추가 목표 + 사진 입력 v2**
+
+| 티켓 | 설명 | 규모 | 의존성 |
+|------|------|------|--------|
+| **N2-5** 추가 영양소 목표 | sodium, fiber 등 → `nutrition_targets` 컬럼 확장 (스키마에 이미 예약됨) | S | N1-8 완료 |
+| **N3-1** 사진 입력 v2 | 이미지 → 비전 모델(Gemini 2.5 Flash) → ParseDietItem[] → 리뷰 UI → 저장 | L | N2-1, §9-7 런타임 확인 후 |
+
+**4순위 — 달력 + 하루 상세 + 통계**
+
+| 티켓 | 설명 | 규모 | 의존성 |
+|------|------|------|--------|
+| **N2-3** 달력 뷰 | `NutritionCalendar.tsx` 신규, `GET /api/diet-logs/range?from=&to=` | L | N1-4 완료 |
+| **N2-4** 하루 상세 | `app/my/nutrition/[date]/page.tsx` — 끼니별 입력 항목 시간순 | M | N2-3 |
 | **N2-6** 통계 추세 | 주별/월별 매크로 추이 차트 | M | N2-3 |
-| **N2-7** TDEE 자동 계산 | BE에서 body_weight_kg + gender + birth_date + training_days 조합 | M | 확인필요: 공식 결정 후 |
-| **N2-8** 내비 재편 완성 | 탭바 이름/아이콘 최종 확정, 반응형 검토 | S | N1-5 |
-| **N2-9** 식단 저장 출처 표시 | source='db'/'ai'/'manual' 항목별 뱃지 표시 | S | N1-4 |
-| **N3-1** 사진 입력 (v2 모달리티) | 이미지→비전 모델 음식 식별 → 기존 food-RAG 파이프라인 재사용 → 추정→확인 UI. §9 비전 타당성 참조 | L | N2-1, 비전 지원 확인 후 |
+
+**5순위 — TDEE 자동 목표**
+
+| 티켓 | 설명 | 규모 | 의존성 |
+|------|------|------|--------|
+| **N2-7** TDEE 자동 계산 | BE: `body_weight_kg` + `gender` + `birth_date` + `training_days` → Mifflin-St Jeor + 활동 계수 → `kcal_goal` 자동 제안 | M | 공식 확정 후 |
 
 ---
 
@@ -528,9 +555,10 @@ const dietApiClient = {
 
 | 항목 | 결론 |
 |------|------|
-| **음식 RAG 재활용** | 임베딩 모델·검색 엔진 구조 재사용 가능. 데이터셋(음식 영양DB) 신규 구축 필요. MVP는 기존 `_COMMON_FOOD_NUTRITION_PER_100G` 폴백 + LLM 추정으로 시작 가능 |
-| **내비 재편 난이도** | S. `app/my/page.tsx:18-26` 단 1개 파일, TabId 타입 + 배열 수정. `WorkoutTab.tsx` 신규 1개 추가 |
-| **대시보드 데이터 출처** | `app/page.tsx:27-64` 완전 하드코딩. API 연결 없음. N1-6 티켓으로 해결 |
-| **체조성 데이터 유무** | 있음. `user_profiles.body_weight_kg`, `body_fat_pct`, `body_composition_snapshot`(JSON). TDEE 계산에 필요한 모든 필드 BE에 존재 |
-| **추천 MVP 티켓 순서** | N0-2(마이그레이션) → N0-1(AI parse-diet 신규) → N1-1(BE API) → N1-2(FE client) → N1-3(QuickLog 연결, kcal=4·4·9) → N1-4(영양 탭) → N1-5(탭 재편) → N1-6(대시보드 연결) |
-| **사진 입력 비전** | Gemini 2.5 Flash: 비전 지원 확실(`llm_router.py:183`). 로컬 Ollama: 런타임 확인 필요. FastAPI UploadFile 패턴 재사용 가능(`main.py:11,210`). v2 착수 전 §9-7 런타임 확인 항목 체크 필요 |
+| **MVP 완료 상태** | Phase 0(N0-1~4) + Phase 1(N1-1~10) 전체 구현 완료 (2026-06-17). 영양 탭·대시보드·수동입력·목표설정·진행바·인증가드 운영 중 |
+| **v1.x 최우선** | 항목 수정/삭제 UI + Ollama 헬스체크 개선 (1순위) → 음식 RAG (2순위) |
+| **음식 RAG 재활용** | 임베딩 모델·검색 엔진 구조 재사용 가능. 데이터셋(식약처 공공 식품 DB) 신규 구축 필요. 현재 `_FOOD_PER_100G` 12종 테이블이 LLM null 보충으로 사용 중 |
+| **내비 재편** | ✅ 완료. `MyPageContent.tsx` TabId + tabs 배열 수정, `WorkoutTab.tsx` 신규로 루틴·운동이력 통합 |
+| **대시보드 데이터** | ✅ 완료. `DietSummaryCard.tsx` — `dietApiClient.getToday()` + kcal 진행 바 연결 |
+| **체조성 → TDEE** | `user_profiles.body_weight_kg`, `body_fat_pct`, `gender`, `birth_date`, `training_days_per_week` 모두 BE에 존재. TDEE 공식(Mifflin-St Jeor) 확정 후 N2-7로 진행 가능 |
+| **사진 입력 비전** | Gemini 2.5 Flash 지원 확실(`llm_router.py:183`). 로컬 Ollama 런타임 확인 필요. N2-1(음식 RAG) 완료 후 N3-1 착수 권장. §9-7 체크리스트 참고 |
