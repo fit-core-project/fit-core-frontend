@@ -1,6 +1,6 @@
 import AxiosController from "@/lib/axios/AxiosController"
 import type { DietLogRequest, DietLogResponse, DietSummaryResponse } from "@/types/project"
-import { DEMO_DIETS_STORAGE_KEY, getDemoDietSummary, isDemoMode } from "@/utils/demoMode"
+import { DEMO_DIETS_STORAGE_KEY, deleteDemoDiet, getDemoDietSummary, isDemoMode, updateDemoDiet } from "@/utils/demoMode"
 
 const PROTEIN_KCAL = 4
 const CARBS_KCAL = 4
@@ -58,6 +58,40 @@ const dietApiClient = {
             return Promise.resolve(newItems)
         }
         return AxiosController.post<DietLogResponse[]>("/api/diet-logs", items)
+    },
+
+    update: (id: string, req: DietLogRequest): Promise<DietLogResponse> => {
+        if (isDemoMode()) {
+            const stored = readDemoDiets()
+            const existing = stored.find((l) => l.id === id)
+            if (!existing) return Promise.reject(new Error("Not found"))
+            const kcal = req.kcal != null ? req.kcal : calcMacroKcal(req.proteinG, req.carbsG, req.fatG)
+            const loggedAt = req.loggedAt ? `${existing.logDate}T${req.loggedAt}:00` : null
+            const updated: DietLogResponse = {
+                ...existing,
+                mealType: req.mealType ?? null,
+                loggedAt,
+                foodName: req.foodName,
+                amountG: req.amountG ?? null,
+                amountRaw: req.amountRaw ?? null,
+                kcal,
+                proteinG: req.proteinG ?? null,
+                carbsG: req.carbsG ?? null,
+                fatG: req.fatG ?? null,
+                source: "manual",
+            }
+            updateDemoDiet(id, updated)
+            return Promise.resolve(updated)
+        }
+        return AxiosController.put<DietLogResponse>(`/api/diet-logs/${id}`, req)
+    },
+
+    delete: (id: string): Promise<void> => {
+        if (isDemoMode()) {
+            deleteDemoDiet(id)
+            return Promise.resolve()
+        }
+        return AxiosController.delete<void>(`/api/diet-logs/${id}`)
     },
 
     getSummary: (date: string): Promise<DietSummaryResponse> =>

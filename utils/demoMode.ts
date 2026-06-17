@@ -598,6 +598,18 @@ export function getDemoDietLogs(date: string): DietLogResponse[] {
     return all.filter((l) => l.logDate === date)
 }
 
+export function updateDemoDiet(id: string, updated: DietLogResponse): void {
+    if (typeof window === "undefined") return
+    const all = readJson<DietLogResponse[]>(DEMO_DIETS_STORAGE_KEY, demoDietLogs)
+    writeJson(DEMO_DIETS_STORAGE_KEY, all.map((l) => (l.id === id ? updated : l)))
+}
+
+export function deleteDemoDiet(id: string): void {
+    if (typeof window === "undefined") return
+    const all = readJson<DietLogResponse[]>(DEMO_DIETS_STORAGE_KEY, demoDietLogs)
+    writeJson(DEMO_DIETS_STORAGE_KEY, all.filter((l) => l.id !== id))
+}
+
 export function getDemoDietSummary(date: string): DietSummaryResponse {
     const logs = getDemoDietLogs(date)
     const sorted = [...logs].sort((a, b) => {

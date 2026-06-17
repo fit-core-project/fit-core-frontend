@@ -174,11 +174,35 @@ export default function QuickLogPage() {
             toast.info("저장할 식단 항목이 없습니다.")
             return
         }
+
+        const saveable = parsedData.items.filter(
+            (item) => item.protein_g != null || item.carbs_g != null || item.fat_g != null,
+        )
+        const excluded = parsedData.items.filter(
+            (item) => item.protein_g == null && item.carbs_g == null && item.fat_g == null,
+        )
+
+        if (saveable.length === 0) {
+            const names = excluded.map((i) => `"${i.food_name}"`).join(", ")
+            toast.warning(`${names} 항목은 영양 정보를 추정할 수 없어 저장할 수 없습니다. 직접 입력으로 추가해 주세요.`, {
+                duration: 6000,
+            })
+            return
+        }
+
         setIsSaving(true)
         try {
-            const requests = toDietLogRequests(parsedData.items)
+            const requests = toDietLogRequests(saveable)
             await dietApiClient.save(requests)
-            toast.success("식단이 저장되었습니다. 영양 탭에서 확인하세요.")
+            if (excluded.length > 0) {
+                const names = excluded.map((i) => `"${i.food_name}"`).join(", ")
+                toast.warning(
+                    `${saveable.length}건 저장됨. ${names} 은(는) 영양 정보 미상으로 제외됐습니다 — 직접 입력으로 추가해 주세요.`,
+                    { duration: 7000 },
+                )
+            } else {
+                toast.success("식단이 저장되었습니다. 영양 탭에서 확인하세요.")
+            }
             setParsedData(null)
             setInputText("")
         } catch {
@@ -266,36 +290,55 @@ export default function QuickLogPage() {
                                         식단 분석
                                     </h2>
                                     <div className="space-y-4">
-                                        {parsedData.items.map((item, idx) => (
-                                            <div
-                                                key={idx}
-                                                className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl"
-                                            >
-                                                <div>
-                                                    <div className="font-bold text-slate-700">{item.food_name}</div>
-                                                    {(item.meal_type || item.time_of_day) && (
-                                                        <div className="text-[11px] text-slate-400 mt-0.5">
-                                                            {mealTypeLabel(item.meal_type)}
-                                                            {item.time_of_day ? ` · ${item.time_of_day}` : ""}
-                                                        </div>
-                                                    )}
+                                        {parsedData.items.map((item, idx) => {
+                                            const noMacro =
+                                                item.protein_g == null &&
+                                                item.carbs_g == null &&
+                                                item.fat_g == null
+                                            return (
+                                                <div
+                                                    key={idx}
+                                                    className={`flex justify-between items-center p-4 rounded-2xl ${
+                                                        noMacro
+                                                            ? "bg-amber-50 border border-amber-100"
+                                                            : "bg-slate-50"
+                                                    }`}
+                                                >
+                                                    <div>
+                                                        <div className="font-bold text-slate-700">{item.food_name}</div>
+                                                        {(item.meal_type || item.time_of_day) && (
+                                                            <div className="text-[11px] text-slate-400 mt-0.5">
+                                                                {mealTypeLabel(item.meal_type)}
+                                                                {item.time_of_day ? ` · ${item.time_of_day}` : ""}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-right">
+                                                        {!noMacro ? (
+                                                            <div className="text-[11px] text-slate-500 font-medium">
+                                                                탄 {item.carbs_g ?? "?"}g · 단 {item.protein_g ?? "?"}g · 지{" "}
+                                                                {item.fat_g ?? "?"}g
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <div className="text-[11px] font-semibold text-amber-600">
+                                                                    영양 정보 없음
+                                                                </div>
+                                                                <div className="text-[10px] text-amber-500 mt-0.5">
+                                                                    저장 제외 · 직접 입력 필요
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                        {item.amount != null && item.unit && (
+                                                            <div className="text-[10px] text-slate-400 mt-0.5">
+                                                                {item.amount}
+                                                                {item.unit}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    {item.protein_g != null || item.carbs_g != null || item.fat_g != null ? (
-                                                        <div className="text-[11px] text-slate-500 font-medium">
-                                                            탄 {item.carbs_g ?? "?"}g · 단 {item.protein_g ?? "?"}g · 지 {item.fat_g ?? "?"}g
-                                                        </div>
-                                                    ) : (
-                                                        <div className="text-[11px] text-slate-400">매크로 미상</div>
-                                                    )}
-                                                    {item.amount != null && item.unit && (
-                                                        <div className="text-[10px] text-slate-400 mt-0.5">
-                                                            {item.amount}{item.unit}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
 
                                     {totalProtein > 0 && (

@@ -5,11 +5,12 @@ import { Sparkles, X } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
-import type { DietLogRequest } from "@/types/project"
+import type { DietLogRequest, DietLogResponse } from "@/types/project"
 
 interface Props {
     onClose: () => void
     onSaved: () => void
+    editItem?: DietLogResponse
 }
 
 const INPUT_CLS =
@@ -32,16 +33,19 @@ function computePreviewKcal(protein: string, carbs: string, fat: string): number
     return Math.round((isNaN(p) ? 0 : p) * 4 + (isNaN(c) ? 0 : c) * 4 + (isNaN(f) ? 0 : f) * 9)
 }
 
-export default function ManualEntryModal({ onClose, onSaved }: Props) {
-    const [foodName, setFoodName] = useState("")
-    const [mealType, setMealType] = useState("")
-    const [loggedAt, setLoggedAt] = useState(getKstTime())
-    const [amountRaw, setAmountRaw] = useState("")
-    const [amountG, setAmountG] = useState("")
-    const [protein, setProtein] = useState("")
-    const [carbs, setCarbs] = useState("")
-    const [fat, setFat] = useState("")
-    const [kcal, setKcal] = useState("")
+export default function ManualEntryModal({ onClose, onSaved, editItem }: Props) {
+    const isEdit = !!editItem
+    const [foodName, setFoodName] = useState(editItem?.foodName ?? "")
+    const [mealType, setMealType] = useState(editItem?.mealType ?? "")
+    const [loggedAt, setLoggedAt] = useState(() =>
+        editItem?.loggedAt ? editItem.loggedAt.slice(11, 16) : getKstTime()
+    )
+    const [amountRaw, setAmountRaw] = useState(editItem?.amountRaw ?? "")
+    const [amountG, setAmountG] = useState(editItem?.amountG != null ? String(editItem.amountG) : "")
+    const [protein, setProtein] = useState(editItem?.proteinG != null ? String(editItem.proteinG) : "")
+    const [carbs, setCarbs] = useState(editItem?.carbsG != null ? String(editItem.carbsG) : "")
+    const [fat, setFat] = useState(editItem?.fatG != null ? String(editItem.fatG) : "")
+    const [kcal, setKcal] = useState(editItem?.kcal != null ? String(editItem.kcal) : "")
     const [isSaving, setIsSaving] = useState(false)
     const [validationMsg, setValidationMsg] = useState("")
     const foodNameRef = useRef<HTMLInputElement>(null)
@@ -55,6 +59,20 @@ export default function ManualEntryModal({ onClose, onSaved }: Props) {
     const hasKcal = kcal !== ""
     const canSave = foodName.trim() !== "" && (hasMacro || hasKcal)
 
+    const buildReq = (): DietLogRequest => ({
+        logDate: editItem?.logDate ?? getKstDate(),
+        mealType: mealType || null,
+        loggedAt: loggedAt || null,
+        foodName: foodName.trim(),
+        amountRaw: amountRaw.trim() || null,
+        amountG: amountG !== "" ? parseFloat(amountG) : null,
+        proteinG: protein !== "" ? parseFloat(protein) : null,
+        carbsG: carbs !== "" ? parseFloat(carbs) : null,
+        fatG: fat !== "" ? parseFloat(fat) : null,
+        kcal: kcal !== "" ? Math.round(parseFloat(kcal)) : null,
+        source: "manual",
+    })
+
     const handleSave = async () => {
         if (!foodName.trim()) {
             setValidationMsg("음식명을 입력해 주세요.")
@@ -67,27 +85,34 @@ export default function ManualEntryModal({ onClose, onSaved }: Props) {
         setValidationMsg("")
         setIsSaving(true)
 
-        const req: DietLogRequest = {
-            logDate: getKstDate(),
-            mealType: mealType || null,
-            loggedAt: loggedAt || null,
-            foodName: foodName.trim(),
-            amountRaw: amountRaw.trim() || null,
-            amountG: amountG !== "" ? parseFloat(amountG) : null,
-            proteinG: protein !== "" ? parseFloat(protein) : null,
-            carbsG: carbs !== "" ? parseFloat(carbs) : null,
-            fatG: fat !== "" ? parseFloat(fat) : null,
-            kcal: kcal !== "" ? Math.round(parseFloat(kcal)) : null,
-            source: "manual",
-        }
-
         try {
-            await dietApiClient.save([req])
-            toast.success("식단이 저장되었습니다.")
+            if (isEdit) {
+                await dietApiClient.update(editItem!.id, buildReq())
+                toast.success("식단이 수정되었습니다.")
+            } else {
+                await dietApiClient.save([buildReq()])
+                toast.success("식단이 저장되었습니다.")
+            }
             onSaved()
             onClose()
         } catch {
-            toast.error("저장 중 오류가 발생했습니다.")
+            toast.error(isEdit ? "수정 중 오류가 발생했습니다." : "저장 중 오류가 발생했습니다.")
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    const handleDelete = async () => {
+        if (!editItem) return
+        if (!window.confirm("이 항목을 삭제하시겠습니까?")) return
+        setIsSaving(true)
+        try {
+            await dietApiClient.delete(editItem.id)
+            toast.success("삭제되었습니다.")
+            onSaved()
+            onClose()
+        } catch {
+            toast.error("삭제 중 오류가 발생했습니다.")
         } finally {
             setIsSaving(false)
         }
@@ -105,15 +130,17 @@ export default function ManualEntryModal({ onClose, onSaved }: Props) {
             >
                 {/* 헤더 */}
                 <div className="mb-5 flex items-center justify-between">
-                    <h2 className="text-base font-bold text-slate-800">식단 직접 입력</h2>
+                    <h2 className="text-base font-bold text-slate-800">{isEdit ? "식단 수정" : "식단 직접 입력"}</h2>
                     <div className="flex items-center gap-3">
-                        <Link
-                            href="/ai_quicklog"
-                            className="flex items-center gap-1 text-xs font-semibold text-blue-600"
-                        >
-                            <Sparkles size={13} />
-                            AI로 입력하기
-                        </Link>
+                        {!isEdit && (
+                            <Link
+                                href="/ai_quicklog"
+                                className="flex items-center gap-1 text-xs font-semibold text-blue-600"
+                            >
+                                <Sparkles size={13} />
+                                AI로 입력하기
+                            </Link>
+                        )}
                         <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600">
                             <X size={20} />
                         </button>
@@ -266,8 +293,20 @@ export default function ManualEntryModal({ onClose, onSaved }: Props) {
                         disabled={isSaving || !canSave}
                         className="w-full rounded-2xl bg-blue-600 py-3.5 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        {isSaving ? "저장 중..." : "저장하기"}
+                        {isSaving ? "처리 중..." : isEdit ? "수정하기" : "저장하기"}
                     </button>
+
+                    {/* 삭제 (편집 모드만) */}
+                    {isEdit && (
+                        <button
+                            type="button"
+                            onClick={handleDelete}
+                            disabled={isSaving}
+                            className="w-full rounded-2xl border border-red-200 py-3 text-sm font-semibold text-red-500 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            삭제
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

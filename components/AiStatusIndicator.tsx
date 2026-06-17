@@ -3,15 +3,16 @@
 import { startTransition, useEffect, useRef, useState } from "react"
 import { getBackendBaseUrl } from "@/utils/backendBaseUrl"
 
-type AiStatus = "checking" | "up" | "down"
+type AiStatus = "checking" | "up" | "limited" | "down"
 
 const POLL_INTERVAL_MS = 30_000
 const REQUEST_TIMEOUT_MS = 5_000
 
-const STATUS_CONFIG: Record<AiStatus, { dot: string; label: string }> = {
-    checking: { dot: "bg-slate-400", label: "확인 중" },
-    up:       { dot: "bg-emerald-500", label: "AI 정상" },
-    down:     { dot: "bg-red-500",     label: "AI 꺼짐" },
+const STATUS_CONFIG: Record<AiStatus, { dot: string; label: string; glow: string }> = {
+    checking: { dot: "bg-slate-400",   label: "확인 중",  glow: "" },
+    up:       { dot: "bg-emerald-500", label: "AI 정상",  glow: "shadow-[0_0_4px_1px_rgba(16,185,129,0.5)]" },
+    limited:  { dot: "bg-amber-400",   label: "AI 제한",  glow: "shadow-[0_0_4px_1px_rgba(251,191,36,0.5)]" },
+    down:     { dot: "bg-red-500",     label: "AI 꺼짐",  glow: "" },
 }
 
 export default function AiStatusIndicator() {
@@ -33,7 +34,11 @@ export default function AiStatusIndicator() {
             clearTimeout(timeoutId)
             if (res.ok) {
                 const data = await res.json()
-                startTransition(() => setStatus(data.ai === "up" ? "up" : "down"))
+                let next: AiStatus = "down"
+                if (data.ai === "up") {
+                    next = data.llm === "up" ? "up" : "limited"
+                }
+                startTransition(() => setStatus(next))
             } else {
                 startTransition(() => setStatus("down"))
             }
@@ -52,7 +57,7 @@ export default function AiStatusIndicator() {
         }
     }, [])
 
-    const { dot, label } = STATUS_CONFIG[status]
+    const { dot, label, glow } = STATUS_CONFIG[status]
 
     return (
         <div
@@ -61,7 +66,7 @@ export default function AiStatusIndicator() {
             title={label}
         >
             <span
-                className={`h-2 w-2 shrink-0 rounded-full ${dot} ${status === "up" ? "shadow-[0_0_4px_1px_rgba(16,185,129,0.5)]" : ""}`}
+                className={`h-2 w-2 shrink-0 rounded-full ${dot} ${glow}`}
             />
             <span className="hidden text-xs font-medium text-slate-500 sm:block">
                 {label}

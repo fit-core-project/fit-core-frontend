@@ -109,6 +109,7 @@ export default function NutritionTab() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
     const [showModal, setShowModal] = useState(false)
+    const [editItem, setEditItem] = useState<DietLogResponse | null>(null)
     const [target, setTarget] = useState<NutritionTarget | null>(null)
 
     const fetchToday = useCallback(() => {
@@ -200,6 +201,13 @@ export default function NutritionTab() {
         {showModal && (
             <ManualEntryModal
                 onClose={() => setShowModal(false)}
+                onSaved={fetchToday}
+            />
+        )}
+        {editItem && (
+            <ManualEntryModal
+                editItem={editItem}
+                onClose={() => setEditItem(null)}
                 onSaved={fetchToday}
             />
         )}
@@ -326,7 +334,8 @@ export default function NutritionTab() {
                                     return (
                                         <div
                                             key={item.id}
-                                            className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"
+                                            className="flex cursor-pointer items-center justify-between rounded-xl bg-slate-50 px-4 py-3 active:bg-slate-100"
+                                            onClick={() => setEditItem(item)}
                                         >
                                             <div className="min-w-0 flex-1">
                                                 <p className="truncate text-sm font-semibold text-slate-800">
