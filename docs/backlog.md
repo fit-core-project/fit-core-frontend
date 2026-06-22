@@ -6,7 +6,7 @@
 
 ---
 
-## 1. 완료됨 (Done) — 35건
+## 1. 완료됨 (Done) — 40건
 
 | # | 항목 | 코드 근거 |
 |---|------|-----------|
@@ -44,7 +44,14 @@
 | ✅ | 전역 인증 가드 — 비인증 보호 라우트 → `/login` 리다이렉트, Zustand hydration 게이트로 새로고침 깜빡임 방지 | `app/components/AuthGuard.tsx`, `app/layout.tsx` |
 | ✅ | parse-diet 매크로 null 버그 수정 — 프롬프트 강제 추정 + `_enrich_macros()` 테이블 보충 | `fit-core-ai/engines/quicklog/diet_parser.py` |
 | ✅ | 테스트 모드 prod 활성화 — SNS 로그인 없이 테스터 접근 | `application-prod.properties` |
-| ✅ | AI 상태 표시등 prod 숨김 — `NODE_ENV === "development"` 조건, 모바일 UX 개선 | `app/components/header.tsx` |
+| ✅ | AI 상태 표시등 항상 표시(prod 포함) — prod 숨김 조건 제거, 3-state 확장(정상/제한/꺼짐) | `components/AiStatusIndicator.tsx`, `app/components/header.tsx` |
+| ✅ | **[N2-4a]** 식단 항목 수정·삭제 UI — ManualEntryModal 편집 모드 재사용, `PUT/DELETE /api/diet-logs/{id}`, demo 분기, 소유권 검증 | `ManualEntryModal.tsx`, `NutritionTab.tsx`, `dietApiClient.ts`, `DietLogController/Service.java` — 스모크 7항목 전부 정상 통과 2026-06-17 |
+| ✅ | **[N2-4b]** QuickLog 매크로 미상 graceful 부분 저장 — saveable/excluded 분리, 제외 항목 amber 카드·toast 경고 | `app/ai_quicklog/page.tsx` — 스모크 7항목 전부 정상 통과 2026-06-17 |
+| ✅ | **[N2-4c]** `/health` Ollama 3-state — AI 서버→Ollama `/api/version` ping 1.5s, BE llm 필드 전달, FE amber "AI 제한" | `fit-core-ai/main.py`, `AiController.java`, `AiStatusIndicator.tsx` — 스모크 7항목 전부 정상 통과 2026-06-17 |
+| ✅ | **[N2-1]** 음식 RAG 구축 — `food_db_clean.csv` 19,891행(식약처+농진청+해수부, 가공식품 제외) ChromaDB `food_nutrition` 적재, `FoodRAGEngine` 하이브리드(Vector+BM25+CrossEncoder)+타입게이트+FLOOR 0.48, eval 27/30(확신-틀림 0·abstain 6/6); C2-AI parse-diet source db/ai + per-nutrient hybrid; C2-BE `resolveKcal` 3분기(db→DB kcal / ai→4·4·9 / manual→입력값) | `build_food_db.py`, `engines/food_rag_engine.py`, `DietLogService.java` — 배포·스모크 통과 2026-06-19 |
+| ✅ | **[N2-1 FE]** source 뱃지(DB/AI추정/직접입력) + 양→그램 표시 — QuickLog 미리보기 및 영양탭 저장 항목 리스트. ※다영양소(N2-5) 보류 | `app/ai_quicklog/page.tsx`, `app/my/nutrition/NutritionTab.tsx` — 배포·스모크 통과 2026-06-19 |
+| ✅ | **[N2-5]** 다영양소 목표 + 색상바 완료 — V9 diet_logs +sugar_g/fiber_g/sodium_mg(nullable), V10 nutrition_targets +sugar_max/fiber_min/sodium_max(nullable). 영양 목표 섹션 3필드 단일값 입력(당류 상한·식이섬유 하한·나트륨 상한). DietSummaryCard 색상바: 당류·나트륨 초과=빨강 / 식이섬유 미달=앰버 / 미설정=회색(기존 매크로 바 패턴 재사용). null 정책: DB 매칭 항목에서만 채움(AI 추정 안 함), 안내 문구 유지. | `V9/V10 migration`, `DietLogEntity/Request/Response/Service.java`, `NutritionTargetEntity/Request/Response/Service.java`, `ProfileEditForm.tsx`, `DietSummaryCard.tsx`, `types/project.d.ts`, `demoMode.ts` — 배포·검증 완료 2026-06-20 |
+| ✅ | **[N2-3/N2-4/N2-6]** 달력 + 하루 상세 + 통계 추세 완료 — BE `GET /api/diet-logs/daily-summary?from=&to=` (날짜별 kcal·탄단지 합계·count, soft-delete 제외, KST logDate GROUP BY, 신규 마이그레이션 없음). FE: `NutritionCalendarSection`(월 그리드, 이전/다음 달 네비, kcal-목표 색상: 초과 빨강/이내 초록/미설정·무기록 회색, 날짜 클릭→하루상세 인라인) + `NutritionTrendSection`(7/30일 토글, kcal·탄단지 recharts 추세선, 기록 없는 날 null 갭·connectNulls=false, 목표 ReferenceLine, 기록일 기준 평균, kcal 달성률 — 목표 미설정 시 숨김) + `NutritionTab` date 파라미터화(하루 상세 재사용). 결정: 다영양소 추세 제외(DB 매칭 부분치), 평균·달성률=기록일 기준, 무기록일=갭(0 아님). | `DietLogController/Service/Repository.java`, `DietDailyAggregationResponse.java`, `NutritionCalendarSection.tsx`, `NutritionTrendSection.tsx`, `NutritionTab.tsx`, `ManualEntryModal.tsx`, `dietApiClient.ts`, `types/project.d.ts` — 배포·검증 완료 2026-06-22 |
 
 ---
 
@@ -126,11 +133,12 @@
   └ P3-4: localStorage → BE 동기화 (L — 아키텍처 결정 필요)
 
 [묶음 6 — 영양 v1.x]  (영양 MVP 완료 기준, 순서 우선순위)
-  └ 1순위: 항목 수정/삭제 UI + 매크로 미상 graceful 처리 + Ollama 헬스체크 (N2-4 선행)
-  └ 2순위: 음식 RAG 구축 — 공공 식품 DB 적재, FoodRAGEngine (N2-1)
-  └ 3순위: 추가 영양소 상한/하한 목표 (sodium, fiber 등, N2-5) → 사진 입력 v2 (N3-1, N2-1 완료 후)
-  └ 4순위: 달력 뷰 (N2-3) + 하루 상세/수정 (N2-4) → 통계 추세 차트 (N2-6)
-  └ 5순위: TDEE 자동 목표 계산 — Mifflin-St Jeor + 활동 계수 (N2-7)
+  └ ~~1순위: 항목 수정/삭제 UI + 매크로 미상 graceful 처리 + Ollama 헬스체크~~ ✅ 완료 2026-06-17 (N2-4a/b/c)
+  └ ~~2순위: 음식 RAG 구축 — 공공 식품 DB 적재, FoodRAGEngine (N2-1)~~ ✅ 완료 2026-06-19 (N2-1 + FE)
+  └ ~~3순위: 추가 영양소 상한/하한 목표 (sodium, fiber 등, N2-5)~~ ✅ 완료 2026-06-20
+  └ ~~4순위: 달력 뷰 (N2-3) + 하루 상세 (N2-4) + 통계 추세 차트 (N2-6)~~ ✅ 완료(배포·검증) 2026-06-22
+  └ **잔여 #1 ← 다음**: 사진 입력 v2 (N3-1, N2-1 완료 후)
+  └ **잔여 #2**: TDEE 자동 목표 계산 — Mifflin-St Jeor + 활동 계수 (N2-7)
 ```
 
 > **한 번에 한 티켓 원칙**: 각 묶음 내에서도 PR은 한 항목씩.  

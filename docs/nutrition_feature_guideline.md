@@ -430,33 +430,57 @@ const dietApiClient = {
 
 **1순위 — 수정/삭제 + 안정화**
 
-| 티켓 | 설명 | 규모 | 비고 |
-|------|------|------|------|
-| **N2-4a** 항목 수정/삭제 UI | `NutritionTab` 각 항목 스와이프/버튼 → `DELETE /api/diet-logs/{id}`, `PATCH` | M | BE 엔드포인트 신규 |
-| **N2-4b** 매크로 미상 graceful 처리 | source='ai' 매크로 모두 null 시 FE 경고 표시 + 저장 차단 대신 안내 (현재 BE 400 → UX 개선) | S | 현재 버그성 UX |
-| **N2-4c** Ollama 헬스체크 개선 | `/api/ai/health`가 Lightsail→로컬 도달 불가 문제. 클라이언트 직접 체크 또는 터널 URL 구성 | S | BE-AI 분리 배포 문제 |
+| 티켓 | 설명 | 규모 | 비고 | 상태 |
+|------|------|------|------|------|
+| **N2-4a** 항목 수정/삭제 UI | `NutritionTab` 각 항목 클릭 → ManualEntryModal 편집 모드 재사용, `PUT/DELETE /api/diet-logs/{id}`, demo 분기 | M | BE 엔드포인트 신규 | ✅ 완료(배포·스모크 통과) 2026-06-17 |
+| **N2-4b** 매크로 미상 graceful 처리 | source='ai' 매크로 모두 null 시 saveable/excluded 분리 저장, 제외 항목 amber 카드·toast 경고 | S | 현재 버그성 UX | ✅ 완료(배포·스모크 통과) 2026-06-17 |
+| **N2-4c** Ollama 헬스체크 개선 | AI 서버 `/health`에서 Ollama `/api/version` ping(1.5s), BE llm 필드 전달, FE amber "AI 제한" 3-state | S | BE-AI 분리 배포 문제 | ✅ 완료(배포·스모크 통과) 2026-06-17 |
 
 **2순위 — 음식 RAG**
 
-| 티켓 | 설명 | 규모 | 의존성 |
-|------|------|------|--------|
-| **N2-1** 음식 RAG 구축 | `build_food_db.py` 신규, 공공 식품 DB 적재, `FoodRAGEngine` 파생 | L | N0-1 완료 |
-| **N2-2** AI 역질문 | parse-diet 응답에 `missing_fields` 추가 → FE 대화형 재질문 UI | M | N0-1 완료 |
+| 티켓 | 설명 | 규모 | 의존성 | 상태 |
+|------|------|------|--------|------|
+| **N2-1** 음식 RAG 구축 | `build_food_db.py` 신규, 공공 식품 DB 적재, `FoodRAGEngine` 파생 | L | N0-1 완료 | ✅ 완료(배포·스모크 통과) 2026-06-19 |
+| **N2-2** AI 역질문 | parse-diet 응답에 `missing_fields` 추가 → FE 대화형 재질문 UI | M | N0-1 완료 | — |
+
+#### N2-1 확정 구성 (2026-06-19 배포·스모크 통과)
+
+- **데이터셋**: 전국통합식품영양성분(식약처 음식 + 농진청·해수부 원재료), 가공식품 제외, `food_db_clean.csv` 19,891행 (중복 평균통합·100ml 단위 보존)
+- **적재**: ChromaDB `food_nutrition` 컬렉션 19,891건, `build_food_db.py` (supplement 인프라 재활용)
+- **FoodRAGEngine**: 하이브리드(Vector+BM25+CrossEncoder) + 타입게이트(맨 식재료→원재료 우선) + 생것 우선 + oil 강등 + name/macro-qualifier abstain 게이트 + FLOOR 0.48 + alias{닭가슴살→닭고기 가슴}
+- **eval**: `food_eval_labelset.json` 30케이스 → 27/30, 확신-틀림 0, abstain 6/6
+- **통합(AI)**: C2-AI parse-diet — source db/ai, per-nutrient hybrid(탄·지 null→AI 보완, kcal=DB 스케일), graceful
+- **통합(BE)**: C2-BE `resolveKcal` 3분기 — db→DB kcal / ai→4·4·9 / manual→입력값
+- **FE**: source 뱃지(DB/AI추정/직접입력) + 양→그램 표시. ※다영양소(당류·식이섬유·나트륨)는 N2-5로 보류
+- **의도된 보류**: 연어·오트밀·아메리카노 = AI fallback / 가공식품 제외로 저지방우유·두부·그릭요거트 등 abstain→AI
+
+#### 엔진 통합 정정 기록 (2026-06-20)
+
+FoodRAGEngine 선택 로직을 `match()` 단일화했다. 기존에는 게이트 판단이 eval-sim / `match()` / `diet_parser` 세 곳에 분산되어 있었고, eval이 sim 기반 점수로 정렬한 결과를 반환했다. 이 상태에서 `_food_gate()`가 `[best] + rest`(전체 풀)를 반환하면 `match()`의 unit_hint·결정적 정렬이 무의미해져 dish 항목이 raw 항목을 덮는 버그가 숨어 있었다. 통합 후 eval이 실제 `match()`를 호출하도록 일원화하고, `_food_gate()`는 필터된 후보만 반환(원재료 게이트 통과분 또는 정확 이름 일치분)하도록 수정했다. **진짜 기준선 = match() 기준 27/30, 확신-틀림 0, abstain 6/6** (eval=프로덕션 동일 경로). 이전 27/30은 sim 기반 정렬로 측정되어 프로덕션에서 확신-틀림 6건이 숨어 있었으며, 통합으로 해소됐다.
 
 **3순위 — 추가 목표 + 사진 입력 v2**
 
 | 티켓 | 설명 | 규모 | 의존성 |
 |------|------|------|--------|
-| **N2-5** 추가 영양소 목표 | sodium, fiber 등 → `nutrition_targets` 컬럼 확장 (스키마에 이미 예약됨) | S | N1-8 완료 |
-| **N3-1** 사진 입력 v2 | 이미지 → 비전 모델(Gemini 2.5 Flash) → ParseDietItem[] → 리뷰 UI → 저장 | L | N2-1, §9-7 런타임 확인 후 |
+| **N2-5** 추가 영양소 목표 | V9 diet_logs +sugar_g/fiber_g/sodium_mg(nullable), V10 nutrition_targets +sugar_max/fiber_min/sodium_max(nullable). 영양 목표 3필드(당류 상한·식이섬유 하한·나트륨 상한) 단일값 입력. DietSummaryCard 색상바 — 당류·나트륨 초과=빨강 / 식이섬유 미달=앰버 / 미설정=회색. null 정책: DB 매칭 항목에서만 채움(AI 추정 안 함). | S | N1-8 완료 | ✅ 완료(배포·검증) 2026-06-20 |
+| **N3-1** 사진 입력 v2 | 이미지 → 비전 모델(Gemini 2.5 Flash) → ParseDietItem[] → 리뷰 UI → 저장 | L | N2-1, §9-7 런타임 확인 후 | — |
 
-**4순위 — 달력 + 하루 상세 + 통계**
+**4순위 — 달력 + 하루 상세 + 통계** ✅ 완료(배포·검증) 2026-06-22
 
-| 티켓 | 설명 | 규모 | 의존성 |
-|------|------|------|--------|
-| **N2-3** 달력 뷰 | `NutritionCalendar.tsx` 신규, `GET /api/diet-logs/range?from=&to=` | L | N1-4 완료 |
-| **N2-4** 하루 상세 | `app/my/nutrition/[date]/page.tsx` — 끼니별 입력 항목 시간순 | M | N2-3 |
-| **N2-6** 통계 추세 | 주별/월별 매크로 추이 차트 | M | N2-3 |
+| 티켓 | 설명 | 규모 | 의존성 | 상태 |
+|------|------|------|--------|------|
+| **N2-3** 달력 뷰 | `NutritionCalendarSection.tsx` 신규, `GET /api/diet-logs/daily-summary?from=&to=` 재사용 (range 엔드포인트 별도 불필요). 월 그리드 + 이전/다음 달 네비 + 색상(초과=빨강/이내=초록/무기록=회색) | L | N1-4 완료 | ✅ |
+| **N2-4** 하루 상세 | 별도 페이지 대신 달력 날짜 클릭 시 하단 인라인 패널로 `NutritionTab`(date prop) 재사용. `key={selectedDate}` 리마운트로 날짜 전환 처리 | M | N2-3 | ✅ |
+| **N2-6** 통계 추세 | `NutritionTrendSection.tsx` 신규. 7/30일 토글 + recharts LineChart(kcal·탄단지) + null 갭(connectNulls=false) + 목표 ReferenceLine + 기록일 기준 평균 + kcal 달성률 | M | N2-3 | ✅ |
+
+#### N2-3/N2-4/N2-6 확정 구성 (2026-06-22 배포·검증)
+
+- **BE 신규**: `GET /api/diet-logs/daily-summary?from=&to=` — JPQL GROUP BY logDate, SUM(kcal·탄·단·지), COUNT. soft-delete(@SoftDelete) 자동 제외. KST grouping은 logDate(LocalDate) 기준이므로 별도 TZ 변환 불필요. 마이그레이션 없음(기존 diet_logs 테이블 재사용). `DietDailyAggregationResponse`(DTO) 신규.
+- **BE 재사용**: `GET /api/diet-logs/summary?date=` — 하루 상세 패널이 기존 엔드포인트 그대로 호출.
+- **FE NutritionCalendarSection**: 월 그리드(7열), 이전/다음 달 네비(연도 경계 포함), `getDailySummary(from, to)` 호출. 색상 결정: `kcalGoal` 설정 시 초과→`bg-red-400` / 이내→`bg-emerald-400`, 미설정·무기록→`bg-slate-100`. 날짜 클릭 시 하단에 `NutritionTab key={selectedDate} date={selectedDate}` 렌더링(사이드 패널 아님).
+- **FE NutritionTrendSection**: 기간 토글(7/30일), `addDays(today, -(period-1))` ~ today 범위. 전체 날짜 배열 생성 후 기록 없는 날 `null` 주입 → recharts `connectNulls={false}`로 갭 처리(0 찍기 금지). kcal 차트에 `kcalGoal` ReferenceLine(`strokeDasharray`). 탄단지 멀티 라인 차트(탄=amber/#fbbf24, 단=emerald/#34d399, 지=blue/#60a5fa). 평균·달성률은 `count > 0`인 날만 포함(무기록일 분모 제외). 목표 미설정 시 달성률 숨김.
+- **FE NutritionTab 변경**: `{ date?, onRefresh? }` props 추가. `resolvedDate = date ?? today`, `fetchData(resolvedDate)`로 임의 날짜 조회. `handleSaved`에서 `onRefresh?.()` 호출(달력·추세 재조회 연동). `defaultDate` prop을 `ManualEntryModal`에 전달(과거 날짜 직접 입력).
+- **결정 사항**: 다영양소(당류·식이섬유·나트륨) 추세 제외 — DB 매칭 항목에서만 채워지므로 부분치 추세가 의미 없음. 평균·달성률 = 기록일 기준(무기록일 분모 제외). 무기록일 = 갭(0 아님, 추세 왜곡 방지).
 
 **5순위 — TDEE 자동 목표**
 
@@ -556,8 +580,8 @@ const dietApiClient = {
 | 항목 | 결론 |
 |------|------|
 | **MVP 완료 상태** | Phase 0(N0-1~4) + Phase 1(N1-1~10) 전체 구현 완료 (2026-06-17). 영양 탭·대시보드·수동입력·목표설정·진행바·인증가드 운영 중 |
-| **v1.x 최우선** | 항목 수정/삭제 UI + Ollama 헬스체크 개선 (1순위) → 음식 RAG (2순위) |
-| **음식 RAG 재활용** | 임베딩 모델·검색 엔진 구조 재사용 가능. 데이터셋(식약처 공공 식품 DB) 신규 구축 필요. 현재 `_FOOD_PER_100G` 12종 테이블이 LLM null 보충으로 사용 중 |
+| **v1.x 최우선** | ~~항목 수정/삭제 UI + Ollama 헬스체크 개선 (1순위)~~ ✅ 완료 2026-06-17 → ~~음식 RAG (2순위)~~ ✅ 완료 2026-06-19 → ~~추가 영양소 목표 N2-5 (3순위)~~ ✅ 완료 2026-06-20 → ~~달력·하루상세·통계 추세 N2-3/4/6 (4순위)~~ ✅ 완료 2026-06-22 → **잔여: 사진 입력 v2 (N3-1) + TDEE 자동 목표 (N2-7)** |
+| **음식 RAG / 엔진** | ✅ 완료 2026-06-19. `food_db_clean.csv` 19,891행 적재, `FoodRAGEngine` 하이브리드+타입게이트, eval 27/30(확신-틀림 0, abstain 6/6) — 엔진 통합 정정으로 eval=프로덕션 동일 경로 확인. 연어·오트밀·아메리카노·가공식품류는 abstain→AI(의도된 보류) |
 | **내비 재편** | ✅ 완료. `MyPageContent.tsx` TabId + tabs 배열 수정, `WorkoutTab.tsx` 신규로 루틴·운동이력 통합 |
 | **대시보드 데이터** | ✅ 완료. `DietSummaryCard.tsx` — `dietApiClient.getToday()` + kcal 진행 바 연결 |
 | **체조성 → TDEE** | `user_profiles.body_weight_kg`, `body_fat_pct`, `gender`, `birth_date`, `training_days_per_week` 모두 BE에 존재. TDEE 공식(Mifflin-St Jeor) 확정 후 N2-7로 진행 가능 |
