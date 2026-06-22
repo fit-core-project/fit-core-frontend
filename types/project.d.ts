@@ -192,6 +192,9 @@ export interface DietLogResponse {
     proteinG?: number | null
     carbsG?: number | null
     fatG?: number | null
+    sugarG?: number | null
+    fiberG?: number | null
+    sodiumMg?: number | null
     source: string
     createdAt?: string
 }
@@ -202,7 +205,19 @@ export interface DietSummaryResponse {
     totalProteinG: number
     totalCarbsG: number
     totalFatG: number
+    totalSugarG?: number | null
+    totalFiberG?: number | null
+    totalSodiumMg?: number | null
     items: DietLogResponse[]
+}
+
+export interface DietDailyAggregationResponse {
+    date: string // "YYYY-MM-DD"
+    totalKcal: number
+    totalCarbsG: number
+    totalProteinG: number
+    totalFatG: number
+    count: number
 }
 
 export interface NutritionTarget {
@@ -213,4 +228,7 @@ export interface NutritionTarget {
     carbsGMax?: number | null
     fatGMin?: number | null
     fatGMax?: number | null
+    sugarMax?: number | null
+    fiberMin?: number | null
+    sodiumMax?: number | null
 }

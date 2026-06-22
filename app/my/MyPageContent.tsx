@@ -12,6 +12,8 @@ import profileApiClient from "@/lib/api/profile/profileApiClient"
 import BodyCompositionPage from "@/app/my/body-composition/BodyComposition"
 import AttendanceSection from "@/app/my/stats/AttendanceSection"
 import PrSection from "@/app/my/stats/PrSection"
+import NutritionCalendarSection from "@/app/my/stats/NutritionCalendarSection"
+import NutritionTrendSection from "@/app/my/stats/NutritionTrendSection"
 import SettingsPanel from "@/app/my/settings/Settings"
 import WorkoutTab from "@/app/my/workout/WorkoutTab"
 import NutritionTab from "@/app/my/nutrition/NutritionTab"
@@ -126,6 +128,8 @@ export default function MyPageContent() {
                         <BodyCompositionPage profile={profile} onSave={onBodyCompositionSave} />
                         <AttendanceSection />
                         <PrSection />
+                        <NutritionTrendSection />
+                        <NutritionCalendarSection />
                     </>
                 )}
                 {activeTab === "workout" && <WorkoutTab />}

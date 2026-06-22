@@ -1,5 +1,5 @@
 import AxiosController from "@/lib/axios/AxiosController"
-import type { DietLogRequest, DietLogResponse, DietSummaryResponse } from "@/types/project"
+import type { DietDailyAggregationResponse, DietLogRequest, DietLogResponse, DietSummaryResponse } from "@/types/project"
 import { DEMO_DIETS_STORAGE_KEY, deleteDemoDiet, getDemoDietSummary, isDemoMode, updateDemoDiet } from "@/utils/demoMode"
 
 const PROTEIN_KCAL = 4
@@ -100,6 +100,11 @@ const dietApiClient = {
             : AxiosController.get<DietSummaryResponse>(`/api/diet-logs/summary?date=${date}`),
 
     getToday: (): Promise<DietSummaryResponse> => dietApiClient.getSummary(getKstDate()),
+
+    getDailySummary: (from: string, to: string): Promise<DietDailyAggregationResponse[]> =>
+        isDemoMode()
+            ? Promise.resolve([])
+            : AxiosController.get<DietDailyAggregationResponse[]>(`/api/diet-logs/daily-summary?from=${from}&to=${to}`),
 }
 
 export default dietApiClient

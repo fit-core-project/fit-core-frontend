@@ -1,11 +1,15 @@
 "use client"
 
-import { startTransition, useCallback, useEffect, useState } from "react"
+import { startTransition, useCallback, useEffect, useMemo, useState } from "react"
 import { Plus, Utensils } from "lucide-react"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
 import type { DietLogResponse, DietSummaryResponse, NutritionTarget } from "@/types/project"
 import ManualEntryModal from "@/app/my/nutrition/ManualEntryModal"
+
+function getKstToday(): string {
+    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
 
 const MEAL_ORDER: Record<string, number> = {
     breakfast: 0,
@@ -19,6 +23,14 @@ const MEAL_LABEL: Record<string, string> = {
     lunch: "점심",
     dinner: "저녁",
     snack: "간식",
+}
+
+function SourceBadge({ source }: { source?: string | null }) {
+    if (source === "db")
+        return <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">DB</span>
+    if (source === "manual")
+        return <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-500">직접입력</span>
+    return <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600">AI추정</span>
 }
 
 function getMealLabel(mealType: string | null | undefined): string {
@@ -104,7 +116,16 @@ function macroGoalText(min: number | null | undefined, max: number | null | unde
     return null
 }
 
-export default function NutritionTab() {
+interface NutritionTabProps {
+    date?: string
+    onRefresh?: () => void
+}
+
+export default function NutritionTab({ date, onRefresh }: NutritionTabProps = {}) {
+    const today = getKstToday()
+    const resolvedDate = useMemo(() => date ?? today, [date, today])
+    const isToday = resolvedDate === today
+
     const [summary, setSummary] = useState<DietSummaryResponse | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
@@ -112,21 +133,26 @@ export default function NutritionTab() {
     const [editItem, setEditItem] = useState<DietLogResponse | null>(null)
     const [target, setTarget] = useState<NutritionTarget | null>(null)
 
-    const fetchToday = useCallback(() => {
+    const fetchData = useCallback(() => {
         startTransition(() => {
             setLoading(true)
             setError(false)
         })
         dietApiClient
-            .getToday()
+            .getSummary(resolvedDate)
             .then((data) => startTransition(() => setSummary(data)))
             .catch(() => startTransition(() => setError(true)))
             .finally(() => startTransition(() => setLoading(false)))
-    }, [])
+    }, [resolvedDate])
+
+    const handleSaved = useCallback(() => {
+        fetchData()
+        onRefresh?.()
+    }, [fetchData, onRefresh])
 
     useEffect(() => {
-        fetchToday()
-    }, [fetchToday])
+        fetchData()
+    }, [fetchData])
 
     useEffect(() => {
         nutritionTargetApiClient.getTarget().then((t) => startTransition(() => setTarget(t)))
@@ -184,7 +210,7 @@ export default function NutritionTab() {
                 <p className="text-sm">데이터를 불러오지 못했습니다.</p>
                 <button
                     type="button"
-                    onClick={fetchToday}
+                    onClick={fetchData}
                     className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white"
                 >
                     다시 시도
@@ -201,14 +227,15 @@ export default function NutritionTab() {
         {showModal && (
             <ManualEntryModal
                 onClose={() => setShowModal(false)}
-                onSaved={fetchToday}
+                onSaved={handleSaved}
+                defaultDate={resolvedDate}
             />
         )}
         {editItem && (
             <ManualEntryModal
                 editItem={editItem}
                 onClose={() => setEditItem(null)}
-                onSaved={fetchToday}
+                onSaved={handleSaved}
             />
         )}
         <div className="space-y-4">
@@ -313,15 +340,17 @@ export default function NutritionTab() {
             {isEmpty ? (
                 <div className="flex flex-col items-center justify-center gap-4 rounded-2xl bg-white py-12 shadow-sm">
                     <Utensils size={32} strokeWidth={1.5} className="text-slate-300" />
-                    <p className="text-sm text-slate-400">오늘 기록이 없어요</p>
-                    <button
-                        type="button"
-                        onClick={() => setShowModal(true)}
-                        className="flex items-center gap-1.5 rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white"
-                    >
-                        <Plus size={14} />
-                        첫 식단 기록하기
-                    </button>
+                    <p className="text-sm text-slate-400">{isToday ? "오늘 기록이 없어요" : `${resolvedDate} 기록이 없어요`}</p>
+                    {isToday && (
+                        <button
+                            type="button"
+                            onClick={() => setShowModal(true)}
+                            className="flex items-center gap-1.5 rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white"
+                        >
+                            <Plus size={14} />
+                            첫 식단 기록하기
+                        </button>
+                    )}
                 </div>
             ) : (
                 <>
@@ -338,13 +367,25 @@ export default function NutritionTab() {
                                             onClick={() => setEditItem(item)}
                                         >
                                             <div className="min-w-0 flex-1">
-                                                <p className="truncate text-sm font-semibold text-slate-800">
-                                                    {item.foodName}
-                                                </p>
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <p className="truncate text-sm font-semibold text-slate-800">
+                                                        {item.foodName}
+                                                    </p>
+                                                    <SourceBadge source={item.source} />
+                                                </div>
                                                 <p className="text-xs text-slate-400">
                                                     {amount && `${amount} · `}탄 {item.carbsG ?? 0}g · 단{" "}
                                                     {item.proteinG ?? 0}g · 지 {item.fatG ?? 0}g
                                                 </p>
+                                                {(item.sugarG != null || item.fiberG != null || item.sodiumMg != null) && (
+                                                    <p className="text-xs text-slate-400">
+                                                        {[
+                                                            item.sugarG != null && `당 ${item.sugarG}g`,
+                                                            item.fiberG != null && `섬유 ${item.fiberG}g`,
+                                                            item.sodiumMg != null && `나트 ${item.sodiumMg}mg`,
+                                                        ].filter(Boolean).join(" · ")}
+                                                    </p>
+                                                )}
                                             </div>
                                             <span className="ml-3 shrink-0 text-sm font-bold text-slate-600">
                                                 {item.kcal}

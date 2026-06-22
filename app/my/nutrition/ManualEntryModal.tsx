@@ -11,6 +11,7 @@ interface Props {
     onClose: () => void
     onSaved: () => void
     editItem?: DietLogResponse
+    defaultDate?: string
 }
 
 const INPUT_CLS =
@@ -33,7 +34,7 @@ function computePreviewKcal(protein: string, carbs: string, fat: string): number
     return Math.round((isNaN(p) ? 0 : p) * 4 + (isNaN(c) ? 0 : c) * 4 + (isNaN(f) ? 0 : f) * 9)
 }
 
-export default function ManualEntryModal({ onClose, onSaved, editItem }: Props) {
+export default function ManualEntryModal({ onClose, onSaved, editItem, defaultDate }: Props) {
     const isEdit = !!editItem
     const [foodName, setFoodName] = useState(editItem?.foodName ?? "")
     const [mealType, setMealType] = useState(editItem?.mealType ?? "")
@@ -60,7 +61,7 @@ export default function ManualEntryModal({ onClose, onSaved, editItem }: Props) 
     const canSave = foodName.trim() !== "" && (hasMacro || hasKcal)
 
     const buildReq = (): DietLogRequest => ({
-        logDate: editItem?.logDate ?? getKstDate(),
+        logDate: editItem?.logDate ?? defaultDate ?? getKstDate(),
         mealType: mealType || null,
         loggedAt: loggedAt || null,
         foodName: foodName.trim(),
