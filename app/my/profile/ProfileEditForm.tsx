@@ -107,7 +107,7 @@ const PAIN_AREA_LABELS: Record<string, string> = {
     abductors: "외전근",
 }
 
-const INPUT_CLS = "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+const INPUT_CLS = "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm text-slate-900 placeholder:text-slate-400"
 const SELECT_CLS = `${INPUT_CLS} appearance-none cursor-pointer`
 
 interface ProfileEditFormProps {
@@ -702,7 +702,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                                                 handleStrengthBaselineChange(item.exerciseId, "workingWeightKg", inKg)
                                                 void trigger(weightField)
                                             }}
-                                            className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
+                                            className="w-full px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
                                         />
                                         {errors.strengthBaseline &&
                                             Array.isArray(errors.strengthBaseline) &&
@@ -725,7 +725,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                                                 handleStrengthBaselineChange(item.exerciseId, "reps", e.target.value)
                                                 void trigger(repsField)
                                             }}
-                                            className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
+                                            className="w-full px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:outline-none"
                                         />
                                         {errors.strengthBaseline &&
                                             Array.isArray(errors.strengthBaseline) &&
@@ -784,7 +784,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                                                 placeholder={`${PAIN_AREA_LABELS[item.area] || item.area} 부상 설명`}
                                                 value={item.note}
                                                 onChange={(e) => handleNoteChange(item.area, e.target.value)}
-                                                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-300 focus:outline-none"
+                                                className="w-full px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-300 focus:outline-none"
                                             />
                                         </div>
                                     ))}
