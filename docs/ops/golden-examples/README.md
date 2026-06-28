@@ -1,11 +1,19 @@
 # Golden API Fixture Pack v3.0
 
+> Frontend local copy notice:
+> This directory is a local copy of the root `docs/ops/golden-examples/` fixture pack.
+> The canonical SSOT is the root `docs/ops/golden-examples/` directory.
+> This frontend copy exists only for FE tests, MSW handlers, and dev tooling convenience.
+> Golden JSON changes must be made in the root SSOT first, then copied or generated into this directory.
+> Directly editing only the FE copy is prohibited because it creates drift.
+> Backend `RoutineContractTest` is also aligned to the root fixture pack.
+
 Created: 2026-05-19
 Status: active
 
 ## Purpose
 
-This folder is the public API fixture source of truth for Fit-Core routine generation, draft update, finalize, and workout save flows.
+This folder mirrors the public API fixture pack for Fit-Core routine generation, draft update, finalize, and workout save flows. The canonical source of truth is the root `docs/ops/golden-examples/` directory.
 
 ## v3.0 Decisions
 

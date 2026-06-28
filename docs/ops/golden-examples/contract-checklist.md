@@ -6,15 +6,22 @@
 - [ ] FE sends `readinessLevel`, defaulting to `"normal"`.
 - [ ] FE sends lowercase `goal`: `strength`, `hypertrophy`, or `endurance`.
 - [ ] FE sends `currentPainAreas` and `currentDoms`, not `bodyPartConditions`.
-- [ ] FE sends `unavailableEquipment` as a blacklist.
+- [ ] FE sends `unavailableEquipment` as a blacklist (equipment the user **cannot** use, not a list of permitted equipment).
 
 ## Backend Adapter
 
 - [ ] BE preserves public `currentPainAreas` values when building AI `painAreas`.
 - [ ] BE preserves public `currentDoms[].bodyPart` values when building AI `domsData`; it only converts DOMS level text to integers.
-- [ ] BE maps public `unavailableEquipment` to AI `equipment`.
+- [ ] BE maps public `unavailableEquipment` to AI `equipment` without inversion.
 - [ ] BE never exposes `bodyPartConditions[]` as public request.
 - [ ] BE owns authoritative `routineDraftId`.
+
+## Equipment Filtering Policy
+
+- `unavailableEquipment` is a **blacklist**. Exercises are excluded when their `equipment_req` token appears in this list.
+- This is NOT an allowlist. An exercise requiring equipment NOT in `unavailableEquipment` is always permitted.
+- BODYWEIGHT exercises are always permitted regardless of `unavailableEquipment` contents.
+- This policy applies at every layer: FE request assembly, BE adapter, AI candidate query, AI post-validation guard, and BE fallback candidate selection.
 
 ## AI Pain Filtering
 

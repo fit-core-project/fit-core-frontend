@@ -15,5 +15,7 @@
   },
   "equipment": ["MACHINE"],
   "goal": "hypertrophy",
-  "userNote": "오늘은 어깨 무리 없이 진행하고 싶음"
+  "userNote": "오늘은 어깨 무리 없이 진행하고 싶음",
+  "preferredExerciseIds": [],
+  "unpreferredExerciseIds": []
 }

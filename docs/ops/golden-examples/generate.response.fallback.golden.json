@@ -3,92 +3,28 @@
   "generationStatus": "fallback",
   "statusReasonCode": "llmTimeout",
   "isFallback": true,
-  "totalEstimatedTime": 35,
-  "summaryTitle": "기본 Push 안전 루틴",
+  "totalEstimatedTime": 5,
+  "summaryTitle": "안전 대체 루틴",
   "rationaleSummary": [
-    "AI 응답이 제한 시간 안에 오지 않아 규칙 기반 기본 루틴으로 전환했다.",
-    "사용 불가 장비와 오늘 컨디션을 반영해 수행 가능한 운동만 남겼다."
+    "AI 서버 응답을 사용할 수 없어 exercise_tier 카탈로그에서 요청 부위와 제한 조건을 반영한 안전 대체 운동을 선택했습니다."
   ],
   "warnings": [
-    "fallback 루틴은 안전 우선 기본안이다. 컨디션이 좋지 않으면 1세트 감량한다."
+    "통증이 있거나 불편하면 즉시 중단하고 프로필의 부상 부위를 확인하세요."
   ],
   "routineBlocks": [
     {
       "order": 1,
-      "exerciseId": "push_up",
+      "exerciseId": "117",
       "exerciseName": "Push-up",
-      "movementPattern": "horizontalPush",
-        "primaryMuscles": ["chest", "triceps", "front-deltoids"],
-      "equipmentType": "BODYWEIGHT",
-      "defaultRestSec": 90,
-      "exerciseRationale": "장비 의존도를 낮춘 기본 push 운동이며 컨디션에 맞게 강도를 조절하기 쉽다.",
-      "substitutionCandidates": [
-        {
-          "exerciseId": "incline_push_up",
-          "exerciseName": "Incline Push-up",
-          "reason": "어깨나 가슴 부담이 크면 난도를 낮출 수 있다."
-        }
-      ],
-      "prescription": [
-        {
-          "setIndex": 1,
-          "setType": "working",
-          "targetReps": 12,
-          "targetWeightKg": null,
-          "targetRir": 3,
-          "targetRestSec": 90
-        },
-        {
-          "setIndex": 2,
-          "setType": "working",
-          "targetReps": 10,
-          "targetWeightKg": null,
-          "targetRir": 2,
-          "targetRestSec": 90
-        },
-        {
-          "setIndex": 3,
-          "setType": "working",
-          "targetReps": 10,
-          "targetWeightKg": null,
-          "targetRir": 2,
-          "targetRestSec": 90
-        }
-      ]
-    },
-    {
-      "order": 2,
-      "exerciseId": "bench_dip",
-      "exerciseName": "Bench Dip",
-      "movementPattern": "elbowExtension",
-      "primaryMuscles": ["triceps"],
+      "movementPattern": null,
+      "primaryMuscles": ["chest", "triceps"],
       "equipmentType": "BODYWEIGHT",
       "defaultRestSec": 75,
-      "exerciseRationale": "삼두 보조 자극을 제공하되 머신 장비 없이 수행할 수 있다.",
-      "substitutionCandidates": [
-        {
-          "exerciseId": "close_grip_push_up",
-          "exerciseName": "Close Grip Push-up",
-          "reason": "벤치가 없을 때 삼두 자극을 유지할 수 있다."
-        }
-      ],
+      "exerciseRationale": "AI 응답 실패 시에도 부상 부위를 피하도록 구성한 저위험 대체 운동입니다.",
+      "substitutionCandidates": [],
       "prescription": [
-        {
-          "setIndex": 1,
-          "setType": "working",
-          "targetReps": 10,
-          "targetWeightKg": null,
-          "targetRir": 3,
-          "targetRestSec": 75
-        },
-        {
-          "setIndex": 2,
-          "setType": "working",
-          "targetReps": 8,
-          "targetWeightKg": null,
-          "targetRir": 2,
-          "targetRestSec": 75
-        }
+        { "setIndex": 1, "setType": "working", "targetReps": 10, "targetWeightKg": null, "targetRir": 3, "targetRestSec": 75 },
+        { "setIndex": 2, "setType": "working", "targetReps": 10, "targetWeightKg": null, "targetRir": 3, "targetRestSec": 75 }
       ]
     }
   ]
