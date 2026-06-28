@@ -326,13 +326,12 @@ export default function RoutineReviewPage() {
             const finalId = await routineApiClient.finalize(draft.routineDraftId, payload)
             if (finalId) localStorage.setItem("fitcore_routine_final_id", finalId)
             setFinalizeStatus("finalized")
+            router.push("/ai_routine/player")
         } catch (err) {
-            console.error("[draft] finalize failed — navigating without finalId:", err)
+            console.error("[draft] finalize failed:", err)
             localStorage.removeItem("fitcore_routine_final_id")
             setFinalizeStatus("failed")
         }
-
-        router.push("/ai_routine/player")
     }
 
     const handleBack = () => {
@@ -505,6 +504,11 @@ export default function RoutineReviewPage() {
                 {!isRoutineValid && (
                     <p className="text-center text-xs text-red-500 font-bold mb-2">
                         세트 값이 유효하지 않습니다 (횟수 1~50, 무게 0~500, 휴식 0~600초)
+                    </p>
+                )}
+                {finalizeStatus === "failed" && (
+                    <p className="text-center text-xs text-red-500 font-bold mb-2">
+                        Routine save failed. Please try again.
                     </p>
                 )}
                 <button
