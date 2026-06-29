@@ -36,6 +36,9 @@ export const useAuthStore = create<AuthState>()(
             setToken: (token: string) => {
                 const decoded = jwtDecode<FitCoreJwt>(token)
                 if (!decoded.demo) clearDemoSession()
+                if (typeof document !== "undefined") {
+                    document.cookie = `fit-core-role=${decoded.auth}; Path=/; SameSite=Lax`
+                }
                 set({
                     token,
                     user: {
@@ -47,9 +50,17 @@ export const useAuthStore = create<AuthState>()(
             },
             logout: () => {
                 clearDemoSession()
+                if (typeof document !== "undefined") {
+                    document.cookie = "fit-core-role=; Path=/; Max-Age=0"
+                }
                 set({ token: null, user: null })
             },
-            clearToken: () => set({ token: null }),
+            clearToken: () => {
+                if (typeof document !== "undefined") {
+                    document.cookie = "fit-core-role=; Path=/; Max-Age=0"
+                }
+                set({ token: null })
+            },
         }),
         {
             name: "auth-storage",
