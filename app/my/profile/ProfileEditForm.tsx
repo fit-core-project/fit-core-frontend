@@ -156,6 +156,9 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
         carbsGMax: "",
         fatGMin: "",
         fatGMax: "",
+        sugarMax: "",
+        fiberMin: "",
+        sodiumMax: "",
     })
     const [isSavingTarget, setIsSavingTarget] = useState(false)
     const {
@@ -193,6 +196,9 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                     carbsGMax: target.carbsGMax != null ? String(target.carbsGMax) : "",
                     fatGMin: target.fatGMin != null ? String(target.fatGMin) : "",
                     fatGMax: target.fatGMax != null ? String(target.fatGMax) : "",
+                    sugarMax: target.sugarMax != null ? String(target.sugarMax) : "",
+                    fiberMin: target.fiberMin != null ? String(target.fiberMin) : "",
+                    sodiumMax: target.sodiumMax != null ? String(target.sodiumMax) : "",
                 })
             }
         })
@@ -230,6 +236,9 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                 carbsGMax: carbsMax,
                 fatGMin: fatMin,
                 fatGMax: fatMax,
+                sugarMax: toNum(targetForm.sugarMax),
+                fiberMin: toNum(targetForm.fiberMin),
+                sodiumMax: targetForm.sodiumMax !== "" ? Math.round(parseFloat(targetForm.sodiumMax)) : null,
             }
             await nutritionTargetApiClient.saveTarget(req)
             toast.success("영양 목표가 저장되었습니다.")
@@ -645,6 +654,48 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                                 className={INPUT_CLS}
                             />
                         </div>
+                    </div>
+
+                    {/* 당류 상한 */}
+                    <div className="space-y-0.5">
+                        <label className="text-xs font-semibold text-slate-500">당류 상한 (g)</label>
+                        <input
+                            type="number"
+                            step="any"
+                            min={0}
+                            value={targetForm.sugarMax}
+                            onChange={(e) => setTargetForm((prev) => ({ ...prev, sugarMax: e.target.value }))}
+                            placeholder="예: 50"
+                            className={INPUT_CLS}
+                        />
+                    </div>
+
+                    {/* 식이섬유 하한 */}
+                    <div className="space-y-0.5">
+                        <label className="text-xs font-semibold text-slate-500">식이섬유 하한 (g)</label>
+                        <input
+                            type="number"
+                            step="any"
+                            min={0}
+                            value={targetForm.fiberMin}
+                            onChange={(e) => setTargetForm((prev) => ({ ...prev, fiberMin: e.target.value }))}
+                            placeholder="예: 25"
+                            className={INPUT_CLS}
+                        />
+                    </div>
+
+                    {/* 나트륨 상한 */}
+                    <div className="space-y-0.5">
+                        <label className="text-xs font-semibold text-slate-500">나트륨 상한 (mg)</label>
+                        <input
+                            type="number"
+                            step="1"
+                            min={0}
+                            value={targetForm.sodiumMax}
+                            onChange={(e) => setTargetForm((prev) => ({ ...prev, sodiumMax: e.target.value }))}
+                            placeholder="예: 2000"
+                            className={INPUT_CLS}
+                        />
                     </div>
 
                     <p className="text-[11px] text-slate-400">빈 칸은 미설정으로 처리됩니다. 부분 설정 허용.</p>

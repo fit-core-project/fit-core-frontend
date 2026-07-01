@@ -16,6 +16,26 @@ function kcalBarColor(current: number, goal: number | null | undefined): string 
     return current > goal ? "bg-red-400" : "bg-emerald-400"
 }
 
+function upperBarColor(current: number, max: number | null | undefined): string {
+    if (max == null) return "bg-slate-300"
+    return current > max ? "bg-red-400" : "bg-emerald-400"
+}
+
+function upperBarPct(current: number, max: number | null | undefined): number {
+    if (!max) return 0
+    return Math.min((current / max) * 100, 100)
+}
+
+function fiberBarColor(current: number, min: number | null | undefined): string {
+    if (min == null) return "bg-slate-300"
+    return current < min ? "bg-amber-400" : "bg-emerald-400"
+}
+
+function fiberBarPct(current: number, min: number | null | undefined): number {
+    if (!min) return 0
+    return Math.min((current / min) * 100, 100)
+}
+
 export default function DietSummaryCard() {
     const router = useRouter()
     const [summary, setSummary] = useState<DietSummaryResponse | null>(null)
@@ -125,6 +145,63 @@ export default function DietSummaryCard() {
                                 <span className="text-[10px] text-slate-400 ml-0.5">g</span>
                             </span>
                         </div>
+                    </div>
+
+                    {/* 추가 영양소 소섹션 */}
+                    <div className="mt-4 border-t border-slate-100 pt-3">
+                        <div className="flex justify-around">
+                            <div className="flex flex-col items-center w-1/3 px-2">
+                                <span className="text-[10px] text-slate-400">당류</span>
+                                <span className="text-xs font-semibold text-slate-700">
+                                    {Number(summary?.totalSugarG ?? 0)}
+                                    <span className="text-[10px] font-normal text-slate-400 ml-0.5">g</span>
+                                </span>
+                                {target?.sugarMax != null && (
+                                    <span className="text-[10px] text-slate-400">~{target.sugarMax}g</span>
+                                )}
+                                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                        className={`h-full rounded-full transition-all duration-500 ${upperBarColor(Number(summary?.totalSugarG ?? 0), target?.sugarMax)}`}
+                                        style={{ width: `${upperBarPct(Number(summary?.totalSugarG ?? 0), target?.sugarMax)}%` }}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-center w-1/3 px-2">
+                                <span className="text-[10px] text-slate-400">식이섬유</span>
+                                <span className="text-xs font-semibold text-slate-700">
+                                    {Number(summary?.totalFiberG ?? 0)}
+                                    <span className="text-[10px] font-normal text-slate-400 ml-0.5">g</span>
+                                </span>
+                                {target?.fiberMin != null && (
+                                    <span className="text-[10px] text-slate-400">{target.fiberMin}g~</span>
+                                )}
+                                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                        className={`h-full rounded-full transition-all duration-500 ${fiberBarColor(Number(summary?.totalFiberG ?? 0), target?.fiberMin)}`}
+                                        style={{ width: `${fiberBarPct(Number(summary?.totalFiberG ?? 0), target?.fiberMin)}%` }}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-center w-1/3 px-2">
+                                <span className="text-[10px] text-slate-400">나트륨</span>
+                                <span className="text-xs font-semibold text-slate-700">
+                                    {summary?.totalSodiumMg ?? 0}
+                                    <span className="text-[10px] font-normal text-slate-400 ml-0.5">mg</span>
+                                </span>
+                                {target?.sodiumMax != null && (
+                                    <span className="text-[10px] text-slate-400">~{target.sodiumMax}mg</span>
+                                )}
+                                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                        className={`h-full rounded-full transition-all duration-500 ${upperBarColor(summary?.totalSodiumMg ?? 0, target?.sodiumMax)}`}
+                                        style={{ width: `${upperBarPct(summary?.totalSodiumMg ?? 0, target?.sodiumMax)}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <p className="mt-2 text-[10px] text-slate-300 text-center">
+                            당류·식이섬유·나트륨은 DB 매칭 항목만 집계
+                        </p>
                     </div>
                 </div>
             )}

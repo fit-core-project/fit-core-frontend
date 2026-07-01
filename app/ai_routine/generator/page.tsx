@@ -21,6 +21,7 @@ import { generateRoutine } from "@/services/aiRoutineService"
 import { GenerateState } from "@/types/state"
 
 type Equipment = "BARBELL" | "DUMBBELL" | "MACHINE" | "CABLE" | "BODYWEIGHT"
+const DEFAULT_AVAILABLE_EQUIPMENT: Equipment[] = ["BARBELL", "DUMBBELL", "MACHINE", "CABLE", "BODYWEIGHT"]
 
 const LOADING_MESSAGES = [
     "근육들이 긴급 회의를 소집했습니다...",
@@ -71,7 +72,7 @@ export default function RoutineGenerator() {
 
     const [formData, setFormData] = useState<RoutineFormState>({
         targetMuscles: [],
-        equipment: ["BODYWEIGHT"],
+        equipment: DEFAULT_AVAILABLE_EQUIPMENT,
         timeAvailable: 60,
         painAreas: [],
         domsData: {},

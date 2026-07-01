@@ -16,6 +16,8 @@ interface ParseDietItem {
     fat_g?: number | null
     meal_type?: string | null
     time_of_day?: string | null
+    source?: "db" | "ai" | "manual" | null
+    kcal?: number | null
 }
 
 interface ParsedDietData {
@@ -35,7 +37,7 @@ const GRAM_UNITS = new Set(["g", "gram", "grams", "그램", "그람"])
 const QUICK_LOG_MESSAGES = [
     "냉장고 속 음식들이 긴장하고 있습니다...",
     "영양 성분표를 돋보기로 분석 중입니다...",
-    "오늘의 치팅을 근육으로 승화시키는 설계 중...",
+    "오늘 먹은 음식의 칼로리를 열심히 계산 중입니다...",
     "단백질 섭취량이 부족한지 매의 눈으로 체크 중...",
     "식단 기록을 보고 트레이너가 미소 짓게 만드는 중...",
     "방금 먹은 음식의 매크로를 분해 중입니다...",
@@ -43,6 +45,14 @@ const QUICK_LOG_MESSAGES = [
 
 function getKstDate(): string {
     return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
+function SourceBadge({ source }: { source?: "db" | "ai" | "manual" | null }) {
+    if (source === "db")
+        return <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">DB</span>
+    if (source === "manual")
+        return <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-500">직접입력</span>
+    return <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600">AI추정</span>
 }
 
 function mealTypeLabel(mealType: string | null | undefined): string {
@@ -60,6 +70,7 @@ function toDietLogRequests(items: ParseDietItem[]): DietLogRequest[] {
         const isGram = GRAM_UNITS.has(unitLower)
         const amountG = isGram && item.amount != null ? item.amount : null
         const amountRaw = item.amount != null && item.unit ? `${item.amount}${item.unit}` : null
+        const source = (item.source ?? "ai") as DietLogRequest["source"]
         return {
             logDate,
             mealType: item.meal_type ?? null,
@@ -70,8 +81,8 @@ function toDietLogRequests(items: ParseDietItem[]): DietLogRequest[] {
             proteinG: item.protein_g ?? null,
             carbsG: item.carbs_g ?? null,
             fatG: item.fat_g ?? null,
-            kcal: null,
-            source: "ai" as const,
+            kcal: source === "db" ? (item.kcal ?? null) : null,
+            source,
         }
     })
 }
@@ -305,13 +316,18 @@ export default function QuickLogPage() {
                                                     }`}
                                                 >
                                                     <div>
-                                                        <div className="font-bold text-slate-700">{item.food_name}</div>
-                                                        {(item.meal_type || item.time_of_day) && (
-                                                            <div className="text-[11px] text-slate-400 mt-0.5">
-                                                                {mealTypeLabel(item.meal_type)}
-                                                                {item.time_of_day ? ` · ${item.time_of_day}` : ""}
-                                                            </div>
-                                                        )}
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <span className="font-bold text-slate-700">{item.food_name}</span>
+                                                            <SourceBadge source={item.source} />
+                                                        </div>
+                                                        <div className="text-[11px] text-slate-400 mt-0.5">
+                                                            {item.amount != null && item.unit && (
+                                                                <span>{item.amount}{item.unit}</span>
+                                                            )}
+                                                            {item.amount != null && item.unit && (item.meal_type || item.time_of_day) && " · "}
+                                                            {mealTypeLabel(item.meal_type)}
+                                                            {item.time_of_day ? ` · ${item.time_of_day}` : ""}
+                                                        </div>
                                                     </div>
                                                     <div className="text-right">
                                                         {!noMacro ? (
@@ -328,12 +344,6 @@ export default function QuickLogPage() {
                                                                     저장 제외 · 직접 입력 필요
                                                                 </div>
                                                             </>
-                                                        )}
-                                                        {item.amount != null && item.unit && (
-                                                            <div className="text-[10px] text-slate-400 mt-0.5">
-                                                                {item.amount}
-                                                                {item.unit}
-                                                            </div>
                                                         )}
                                                     </div>
                                                 </div>

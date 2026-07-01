@@ -27,6 +27,9 @@ export const demoNutritionTarget: NutritionTarget = {
     carbsGMax: 260,
     fatGMin: 50,
     fatGMax: 70,
+    sugarMax: 50,
+    fiberMin: 25,
+    sodiumMax: 2000,
 }
 
 const allEquipment = ["BARBELL", "DUMBBELL", "MACHINE", "CABLE", "BODYWEIGHT"]

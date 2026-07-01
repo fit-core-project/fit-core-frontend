@@ -1,5 +1,6 @@
 "use client"
 import React, { useState } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { UserResponse } from "@/types/project"
 import { Edit3, ShieldCheck, User, X } from "lucide-react"
@@ -133,9 +134,12 @@ export default function Profile({ profile, logout, onEdit }: ProfileProps) {
                     </button>
 
                     {/* 확대된 이미지 (w 크기 최대로 잡음) */}
-                    <img
+                    <Image
                         src={profile.profileImageUrl}
                         alt="Profile Zoomed"
+                        width={1200}
+                        height={1200}
+                        unoptimized
                         className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
                         onClick={(e) => e.stopPropagation()} // 이미지 클릭 시 닫힘 방지
                     />

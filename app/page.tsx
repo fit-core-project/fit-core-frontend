@@ -101,7 +101,7 @@ export default function HomePage() {
                             </div>
                             <div className="flex-1">
                                 <p className="text-base font-bold text-slate-800">퀵 로깅</p>
-                                <p className="text-xs text-slate-500 mt-0.5">자연어로 식단 및 운동 기록</p>
+                                <p className="text-xs text-slate-500 mt-0.5">자연어로 식단 기록</p>
                             </div>
                             <div className="text-slate-300">
                                 <svg

@@ -1,4 +1,5 @@
 import React from "react"
+import Image from "next/image"
 
 interface SocialButtonProps {
     provider: "kakao" | "naver" | "google"
@@ -53,7 +54,13 @@ export default function SocialButton({
             className={`relative w-full h-[52px] flex items-center justify-center rounded-2xl border transition-all duration-200 active:scale-[0.98] shadow-sm ${style.bg} ${style.border}`}
         >
             <div className="absolute left-3 w-12 flex items-center justify-center">
-                <img src={imageSrc} alt={`${provider} logo`} className={`${style.iconSize} object-contain`} />
+                <Image
+                    src={imageSrc}
+                    alt={`${provider} logo`}
+                    width={36}
+                    height={36}
+                    className={`${style.iconSize} object-contain`}
+                />
             </div>
 
             <span className={`font-semibold text-[15px] tracking-tight ${style.text}`}>{style.label}</span>

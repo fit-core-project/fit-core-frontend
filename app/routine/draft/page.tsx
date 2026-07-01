@@ -312,7 +312,11 @@ export default function RoutineReviewPage() {
         )
         const acceptedWithoutEdits = userEditSummary.length === 0
 
-        const cleanRoutineBlocks = draft.routineBlocks.map(({ clientBlockId, ...block }) => block)
+        const cleanRoutineBlocks = draft.routineBlocks.map((block) => {
+            const publicBlock = { ...block }
+            delete publicBlock.clientBlockId
+            return publicBlock
+        })
 
         const payload = {
             targetWorkoutDate: new Date().toISOString().split("T")[0],
