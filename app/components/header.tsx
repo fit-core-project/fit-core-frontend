@@ -13,7 +13,8 @@ function shouldHideHeader(pathname: string): boolean {
         pathname.startsWith("/ai_quicklog") ||
         pathname.startsWith("/ai_supplement") ||
         pathname.startsWith("/routine") ||
-        pathname.startsWith("/oauth2")
+        pathname.startsWith("/oauth2") ||
+        pathname.startsWith("/onboarding")
     )
 }
 
