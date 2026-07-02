@@ -12,7 +12,8 @@ function shouldHideBottomNav(pathname: string): boolean {
         pathname.startsWith("/ai_supplement") ||
         pathname.startsWith("/routine") ||
         pathname.startsWith("/admin") ||
-        pathname.startsWith("/oauth2")
+        pathname.startsWith("/oauth2") ||
+        pathname.startsWith("/onboarding")
     )
 }
 

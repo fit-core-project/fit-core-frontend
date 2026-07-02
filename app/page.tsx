@@ -6,6 +6,7 @@ import { Pill } from "lucide-react"
 import TodayWorkoutCard from "@/app/components/TodayWorkoutCard"
 import DietSummaryCard from "@/app/components/DietSummaryCard"
 import ManualEntryModal from "@/app/my/nutrition/ManualEntryModal"
+import { useOnboardingGuard } from "@/hooks/useOnboardingGuard"
 
 function getKstToday(): string {
     return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -14,6 +15,7 @@ function getKstToday(): string {
 export default function HomePage() {
     const router = useRouter()
     const today = getKstToday()
+    useOnboardingGuard()
     const [showManualModal, setShowManualModal] = useState(false)
     const [dietRefreshKey, setDietRefreshKey] = useState(0)
 
