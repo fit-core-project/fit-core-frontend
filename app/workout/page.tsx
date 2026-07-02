@@ -6,6 +6,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Plus, Target } from 
 import workoutApiClient from "@/lib/api/workout/workoutApiClient"
 import type { AttendanceWeekResponse, WorkoutSessionResponse } from "@/types/project"
 import WorkoutList from "@/app/my/workout/WorkoutList"
+import Routine from "@/app/my/routine/Routine"
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"]
 
@@ -256,6 +257,15 @@ export default function WorkoutPage() {
             </section>
 
             <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-center gap-2">
+                    <Dumbbell className="h-5 w-5 text-violet-500" />
+                    <h2 className="text-base font-extrabold text-slate-800">저장 루틴</h2>
+                </div>
+                <p className="mb-4 text-sm text-slate-400">저장한 루틴을 확인하고 바로 운동을 시작할 수 있습니다.</p>
+                <Routine />
+            </section>
+
+            <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                         <CalendarDays className="h-5 w-5 text-blue-500" />
@@ -342,11 +352,8 @@ export default function WorkoutPage() {
             </section>
 
             <section>
-                <div className="mb-3 flex items-center justify-between px-1">
+                <div className="mb-3 px-1">
                     <h2 className="text-base font-extrabold text-slate-800">최근 운동 기록</h2>
-                    <Link href="/my?tab=workout" className="text-xs font-bold text-blue-600">
-                        루틴 보기
-                    </Link>
                 </div>
                 <div className="-mx-4">
                     <WorkoutList />

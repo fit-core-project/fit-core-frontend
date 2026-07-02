@@ -6,6 +6,7 @@ import { CalendarDays, Target, Utensils } from "lucide-react"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
 import NutritionCalendarSection from "@/app/my/stats/NutritionCalendarSection"
+import NutritionTab from "@/app/my/nutrition/NutritionTab"
 import type { DietDailyAggregationResponse, DietSummaryResponse, NutritionTarget } from "@/types/project"
 
 function getKstToday(): string {
@@ -179,16 +180,10 @@ export default function NutritionPage() {
                             </div>
                         )}
 
-                        <div className="mt-5 grid grid-cols-2 gap-3">
-                            <Link
-                                href="/my?tab=nutrition"
-                                className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50"
-                            >
-                                직접 입력
-                            </Link>
+                        <div className="mt-5">
                             <Link
                                 href="/ai_quicklog"
-                                className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700"
+                                className="inline-flex w-full min-h-11 items-center justify-center rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700"
                             >
                                 AI로 식단 기록
                             </Link>
@@ -234,6 +229,14 @@ export default function NutritionPage() {
                         </Link>
                     </div>
                 )}
+            </section>
+
+            <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-center gap-2">
+                    <Utensils className="h-5 w-5 text-emerald-500" />
+                    <h2 className="text-base font-extrabold text-slate-800">오늘 식단 기록</h2>
+                </div>
+                <NutritionTab date={today} />
             </section>
 
             <section>
