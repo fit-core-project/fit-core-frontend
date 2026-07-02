@@ -62,7 +62,7 @@ export default function LoginPage() {
 
                 <button
                     type="button"
-                    onClick={() => window.history.back()}
+                    onClick={() => router.push("/")}
                     className="mt-8 group text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center gap-1.5"
                 >
                     돌아가기

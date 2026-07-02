@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Activity, ArrowRight } from "lucide-react"
+import { Activity, ArrowRight, X } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
 import { getUserCondition } from "@/services/userDataService"
 
@@ -67,13 +67,21 @@ export default function RoutineHome() {
                         {toastMessage}
                     </div>
                 )}
-                <div className="bg-blue-50/50 p-6 border-b border-blue-100 shrink-0">
-                    <div className="flex items-center space-x-3 mb-2">
+                <div className="bg-blue-50/50 p-6 border-b border-blue-100 shrink-0 flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-md shadow-blue-200">
                             <Activity className="w-6 h-6 text-white" />
                         </div>
                         <h1 className="text-xl font-extrabold text-slate-800">컨디션 체크</h1>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => router.push("/")}
+                        aria-label="홈으로 돌아가기"
+                        className="rounded-xl p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 bg-slate-50">

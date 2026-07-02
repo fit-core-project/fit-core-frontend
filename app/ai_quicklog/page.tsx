@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Send, Sparkles, Mic, Bot, StopCircle, AlertCircle, Activity, Save, Apple } from "lucide-react"
+import { Send, Sparkles, Mic, Bot, StopCircle, AlertCircle, Activity, Save, Apple, X } from "lucide-react"
 import { toast } from "sonner"
 import AxiosController from "@/lib/axios/AxiosController"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
@@ -268,6 +268,14 @@ export default function QuickLogPage() {
                             </p>
                         </div>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => router.push("/nutrition")}
+                        aria-label="영양 페이지로 돌아가기"
+                        className="rounded-xl p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
                 </div>
 
                 {/* 콘텐츠 */}

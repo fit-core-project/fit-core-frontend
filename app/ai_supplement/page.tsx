@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, Bot, Loader2, Pill, Sparkles, Mic, StopCircle, ChevronDown, ExternalLink } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Send, Bot, Loader2, Pill, Sparkles, Mic, StopCircle, ChevronDown, ExternalLink, X } from "lucide-react"
 import AxiosController from "@/lib/axios/AxiosController"
 
 // --- TypeScript 타입 정의 ---
@@ -214,6 +215,7 @@ function MessageSources({
 }
 
 export default function SupplementChatPage() {
+    const router = useRouter()
     const [messages, setMessages] = useState<Message[]>([
         {
             id: "1",
@@ -396,6 +398,14 @@ export default function SupplementChatPage() {
                             </p>
                         </div>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => router.push("/nutrition")}
+                        aria-label="영양 페이지로 돌아가기"
+                        className="rounded-xl p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
                 </div>
 
                 {/* 2. 대화 기록 영역 */}

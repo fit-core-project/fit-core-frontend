@@ -13,6 +13,7 @@ import {
     ArrowDown,
     Shield,
     RefreshCw,
+    X,
 } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
 import { RoutineFormState, assembleRoutineRequest } from "@/utils/requestAssembler"
@@ -200,6 +201,14 @@ export default function RoutineGenerator() {
         })
     }
 
+    const handleClose = () => {
+        if (status === "loading") {
+            const ok = window.confirm("루틴 생성이 진행 중입니다. 정말 나가시겠습니까?")
+            if (!ok) return
+        }
+        router.push("/ai_routine")
+    }
+
     const handleSubmit = async () => {
         setStatus("loading")
         try {
@@ -235,6 +244,14 @@ export default function RoutineGenerator() {
                                 </p>
                             </div>
                         </div>
+                        <button
+                            type="button"
+                            onClick={handleClose}
+                            aria-label="컨디션 체크로 돌아가기"
+                            className="shrink-0 rounded-xl p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
                     </div>
 
                     {/* 2. 폼 영역 */}
