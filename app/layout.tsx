@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import Header from "./components/header"
+import AppShell from "@/app/components/AppShell"
 import AuthInitializer from "@/app/components/AuthInitializer"
 import AuthGuard from "@/app/components/AuthGuard"
 import MainLayout from "@/app/components/MainLayout"
@@ -24,9 +25,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <Providers>
             <AuthInitializer />
             <Header />
-            <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-y-auto">
+            <AppShell>
                 <AuthGuard>{children}</AuthGuard>
-            </div>
+            </AppShell>
         </Providers>
     )
 
