@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { Send, Sparkles, Mic, Bot, StopCircle, AlertCircle, Activity, Save, Apple } from "lucide-react"
 import { toast } from "sonner"
 import AxiosController from "@/lib/axios/AxiosController"
@@ -88,6 +89,7 @@ function toDietLogRequests(items: ParseDietItem[]): DietLogRequest[] {
 }
 
 export default function QuickLogPage() {
+    const router = useRouter()
     const [inputText, setInputText] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [loadingMsgIndex, setLoadingMsgIndex] = useState(0)
@@ -212,7 +214,12 @@ export default function QuickLogPage() {
                     { duration: 7000 },
                 )
             } else {
-                toast.success("식단이 저장되었습니다. 영양 페이지에서 오늘 섭취량을 확인할 수 있습니다.")
+                toast.success("식단이 저장되었습니다.", {
+                    action: {
+                        label: "영양 페이지에서 확인",
+                        onClick: () => router.push("/nutrition"),
+                    },
+                })
             }
             setParsedData(null)
             setInputText("")

@@ -236,7 +236,7 @@ export default function NutritionPage() {
                     <Utensils className="h-5 w-5 text-emerald-500" />
                     <h2 className="text-base font-extrabold text-slate-800">오늘 식단 기록</h2>
                 </div>
-                <NutritionTab date={today} />
+                <NutritionTab date={today} hideSummary />
             </section>
 
             <section>

@@ -135,12 +135,15 @@ function WorkoutCard({ workout, onSelect }: { workout: WorkoutSessionResponse; o
     )
 }
 
+const RPE_LABEL: Record<number, string> = { 1: "쉬움", 2: "적당", 3: "힘듦" }
+
 function WorkoutDetailModal({ workout, onClose }: { workout: WorkoutSessionResponse; onClose: () => void }) {
     const title = getWorkoutTitle(workout)
     const dateStr = formatDate(workout.workoutDate)
     const groups = useMemo(() => groupWorkoutSets(workout.sets ?? []), [workout.sets])
     const totalSets = groups.reduce((total, group) => total + group.sets.length, 0)
     const { weightUnit } = useSettingsStore()
+    const rpe = (workout.sets ?? []).find((set) => Number(set.rpe) > 0)?.rpe
 
     return (
         <div className="fixed inset-0 z-50 flex justify-center bg-slate-950/60">
@@ -156,6 +159,11 @@ function WorkoutDetailModal({ workout, onClose }: { workout: WorkoutSessionRespo
                                 <span>{dateStr}</span>
                                 {workout.durationMin ? <span>{workout.durationMin}분</span> : null}
                                 <span>{totalSets}세트</span>
+                                {rpe != null && RPE_LABEL[Number(rpe)] && (
+                                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                                        체감 강도 · {RPE_LABEL[Number(rpe)]}
+                                    </span>
+                                )}
                             </p>
                         </div>
                         <button

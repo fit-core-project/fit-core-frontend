@@ -287,7 +287,7 @@ export default function WorkoutPlayer() {
             localStorage.removeItem("fitcore_failed_workout_save")
             localStorage.removeItem("fitcore_player_progress")
             setWorkoutStatus("saved")
-            router.push("/ai_routine")
+            router.push("/workout")
         } catch (err) {
             console.error("[player] POST /api/workouts failed:", err)
             localStorage.setItem("fitcore_failed_workout_save", JSON.stringify(payload))
@@ -308,7 +308,7 @@ export default function WorkoutPlayer() {
         localStorage.removeItem("fitcore_unavailable_equipment")
         localStorage.removeItem("fitcore_failed_workout_save")
         localStorage.removeItem("fitcore_player_progress")
-        router.push("/ai_routine")
+        router.push("/workout")
     }
 
     // ── VIEW 2b: 저장 실패 ───────────────────────────────────────────────────

@@ -120,9 +120,10 @@ interface NutritionTabProps {
     date?: string
     onRefresh?: () => void
     targetRefreshKey?: number
+    hideSummary?: boolean
 }
 
-export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0 }: NutritionTabProps = {}) {
+export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0, hideSummary = false }: NutritionTabProps = {}) {
     const today = getKstToday()
     const resolvedDate = useMemo(() => date ?? today, [date, today])
     const isToday = resolvedDate === today
@@ -255,7 +256,7 @@ export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0 }: 
                 </button>
             </div>
             {/* 매크로 요약 */}
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
+            {!hideSummary && <div className="rounded-2xl bg-white p-5 shadow-sm">
                 <div className="flex items-baseline gap-1">
                     <span className="text-3xl font-extrabold text-slate-800">{summary?.totalKcal ?? 0}</span>
                     <span className="text-sm font-semibold text-slate-400">kcal</span>
@@ -339,7 +340,7 @@ export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0 }: 
                         </div>
                     </div>
                 </div>
-            </div>
+            </div>}
 
             {isEmpty ? (
                 <div className="flex flex-col items-center justify-center gap-4 rounded-2xl bg-white py-12 shadow-sm">

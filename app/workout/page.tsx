@@ -200,14 +200,8 @@ export default function WorkoutPage() {
                     <div>
                         <p className="text-sm font-bold text-slate-800">아직 오늘 완료한 운동이 없습니다.</p>
                         <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                            최근 루틴을 시작하거나 AI 루틴을 생성해 보세요.
+                            상단 버튼을 눌러 AI 운동 루틴을 만들거나 저장된 루틴을 바로 시작해 보세요.
                         </p>
-                        <Link
-                            href="/ai_routine"
-                            className="mt-4 inline-flex min-h-11 items-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-700"
-                        >
-                            AI 운동 루틴 만들기
-                        </Link>
                     </div>
                 )}
             </section>
