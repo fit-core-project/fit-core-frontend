@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import StepProfile from "./StepProfile"
 import StepWorkout from "./StepWorkout"
 import StepNutrition from "./StepNutrition"
@@ -11,7 +12,16 @@ type OnboardingStep = "profile" | "workout" | "nutrition" | "done"
 const STEPS: OnboardingStep[] = ["profile", "workout", "nutrition"]
 
 export default function OnboardingPage() {
+    const router = useRouter()
     const [step, setStep] = useState<OnboardingStep>("profile")
+
+    useEffect(() => {
+        if (typeof window === "undefined") return
+        if (step === "done") return
+        if (window.localStorage.getItem("fitcore_onboarding_done") === "1") {
+            router.replace("/")
+        }
+    }, [router, step])
 
     const goToDone = () => {
         if (typeof window !== "undefined") localStorage.setItem("fitcore_onboarding_done", "1")
