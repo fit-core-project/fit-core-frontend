@@ -80,6 +80,11 @@ export default function RoutineReviewPage() {
     const [displayUnit, setDisplayUnit] = useState<"kg" | "lbs">(weightUnit)
     const initialDraftRef = useRef<RoutineDraft | null>(null)
     const postSaveNavigationRef = useRef(false)
+    const [isManualMode, setIsManualMode] = useState(false)
+
+    useEffect(() => {
+        setIsManualMode(new URLSearchParams(window.location.search).get("mode") === "manual")
+    }, [])
 
     // DnD sensors
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
@@ -263,6 +268,7 @@ export default function RoutineReviewPage() {
     // Validation: gate finalize when any set violates bounds
     const isRoutineValid = useMemo(() => {
         if (!draft) return false
+        if (isManualMode && draft.routineBlocks.length === 0) return false
         return draft.routineBlocks.every(
             (block) =>
                 block.prescription.length > 0 &&
@@ -275,7 +281,7 @@ export default function RoutineReviewPage() {
                         s.targetRestSec <= 600
                 )
         )
-    }, [draft])
+    }, [draft, isManualMode])
 
     const swapBlock = useMemo(
         () => (swapBlockId && draft ? (draft.routineBlocks.find((b) => b.clientBlockId === swapBlockId) ?? null) : null),
@@ -364,7 +370,7 @@ export default function RoutineReviewPage() {
 
     const handleBack = () => {
         if (window.confirm("편집 내용이 사라질 수 있어요. 돌아갈까요?")) {
-            router.push("/ai_routine/generator")
+            router.push(isManualMode ? "/workout" : "/ai_routine/generator")
         }
     }
 
@@ -416,17 +422,19 @@ export default function RoutineReviewPage() {
                 }`}
             >
                 <div className="flex items-center space-x-3">
-                    {draft.isFallback ? (
+                    {isManualMode ? (
+                        <CheckCircle2 className="w-5 h-5 text-violet-500" />
+                    ) : draft.isFallback ? (
                         <AlertCircle className="w-5 h-5 text-amber-500" />
                     ) : (
                         <CheckCircle2 className="w-5 h-5 text-blue-500" />
                     )}
                     <div>
                         <h2 className="font-bold text-slate-800 text-sm">
-                            {draft.isFallback ? "기본 루틴" : "AI 추천 루틴"}
+                            {isManualMode ? "내 루틴" : draft.isFallback ? "기본 루틴" : "AI 추천 루틴"}
                         </h2>
                         <p className="text-[10px] text-slate-400 uppercase font-mono">
-                            {draft.isFallback ? "개인화 제한" : draft.statusReasonCode}
+                            {isManualMode ? "직접 작성" : draft.isFallback ? "개인화 제한" : draft.statusReasonCode}
                         </p>
                     </div>
                 </div>
@@ -477,16 +485,18 @@ export default function RoutineReviewPage() {
                     </div>
                 )}
 
-                <div className="flex items-start gap-2">
-                    <Info className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
-                    <ul className="space-y-1">
-                        {draft.rationaleSummary.map((line, i) => (
-                            <li key={i} className="text-xs text-slate-600 leading-relaxed">
-                                {line}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
+                {!isManualMode && draft.rationaleSummary.length > 0 && (
+                    <div className="flex items-start gap-2">
+                        <Info className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                        <ul className="space-y-1">
+                            {draft.rationaleSummary.map((line, i) => (
+                                <li key={i} className="text-xs text-slate-600 leading-relaxed">
+                                    {line}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
             </div>
 
             {/* Exercise block list */}
@@ -522,6 +532,13 @@ export default function RoutineReviewPage() {
                         ))}
                     </SortableContext>
                 </DndContext>
+
+                {isManualMode && draft.routineBlocks.length === 0 && (
+                    <div className="rounded-2xl bg-slate-50 p-5 text-center">
+                        <p className="text-sm font-bold text-slate-600">아직 추가된 운동이 없습니다.</p>
+                        <p className="mt-1 text-sm text-slate-400">아래 버튼을 눌러 루틴을 구성하세요.</p>
+                    </div>
+                )}
 
                 <button
                     onClick={addNewExerciseBlock}

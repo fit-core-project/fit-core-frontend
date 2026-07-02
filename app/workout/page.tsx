@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Plus, Target } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, PenLine, Plus, Target } from "lucide-react"
+import { toast } from "sonner"
 import workoutApiClient from "@/lib/api/workout/workoutApiClient"
+import routineApiClient from "@/lib/api/routine/routineApiClient"
 import type { AttendanceWeekResponse, WorkoutSessionResponse } from "@/types/project"
 import WorkoutList from "@/app/my/workout/WorkoutList"
 import Routine from "@/app/my/routine/Routine"
@@ -86,6 +89,7 @@ function ProgressBar({ percent, color = "bg-blue-500" }: { percent: number; colo
 }
 
 export default function WorkoutPage() {
+    const router = useRouter()
     const today = getKstToday()
     const todayDate = parseYmd(today)
     const weekRange = getWeekRange(today)
@@ -93,6 +97,7 @@ export default function WorkoutPage() {
     const [workouts, setWorkouts] = useState<WorkoutSessionResponse[]>([])
     const [attendance, setAttendance] = useState<AttendanceWeekResponse[]>([])
     const [loading, setLoading] = useState(true)
+    const [isCreatingManualRoutine, setIsCreatingManualRoutine] = useState(false)
     const [monthCursor, setMonthCursor] = useState({ year: todayDate.getFullYear(), month: todayDate.getMonth() + 1 })
     const [selectedDate, setSelectedDate] = useState<string | null>(today)
     const [selectedWorkoutDetail, setSelectedWorkoutDetail] = useState<WorkoutSessionResponse | null>(null)
@@ -135,6 +140,20 @@ export default function WorkoutPage() {
 
     const cells = buildMonthCells(monthCursor.year, monthCursor.month)
     const selectedWorkouts = selectedDate ? workoutsByDate.get(selectedDate) ?? [] : []
+
+    const handleCreateManualRoutine = async () => {
+        if (isCreatingManualRoutine) return
+        setIsCreatingManualRoutine(true)
+        try {
+            const draft = await routineApiClient.createManualDraft("새 루틴")
+            localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))
+            router.push("/routine/draft?mode=manual")
+        } catch {
+            toast.error("루틴 생성에 실패했습니다.")
+        } finally {
+            setIsCreatingManualRoutine(false)
+        }
+    }
 
     const moveMonth = (delta: number) => {
         setMonthCursor((current) => {
@@ -258,6 +277,15 @@ export default function WorkoutPage() {
                     <h2 className="text-base font-extrabold text-slate-800">저장 루틴</h2>
                 </div>
                 <p className="mb-4 text-sm text-slate-400">저장한 루틴을 확인하고 바로 운동을 시작할 수 있습니다.</p>
+                <button
+                    type="button"
+                    onClick={handleCreateManualRoutine}
+                    disabled={isCreatingManualRoutine}
+                    className="mb-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-bold text-violet-700 transition-colors hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    <PenLine className="h-4 w-4" />
+                    {isCreatingManualRoutine ? "루틴 만드는 중..." : "직접 루틴 만들기"}
+                </button>
                 <Routine />
             </section>
 

@@ -40,6 +40,22 @@ const routineApiClient = {
         AxiosController.get<Page<RoutineFinalResponse>>(
             `/api/routines/finals?page=${page}&size=${size}`
         ),
+
+    createManualDraft: async (title?: string): Promise<RoutineDraft> => {
+        const data = await AxiosController.post<RoutineDraft>(
+            "/api/routines/drafts/manual",
+            title ? { title } : {}
+        )
+        return {
+            ...data,
+            routineBlocks: data.routineBlocks ?? [],
+            rationaleSummary: data.rationaleSummary ?? [],
+            warnings: data.warnings ?? [],
+            totalEstimatedTime: data.totalEstimatedTime ?? 0,
+            summaryTitle: data.summaryTitle || title || "새 루틴",
+            isFallback: data.isFallback ?? false,
+        }
+    },
 }
 
 export default routineApiClient
