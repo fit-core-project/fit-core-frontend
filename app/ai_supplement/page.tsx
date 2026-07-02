@@ -6,7 +6,6 @@ import AxiosController from "@/lib/axios/AxiosController"
 
 // --- TypeScript 타입 정의 ---
 interface SourceDetail {
-    file: string
     id: string
     type: string
 }

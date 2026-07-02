@@ -36,7 +36,14 @@ export default function WorkoutPlayer() {
         const savedRoutine = localStorage.getItem("fitcore_active_routine")
         const savedFinalId = localStorage.getItem("fitcore_routine_final_id")
         if (savedRoutine) {
-            const parsedRoutine = JSON.parse(savedRoutine) as RoutineDraft
+            let parsedRoutine: RoutineDraft
+            try {
+                parsedRoutine = JSON.parse(savedRoutine) as RoutineDraft
+            } catch {
+                toast.error("루틴 데이터가 손상되었습니다.")
+                router.push("/ai_routine")
+                return
+            }
             setRoutine(parsedRoutine)
             setWorkoutStatus("inProgress")
             // 진행 상태 복원: routineId가 현재 루틴과 일치할 때만 적용
