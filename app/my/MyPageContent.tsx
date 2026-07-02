@@ -16,6 +16,7 @@ import NutritionTrendSection from "@/app/my/stats/NutritionTrendSection"
 import SettingsPanel from "@/app/my/settings/Settings"
 import WorkoutTab from "@/app/my/workout/WorkoutTab"
 import NutritionTab from "@/app/my/nutrition/NutritionTab"
+import NutritionTargetSection from "@/app/my/nutrition/NutritionTargetSection"
 
 type TabId = "profile" | "stats" | "workout" | "nutrition" | "settings"
 
@@ -65,6 +66,7 @@ export default function MyPageContent() {
     })
     const user = useAuthStore((state) => state.user)
     const [profile, setProfile] = useState<UserResponse | null>(null)
+    const [nutritionTargetRevision, setNutritionTargetRevision] = useState(0)
 
     const logout = useCallback(() => {
         useAuthStore.getState().logout()
@@ -174,7 +176,12 @@ export default function MyPageContent() {
                     </>
                 )}
                 {activeTab === "workout" && <WorkoutTab />}
-                {activeTab === "nutrition" && <NutritionTab />}
+                {activeTab === "nutrition" && (
+                    <>
+                        <NutritionTargetSection onSaved={() => setNutritionTargetRevision((revision) => revision + 1)} />
+                        <NutritionTab targetRefreshKey={nutritionTargetRevision} />
+                    </>
+                )}
                 {activeTab === "settings" && <SettingsPanel />}
             </div>
         </div>

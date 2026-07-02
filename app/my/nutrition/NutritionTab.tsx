@@ -119,9 +119,10 @@ function macroGoalText(min: number | null | undefined, max: number | null | unde
 interface NutritionTabProps {
     date?: string
     onRefresh?: () => void
+    targetRefreshKey?: number
 }
 
-export default function NutritionTab({ date, onRefresh }: NutritionTabProps = {}) {
+export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0 }: NutritionTabProps = {}) {
     const today = getKstToday()
     const resolvedDate = useMemo(() => date ?? today, [date, today])
     const isToday = resolvedDate === today
@@ -155,8 +156,11 @@ export default function NutritionTab({ date, onRefresh }: NutritionTabProps = {}
     }, [fetchData])
 
     useEffect(() => {
-        nutritionTargetApiClient.getTarget().then((t) => startTransition(() => setTarget(t)))
-    }, [])
+        nutritionTargetApiClient
+            .getTarget()
+            .then((t) => startTransition(() => setTarget(t)))
+            .catch(() => startTransition(() => setTarget(null)))
+    }, [targetRefreshKey])
 
     const totalKcal = summary?.totalKcal ?? 0
     const totalCarbsG = Number(summary?.totalCarbsG ?? 0)

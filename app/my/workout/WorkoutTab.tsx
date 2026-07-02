@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Routine from "@/app/my/routine/Routine"
 import WorkoutList from "@/app/my/workout/WorkoutList"
+import WorkoutSettingsSection from "@/app/my/workout/WorkoutSettingsSection"
 
 type SubTabId = "routine" | "history"
 
@@ -16,6 +17,7 @@ export default function WorkoutTab() {
 
     return (
         <div>
+            <WorkoutSettingsSection />
             <div className="mb-4 flex border-b border-gray-200">
                 {subTabs.map((tab) => (
                     <button

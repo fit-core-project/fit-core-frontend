@@ -227,10 +227,10 @@ export default function NutritionPage() {
                             프로필을 완성하면 주간 섭취량을 목표와 비교할 수 있습니다.
                         </p>
                         <Link
-                            href="/my?tab=profile"
+                            href="/my?tab=nutrition"
                             className="mt-4 inline-flex min-h-11 items-center rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50"
                         >
-                            프로필 완성하기
+                            영양 목표 설정하기
                         </Link>
                     </div>
                 )}

@@ -246,10 +246,10 @@ export default function WorkoutPage() {
                             </p>
                         )}
                         <Link
-                            href="/my?tab=profile"
+                            href="/my?tab=workout"
                             className="mt-4 inline-flex min-h-11 items-center rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50"
                         >
-                            목표 설정하기
+                            운동 설정하기
                         </Link>
                     </div>
                 )}
