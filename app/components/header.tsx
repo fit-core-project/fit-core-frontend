@@ -1,12 +1,27 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useAuthStore } from "@/store/authStore"
 import Image from "next/image" // Next.js의 Image 컴포넌트 사용 권장
 import AiStatusIndicator from "@/components/AiStatusIndicator"
 
+function shouldHideHeader(pathname: string): boolean {
+    return (
+        pathname === "/login" ||
+        pathname.startsWith("/ai_routine") ||
+        pathname.startsWith("/ai_quicklog") ||
+        pathname.startsWith("/ai_supplement") ||
+        pathname.startsWith("/routine") ||
+        pathname.startsWith("/oauth2")
+    )
+}
+
 export default function Header() {
+    const pathname = usePathname()
     const user = useAuthStore((state) => state.user)
+
+    if (shouldHideHeader(pathname)) return null
 
     return (
         <header className="px-6 pt-12 pb-4 bg-white rounded-b-3xl shadow-sm border-b border-slate-100 flex justify-between items-center z-50 relative">
