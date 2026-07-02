@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, useRef } from "react"
+import { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, X, Info, Search, GripVertical, ArrowLeft } from "lucide-react"
 import {
@@ -79,6 +79,7 @@ export default function RoutineReviewPage() {
     const { weightUnit } = useSettingsStore()
     const [displayUnit, setDisplayUnit] = useState<"kg" | "lbs">(weightUnit)
     const initialDraftRef = useRef<RoutineDraft | null>(null)
+    const postSaveNavigationRef = useRef(false)
 
     // DnD sensors
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
@@ -299,9 +300,33 @@ export default function RoutineReviewPage() {
         [catalog, swapQuery]
     )
 
-    // 4. Hidden Finalize: save draft → call finalize API → navigate to player
+    const goHomeAfterSave = useCallback(() => {
+        if (postSaveNavigationRef.current) return
+        postSaveNavigationRef.current = true
+        router.push("/")
+    }, [router])
+
+    const startSavedRoutine = useCallback(() => {
+        if (postSaveNavigationRef.current) return
+        postSaveNavigationRef.current = true
+        router.push("/ai_routine/player")
+    }, [router])
+
+    useEffect(() => {
+        if (finalizeStatus !== "finalized") return
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") goHomeAfterSave()
+        }
+
+        window.addEventListener("keydown", handleKeyDown)
+        return () => window.removeEventListener("keydown", handleKeyDown)
+    }, [finalizeStatus, goHomeAfterSave])
+
+    // 4. Save draft → call finalize API; post-save navigation is chosen in the completion modal.
     const handleFinalize = async () => {
-        if (!draft || finalizeStatus === "loading") return
+        if (!draft || finalizeStatus === "loading" || finalizeStatus === "finalized") return
+        postSaveNavigationRef.current = false
         setFinalizeStatus("loading")
 
         localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))
@@ -330,7 +355,6 @@ export default function RoutineReviewPage() {
             const finalId = await routineApiClient.finalize(draft.routineDraftId, payload)
             if (finalId) localStorage.setItem("fitcore_routine_final_id", finalId)
             setFinalizeStatus("finalized")
-            router.push("/ai_routine/player")
         } catch (err) {
             console.error("[draft] finalize failed:", err)
             localStorage.removeItem("fitcore_routine_final_id")
@@ -512,7 +536,7 @@ export default function RoutineReviewPage() {
                 )}
                 {finalizeStatus === "failed" && (
                     <p className="text-center text-xs text-red-500 font-bold mb-2">
-                        Routine save failed. Please try again.
+                        루틴 저장에 실패했습니다. 다시 시도해 주세요.
                     </p>
                 )}
                 <button
@@ -523,6 +547,59 @@ export default function RoutineReviewPage() {
                     <Save className="w-5 h-5" /> {finalizeStatus === "loading" ? "저장 중..." : "루틴 저장"}
                 </button>
             </div>
+
+            {finalizeStatus === "finalized" && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4 backdrop-blur-sm animate-in fade-in duration-200"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="routine-save-complete-title"
+                    onClick={goHomeAfterSave}
+                >
+                    <div
+                        className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl animate-in zoom-in-95 duration-200"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="flex justify-end">
+                            <button
+                                type="button"
+                                onClick={goHomeAfterSave}
+                                aria-label="홈으로 이동하며 닫기"
+                                className="rounded-xl p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                            <CheckCircle2 className="h-8 w-8" />
+                        </div>
+                        <h3 id="routine-save-complete-title" className="text-xl font-extrabold text-slate-900">
+                            루틴 저장이 완료되었습니다.
+                        </h3>
+                        <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
+                            지금 바로 운동을 시작하거나 홈으로 이동할 수 있습니다.
+                        </p>
+
+                        <div className="mt-6 grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={goHomeAfterSave}
+                                className="rounded-2xl border border-slate-200 bg-white py-3.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 active:scale-[0.98]"
+                            >
+                                홈으로
+                            </button>
+                            <button
+                                type="button"
+                                onClick={startSavedRoutine}
+                                className="rounded-2xl bg-blue-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-colors hover:bg-blue-700 active:scale-[0.98]"
+                            >
+                                바로 시작
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Exercise swap modal */}
             {swapBlockId && (
