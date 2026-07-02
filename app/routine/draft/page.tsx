@@ -388,19 +388,21 @@ export default function RoutineReviewPage() {
 
             {/* Fallback warning banner */}
             {draft.isFallback && (
-                <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-red-200 bg-red-50 px-4 py-3 shadow-sm animate-in fade-in slide-in-from-top-2">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+                <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-md border border-red-300 bg-red-100 px-2 py-0.5 text-xs font-black text-red-700">
-                                {"\uc548\uc804 \ub300\uccb4 \ub8e8\ud2f4"}
+                            <span className="rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-800">
+                                기본 루틴
                             </span>
-                            <span className="text-xs font-bold text-red-700">
+                            <span className="text-xs font-bold text-amber-700">
                                 {fallbackReasonLabel(draft.statusReasonCode)}
                             </span>
                         </div>
-                        <p className="mt-1 text-sm font-semibold leading-relaxed text-red-800">
-                            {"AI \ucd94\ucc9c\uc744 \uc0ac\uc6a9\ud560 \uc218 \uc5c6\uc5b4 \ubd80\uc0c1 \ubd80\uc704\uc640 \uc81c\ud55c \uc870\uac74\uc744 \ud53c\ud55c \ubcf4\uc218\uc801 \ub8e8\ud2f4\uc744 \ud45c\uc2dc\ud569\ub2c8\ub2e4."}
+                        <p className="mt-1 text-sm font-semibold leading-relaxed text-amber-900">
+                            현재 AI 코치에 연결할 수 없어 기본 루틴을 제공하고 있습니다.
+                            <br />
+                            개인화 수준이 제한될 수 있습니다.
                         </p>
                     </div>
                 </div>
@@ -421,9 +423,11 @@ export default function RoutineReviewPage() {
                     )}
                     <div>
                         <h2 className="font-bold text-slate-800 text-sm">
-                            {draft.isFallback ? "\uc548\uc804 \ub300\uccb4 \ub8e8\ud2f4" : "AI \ucd94\ucc9c \ub8e8\ud2f4"}
+                            {draft.isFallback ? "기본 루틴" : "AI 추천 루틴"}
                         </h2>
-                        <p className="text-[10px] text-slate-400 uppercase font-mono">{draft.statusReasonCode}</p>
+                        <p className="text-[10px] text-slate-400 uppercase font-mono">
+                            {draft.isFallback ? "개인화 제한" : draft.statusReasonCode}
+                        </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -766,9 +770,9 @@ function ExerciseCard({
                 </h4>
             </div>
             {isFallback && (
-                <div className="mb-3 inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-black text-red-700">
+                <div className="mb-3 inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-700">
                     <AlertCircle className="h-3 w-3" />
-                    {"\uc548\uc804 \ub300\uccb4 \uc6b4\ub3d9"}
+                    기본 루틴
                 </div>
             )}
             {block.exerciseRationale && (

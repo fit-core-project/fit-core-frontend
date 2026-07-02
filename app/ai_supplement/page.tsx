@@ -1,14 +1,28 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, Bot, Loader2, Pill, Sparkles, Mic, StopCircle } from "lucide-react"
+import { Send, Bot, Loader2, Pill, Sparkles, Mic, StopCircle, ChevronDown, ExternalLink } from "lucide-react"
 import AxiosController from "@/lib/axios/AxiosController"
 
 // --- TypeScript 타입 정의 ---
-interface SourceDetail {
-    id: string
-    type: string
+type SourceRecord = {
+    id?: string
+    type?: string
+    source?: string
+    category?: string
+    docType?: string
+    title?: string
+    name?: string
+    label?: string
+    url?: string
+    link?: string
+    snippet?: string
+    excerpt?: string
+    metadata?: Record<string, unknown> | null
+    [key: string]: unknown
 }
+
+type SourceDetail = SourceRecord | string
 
 interface Message {
     id: string
@@ -30,7 +44,7 @@ interface SttResponse {
 interface SupplementResponse {
     answer: string
     caution?: string | null
-    sources?: SourceDetail[]
+    sources?: unknown
     mode?: "full" | "degraded" | "fallback"
     fallback_reason?: string
     fallbackReason?: string
@@ -42,6 +56,162 @@ const SUGGESTED_QUESTIONS = [
     "수술 전 피해야 할 영양제가 있을까?",
     "마그네슘과 칼슘의 올바른 복용 비율은?",
 ]
+
+const SOURCE_TYPE_LABELS: Array<{ tokens: string[]; label: string }> = [
+    { tokens: ["mfds", "food_safety", "ministry", "regulatory", "식약처"], label: "식약처" },
+    { tokens: ["paper", "study", "pubmed", "journal", "research", "논문"], label: "논문" },
+    { tokens: ["kb", "knowledge_base", "internal", "document", "doc"], label: "내부 KB" },
+    { tokens: ["web", "url", "link"], label: "웹" },
+]
+
+function normalizeSources(sources: unknown): SourceDetail[] {
+    if (!Array.isArray(sources)) return []
+    return sources.filter((source): source is SourceDetail => {
+        if (typeof source === "string") return source.trim().length > 0
+        return source !== null && typeof source === "object" && !Array.isArray(source)
+    })
+}
+
+function readSourceString(source: SourceDetail, keys: string[]): string | null {
+    if (typeof source === "string") {
+        return keys.some((key) => ["title", "name", "label", "snippet", "excerpt"].includes(key))
+            ? source.trim()
+            : null
+    }
+
+    for (const key of keys) {
+        const value = source[key]
+        if (typeof value === "string" && value.trim()) return value.trim()
+    }
+
+    const metadata = source.metadata
+    if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
+        for (const key of keys) {
+            const value = metadata[key]
+            if (typeof value === "string" && value.trim()) return value.trim()
+        }
+    }
+
+    return null
+}
+
+function truncateText(text: string, maxLength: number): string {
+    if (text.length <= maxLength) return text
+    return `${text.slice(0, maxLength - 1).trim()}…`
+}
+
+function getValidUrl(source: SourceDetail): string | null {
+    const raw = readSourceString(source, ["url", "link"])
+    if (!raw) return null
+
+    try {
+        const url = new URL(raw)
+        return url.protocol === "http:" || url.protocol === "https:" ? url.href : null
+    } catch {
+        return null
+    }
+}
+
+function getSourceTypeLabel(source: SourceDetail): string | null {
+    const rawType = readSourceString(source, ["type", "category", "docType", "source"])
+    if (!rawType) return null
+
+    const normalized = rawType.toLowerCase()
+    return SOURCE_TYPE_LABELS.find(({ tokens }) => tokens.some((token) => normalized.includes(token)))?.label ?? "출처"
+}
+
+function getSourceTitle(source: SourceDetail): string {
+    const explicitTitle = readSourceString(source, ["title", "name", "label"])
+    if (explicitTitle) return truncateText(explicitTitle, 80)
+
+    const url = getValidUrl(source)
+    if (url) return url.replace(/^https?:\/\//, "").replace(/\/$/, "")
+
+    const snippet = readSourceString(source, ["snippet", "excerpt"])
+    if (snippet) return truncateText(snippet, 80)
+
+    return "출처 정보"
+}
+
+function getSourceSnippet(source: SourceDetail, title: string): string | null {
+    const snippet = readSourceString(source, ["snippet", "excerpt"])
+    if (!snippet || snippet === title) return null
+    return truncateText(snippet, 120)
+}
+
+function getSourceSummary(sources: SourceDetail[]): string {
+    const labels = Array.from(
+        new Set(sources.map(getSourceTypeLabel).filter((label): label is string => Boolean(label)))
+    )
+    const labelSummary = labels.length > 0 ? ` · ${labels.slice(0, 3).join(" · ")}` : ""
+    return `근거 ${sources.length}개${labelSummary}`
+}
+
+function MessageSources({
+    sources,
+    expanded,
+    onToggle,
+}: {
+    sources?: SourceDetail[]
+    expanded: boolean
+    onToggle: () => void
+}) {
+    if (!sources || sources.length === 0) return null
+
+    return (
+        <div className="mt-3 border-t border-slate-100 pt-3 text-xs whitespace-normal">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-bold text-slate-500">{getSourceSummary(sources)}</span>
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    aria-expanded={expanded}
+                    className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 font-bold text-emerald-700 transition-colors hover:bg-emerald-100"
+                >
+                    {expanded ? "근거 접기" : "근거 보기"}
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+                </button>
+            </div>
+
+            {expanded && (
+                <ul className="mt-3 space-y-2">
+                    {sources.map((source, index) => {
+                        const title = getSourceTitle(source)
+                        const snippet = getSourceSnippet(source, title)
+                        const url = getValidUrl(source)
+                        const typeLabel = getSourceTypeLabel(source)
+                        const sourceId = readSourceString(source, ["id"])
+                        const detail = [typeLabel, sourceId ? `ID ${sourceId}` : null].filter(Boolean).join(" · ")
+
+                        return (
+                            <li key={`${sourceId ?? url ?? title}-${index}`} className="rounded-xl bg-slate-50 px-3 py-2">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                        {url ? (
+                                            <a
+                                                href={url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex max-w-full items-center gap-1 font-bold text-slate-700 underline-offset-2 hover:text-emerald-700 hover:underline"
+                                            >
+                                                <span className="truncate">{title}</span>
+                                                <ExternalLink className="h-3 w-3 shrink-0" />
+                                            </a>
+                                        ) : (
+                                            <p className="font-bold text-slate-700">{title}</p>
+                                        )}
+                                        {detail && <p className="mt-0.5 text-[11px] font-semibold text-slate-400">{detail}</p>}
+                                    </div>
+                                </div>
+                                {snippet && <p className="mt-1 leading-relaxed text-slate-500">{snippet}</p>}
+                            </li>
+                        )
+                    })}
+                </ul>
+            )}
+        </div>
+    )
+}
 
 export default function SupplementChatPage() {
     const [messages, setMessages] = useState<Message[]>([
@@ -55,6 +225,7 @@ export default function SupplementChatPage() {
     const [inputText, setInputText] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const [expandedSourceMessageIds, setExpandedSourceMessageIds] = useState<Set<string>>(new Set())
 
     // 🌟 오디오 녹음(STT) 관련 상태 및 Ref 추가
     const [isRecording, setIsRecording] = useState(false)
@@ -163,7 +334,7 @@ export default function SupplementChatPage() {
                 role: "ai",
                 content: data.answer,
                 caution: data.caution ?? null,
-                sources: data.sources,
+                sources: normalizeSources(data.sources),
                 mode: data.mode,
                 fallbackReason: data.fallback_reason ?? data.fallbackReason,
             }
@@ -198,6 +369,15 @@ export default function SupplementChatPage() {
         const x = e.pageX - scrollRef.current.offsetLeft
         const walk = (x - startX) * 1.5
         scrollRef.current.scrollLeft = scrollLeft - walk
+    }
+
+    const toggleMessageSources = (messageId: string) => {
+        setExpandedSourceMessageIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(messageId)) next.delete(messageId)
+            else next.add(messageId)
+            return next
+        })
     }
 
     return (
@@ -250,6 +430,13 @@ export default function SupplementChatPage() {
                                             <div className="mb-1 font-semibold">주의사항</div>
                                             <p className="whitespace-pre-wrap">{msg.caution}</p>
                                         </div>
+                                    )}
+                                    {msg.role === "ai" && (
+                                        <MessageSources
+                                            sources={msg.sources}
+                                            expanded={expandedSourceMessageIds.has(msg.id)}
+                                            onToggle={() => toggleMessageSources(msg.id)}
+                                        />
                                     )}
                                 </div>
                             </div>
@@ -327,7 +514,11 @@ export default function SupplementChatPage() {
                                             }
                                         }
                                     }}
-                                    placeholder={isSttLoading ? "음성 인식 중..." : "오늘의 식단과 운동을 알려주세요"}
+                                    placeholder={
+                                        isSttLoading
+                                            ? "음성 인식 중..."
+                                            : "복용 중인 약, 질환, 영양제 궁금증을 입력하세요"
+                                    }
                                     disabled={isSttLoading || isLoading || isRecording}
                                     className="w-full bg-transparent text-slate-800 py-3.5 pl-4 pr-2 outline-none resize-none overflow-y-auto min-h-[52px] max-h-32 text-[15px] leading-relaxed"
                                     rows={1}
@@ -349,6 +540,9 @@ export default function SupplementChatPage() {
                                 STT 엔진이 음성을 텍스트로 변환 중입니다...
                             </p>
                         )}
+                        <p className="mt-2 px-1 text-[11px] font-medium leading-relaxed text-slate-400">
+                            예: 마그네슘 복용 시간, 오메가3와 약물 상호작용, 위장 불편 등
+                        </p>
                     </div>
 
                     <div className="text-[10px] text-center text-slate-400 mt-3 px-4 font-medium">

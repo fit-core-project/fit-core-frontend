@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronDown, Dumbbell, Play } from "lucide-react"
+import { AlertCircle, ChevronDown, Dumbbell, Play } from "lucide-react"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
 import { RoutineFinalResponse, RoutineDraft } from "@/types/routine"
 
@@ -23,6 +23,7 @@ function splitLabel(label: string) {
 function RoutineCard({ routine, onPlay }: { routine: RoutineFinalResponse; onPlay: () => void }) {
     const [expanded, setExpanded] = useState(false)
     const blocks = routine.finalRoutinePayload?.routineBlocks ?? []
+    const isFallback = routine.finalRoutinePayload?.fallback === true
     const date = routine.targetWorkoutDate
         ? new Date(routine.targetWorkoutDate).toLocaleDateString("ko-KR", {
               year: "numeric",
@@ -37,6 +38,12 @@ function RoutineCard({ routine, onPlay }: { routine: RoutineFinalResponse; onPla
                 <span className="shrink-0 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-600">
                     {splitLabel(routine.targetSplitLabel)}
                 </span>
+                {isFallback && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-700">
+                        <AlertCircle className="h-3 w-3" />
+                        기본 루틴
+                    </span>
+                )}
                 <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-slate-800">
                         {routine.finalRoutinePayload?.summaryTitle || splitLabel(routine.targetSplitLabel)}
