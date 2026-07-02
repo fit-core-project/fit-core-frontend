@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, PenLine, Plus, Target } from "lucide-react"
@@ -94,6 +94,8 @@ export default function WorkoutPage() {
     const todayDate = parseYmd(today)
     const weekRange = getWeekRange(today)
 
+    const recentWorkoutRef = useRef<HTMLDivElement | null>(null)
+
     const [workouts, setWorkouts] = useState<WorkoutSessionResponse[]>([])
     const [attendance, setAttendance] = useState<AttendanceWeekResponse[]>([])
     const [loading, setLoading] = useState(true)
@@ -165,18 +167,9 @@ export default function WorkoutPage() {
 
     return (
         <div className="mx-auto flex w-full max-w-[480px] flex-col gap-5 p-4 pb-10">
-            <header className="flex items-end justify-between gap-3 px-1">
-                <div>
-                    <p className="text-xs font-black uppercase tracking-wide text-blue-500">Workout</p>
-                    <h1 className="text-2xl font-extrabold text-slate-900">운동</h1>
-                </div>
-                <Link
-                    href="/ai_routine"
-                    className="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-colors hover:bg-blue-700"
-                >
-                    <Plus className="h-4 w-4" />
-                    AI 운동 루틴 만들기
-                </Link>
+            <header className="px-1">
+                <p className="text-xs font-black uppercase tracking-wide text-blue-500">Workout</p>
+                <h1 className="text-2xl font-extrabold text-slate-900">운동</h1>
             </header>
 
             <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -189,7 +182,7 @@ export default function WorkoutPage() {
                     <div className="space-y-3">
                         <div className="h-5 w-40 animate-pulse rounded bg-slate-200" />
                         <div className="h-3 w-full animate-pulse rounded bg-slate-100" />
-                        <div className="h-11 w-32 animate-pulse rounded-2xl bg-slate-100" />
+                        <div className="h-11 w-full animate-pulse rounded-2xl bg-slate-100" />
                     </div>
                 ) : todayWorkouts.length > 0 ? (
                     <div>
@@ -211,7 +204,10 @@ export default function WorkoutPage() {
                         </div>
                         <button
                             type="button"
-                            onClick={() => setSelectedDate(today)}
+                            onClick={() => {
+                                setSelectedDate(today)
+                                recentWorkoutRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+                            }}
                             className="mt-4 min-h-11 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-100"
                         >
                             기록 보기
@@ -221,8 +217,29 @@ export default function WorkoutPage() {
                     <div>
                         <p className="text-sm font-bold text-slate-800">아직 오늘 완료한 운동이 없습니다.</p>
                         <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                            상단 버튼을 눌러 AI 운동 루틴을 만들거나 저장된 루틴을 바로 시작해 보세요.
+                            새 루틴을 만들거나 저장된 루틴으로 바로 시작해 보세요.
                         </p>
+                    </div>
+                )}
+
+                {!loading && (
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            onClick={handleCreateManualRoutine}
+                            disabled={isCreatingManualRoutine}
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                        >
+                            <PenLine className="h-4 w-4" />
+                            {isCreatingManualRoutine ? "만드는 중..." : "직접 루틴 만들기"}
+                        </button>
+                        <Link
+                            href="/ai_routine"
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl bg-blue-600 px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-700"
+                        >
+                            <Plus className="h-4 w-4" />
+                            AI 운동 루틴 만들기
+                        </Link>
                     </div>
                 )}
             </section>
@@ -277,15 +294,6 @@ export default function WorkoutPage() {
                     <h2 className="text-base font-extrabold text-slate-800">저장 루틴</h2>
                 </div>
                 <p className="mb-4 text-sm text-slate-400">저장한 루틴을 확인하고 바로 운동을 시작할 수 있습니다.</p>
-                <button
-                    type="button"
-                    onClick={handleCreateManualRoutine}
-                    disabled={isCreatingManualRoutine}
-                    className="mb-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-bold text-violet-700 transition-colors hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    <PenLine className="h-4 w-4" />
-                    {isCreatingManualRoutine ? "루틴 만드는 중..." : "직접 루틴 만들기"}
-                </button>
                 <Routine />
             </section>
 
@@ -387,7 +395,7 @@ export default function WorkoutPage() {
                 )}
             </section>
 
-            <section>
+            <section ref={recentWorkoutRef}>
                 <div className="mb-3 px-1">
                     <h2 className="text-base font-extrabold text-slate-800">최근 운동 기록</h2>
                 </div>
