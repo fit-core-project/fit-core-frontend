@@ -28,22 +28,82 @@ import { FinalizeState } from "@/types/state"
 import { useForm } from "react-hook-form"
 import { NUMERIC_RANGES, NumericFieldName, numericRules, toDisplayBound, validateNumericRange } from "@/utils/numericValidation"
 
-const MUSCLE_KR: Record<string, string> = {
-    "가슴": "chest",
-    "등": "back",
-    "어깨": "shoulder",
-    "이두": "bicep",
-    "삼두": "tricep",
-    "하체": "leg",
-    "허벅지": "quadricep",
-    "햄스트링": "hamstring",
-    "종아리": "calf",
-    "복근": "abs",
-    "복부": "abs",
-    "엉덩이": "glute",
-    "전완": "forearm",
-    "승모근": "trap",
-    "광배": "lat",
+// 값은 primaryMuscle에 대해 includes()로 매칭되는 영문 부분 문자열 목록
+const MUSCLE_KR: Record<string, string[]> = {
+    // 가슴 (chest 포함하면 upperChest/lowerChest 모두 매칭)
+    "가슴": ["chest"],
+    "흉근": ["chest"],
+    "상부 가슴": ["upperchest"],
+    "가슴 상부": ["upperchest"],
+    "상부가슴": ["upperchest"],
+    "가슴상부": ["upperchest"],
+    "하부 가슴": ["lowerchest"],
+    "가슴 하부": ["lowerchest"],
+
+    // 등 (back → upperBack/lowerBack, lat → lats)
+    "등": ["back", "lat"],
+    "광배": ["lat"],
+    "광배근": ["lat"],
+    "상부 등": ["upperback"],
+    "등 상부": ["upperback"],
+    "하부 등": ["lowerback"],
+    "등 하부": ["lowerback"],
+    "허리": ["lowerback"],
+
+    // 어깨 (delt → frontDelt/sideDelt/rearDelt 모두 매칭)
+    "어깨": ["delt", "shoulder"],
+    "삼각근": ["delt", "shoulder"],
+    "전면어깨": ["frontdelt"],
+    "전면 어깨": ["frontdelt"],
+    "전방어깨": ["frontdelt"],
+    "전방 어깨": ["frontdelt"],
+    "앞어깨": ["frontdelt"],
+    "앞 어깨": ["frontdelt"],
+    "측면어깨": ["sidedelt"],
+    "측면 어깨": ["sidedelt"],
+    "옆어깨": ["sidedelt"],
+    "옆 어깨": ["sidedelt"],
+    "후면어깨": ["reardelt"],
+    "후면 어깨": ["reardelt"],
+    "후방어깨": ["reardelt"],
+    "후방 어깨": ["reardelt"],
+    "뒤어깨": ["reardelt"],
+    "뒤 어깨": ["reardelt"],
+
+    // 팔
+    "이두": ["bicep"],
+    "이두근": ["bicep"],
+    "삼두": ["tricep"],
+    "삼두근": ["tricep"],
+    "전완": ["forearm"],
+    "전완근": ["forearm"],
+
+    // 하체 대분류 (quad/hamstring/glute/calf 등 하체 전체)
+    "하체": ["quad", "hamstring", "glute", "calf", "leg", "adduct", "abduct"],
+    "다리": ["quad", "hamstring", "glute", "calf", "leg", "adduct", "abduct"],
+    "하지": ["quad", "hamstring", "glute", "calf", "leg"],
+
+    // 하체 소분류
+    "허벅지": ["quad", "hamstring"],
+    "대퇴사두": ["quad"],
+    "대퇴사두근": ["quad"],
+    "햄스트링": ["hamstring"],
+    "엉덩이": ["glute"],
+    "둔근": ["glute"],
+    "힙": ["glute", "hip"],
+    "종아리": ["calf"],
+    "내전근": ["adduct"],
+    "외전근": ["abduct"],
+    "전거근": ["serratus"],
+
+    // 코어 / 복부
+    "복근": ["abs", "core"],
+    "복부": ["abs", "core"],
+    "코어": ["core", "abs"],
+
+    // 승모근
+    "승모근": ["trap"],
+    "승모": ["trap"],
 }
 
 // Fetch recent record for exerciseId and apply default weight/reps to all sets.
@@ -324,14 +384,16 @@ export default function RoutineReviewPage() {
     }, [swapBlock, catalog])
 
     const filteredCatalog = useMemo(() => {
-        const qLower = swapQuery.toLowerCase()
-        const enEquivalent = MUSCLE_KR[swapQuery] ?? null
+        const q = swapQuery
+        const qLower = q.toLowerCase()
+        const enList = MUSCLE_KR[q.trim()] ?? null
+        const muscle = (item: { primaryMuscle: string }) => item.primaryMuscle.toLowerCase()
         return (Array.isArray(catalog) ? catalog : []).filter(
             (item) =>
-                item.nameKr?.includes(swapQuery) ||
+                item.nameKr?.includes(q) ||
                 item.nameEn?.toLowerCase().includes(qLower) ||
-                item.primaryMuscle.toLowerCase().includes(qLower) ||
-                (enEquivalent !== null && item.primaryMuscle.toLowerCase().includes(enEquivalent))
+                muscle(item).includes(qLower) ||
+                (enList !== null && enList.some((en) => muscle(item).includes(en)))
         )
     }, [catalog, swapQuery])
 
