@@ -2,6 +2,7 @@
 
 import { startTransition, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { Apple, Plus } from "lucide-react"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
 import type { DietSummaryResponse, NutritionTarget } from "@/types/project"
@@ -36,7 +37,17 @@ function fiberBarPct(current: number, min: number | null | undefined): number {
     return Math.min((current / min) * 100, 100)
 }
 
-export default function DietSummaryCard({ showDetails = true }: { showDetails?: boolean }) {
+export default function DietSummaryCard({
+    showDetails = true,
+    onManualAdd,
+    onAiLog,
+    refreshKey,
+}: {
+    showDetails?: boolean
+    onManualAdd?: () => void
+    onAiLog?: () => void
+    refreshKey?: number
+}) {
     const router = useRouter()
     const [summary, setSummary] = useState<DietSummaryResponse | null>(null)
     const [loading, setLoading] = useState(true)
@@ -55,7 +66,7 @@ export default function DietSummaryCard({ showDetails = true }: { showDetails?: 
             .finally(() => startTransition(() => setLoading(false)))
 
         nutritionTargetApiClient.getTarget().then((t) => startTransition(() => setTarget(t)))
-    }, [])
+    }, [refreshKey])
 
     const handleClick = () => router.push("/nutrition")
 
@@ -101,13 +112,38 @@ export default function DietSummaryCard({ showDetails = true }: { showDetails?: 
             )}
 
             {!loading && !error && (!summary || summary.items.length === 0) && (
-                <button
-                    type="button"
-                    className="w-full bg-white p-5 rounded-3xl shadow-sm border border-slate-100 py-6 text-center cursor-pointer hover:shadow-md transition-all"
-                    onClick={handleClick}
-                >
-                    <p className="text-sm text-slate-400">오늘 기록 없어요</p>
-                </button>
+                onManualAdd ? (
+                    <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+                        <p className="text-sm font-bold text-slate-800">오늘 식단 기록이 없어요.</p>
+                        <p className="mt-1 text-sm text-slate-500">식단을 기록해 영양 목표를 확인해 보세요.</p>
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={onManualAdd}
+                                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                            >
+                                <Plus className="h-4 w-4" />
+                                직접 식단 기록
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onAiLog}
+                                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700"
+                            >
+                                <Apple className="h-4 w-4" />
+                                AI로 식단 기록
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <button
+                        type="button"
+                        className="w-full bg-white p-5 rounded-3xl shadow-sm border border-slate-100 py-6 text-center cursor-pointer hover:shadow-md transition-all"
+                        onClick={handleClick}
+                    >
+                        <p className="text-sm text-slate-400">오늘 기록 없어요</p>
+                    </button>
+                )
             )}
 
             {!loading && !error && summary && summary.items.length > 0 && (
