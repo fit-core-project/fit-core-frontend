@@ -153,7 +153,7 @@ export default function WorkoutPage() {
                     className="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-colors hover:bg-blue-700"
                 >
                     <Plus className="h-4 w-4" />
-                    루틴 만들기
+                    AI 운동 루틴 만들기
                 </Link>
             </header>
 
@@ -205,7 +205,7 @@ export default function WorkoutPage() {
                             href="/ai_routine"
                             className="mt-4 inline-flex min-h-11 items-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-700"
                         >
-                            루틴 만들기
+                            AI 운동 루틴 만들기
                         </Link>
                     </div>
                 )}

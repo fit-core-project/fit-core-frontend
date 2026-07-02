@@ -423,7 +423,7 @@ export default function RoutineGenerator() {
                             className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
                         >
                             <Send className="w-5 h-5 mr-2" />
-                            나만의 AI 루틴 생성하기
+                            나만의 AI 운동 루틴 만들기
                         </button>
                     </div>
                 </div>

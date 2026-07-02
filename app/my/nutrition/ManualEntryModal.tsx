@@ -139,7 +139,7 @@ export default function ManualEntryModal({ onClose, onSaved, editItem, defaultDa
                                 className="flex items-center gap-1 text-xs font-semibold text-blue-600"
                             >
                                 <Sparkles size={13} />
-                                AI로 입력하기
+                                AI로 식단 기록
                             </Link>
                         )}
                         <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600">

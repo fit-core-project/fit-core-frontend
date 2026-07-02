@@ -1,16 +1,16 @@
 import Link from "next/link"
+import { Apple, Dumbbell, Pill, Sparkles } from "lucide-react"
 import DietSummaryCard from "@/app/components/DietSummaryCard"
 
 export default function HomePage() {
     return (
         <div className="flex-1 flex flex-col pb-20">
-            {/* 1. 상단 인사말 및 AI 코치 인사이트 */}
             <div className="bg-white px-6 pt-4 pb-8 rounded-b-3xl shadow-sm border-b border-slate-100">
-                <h1 className="text-2xl font-extrabold text-slate-800 mb-6">오늘도 화이팅하세요! 🔥</h1>
+                <h1 className="text-2xl font-extrabold text-slate-800 mb-6">오늘도 화이팅하세요!</h1>
 
                 <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex gap-3 items-start">
                     <div className="bg-white w-8 h-8 rounded-full shadow-sm flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="text-lg leading-none">🤖</span>
+                        <Sparkles className="h-4 w-4 text-emerald-600" />
                     </div>
                     <div>
                         <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wide mb-1">
@@ -25,10 +25,6 @@ export default function HomePage() {
             </div>
 
             <main className="px-5 mt-8 flex flex-col gap-8">
-                {/* 2. 데일리 영양 상태 (매크로) */}
-                <DietSummaryCard />
-
-                {/* 3. 오늘 운동 허브 */}
                 <section>
                     <h2 className="text-lg font-bold text-slate-800 mb-3 px-1">오늘 운동</h2>
                     <Link
@@ -37,7 +33,7 @@ export default function HomePage() {
                     >
                         <div className="flex gap-4 items-center">
                             <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-2xl group-hover:bg-blue-50 transition-colors">
-                                🏋️‍♂️
+                                <Dumbbell className="h-6 w-6 text-blue-600" />
                             </div>
                             <div>
                                 <p className="text-xs font-bold text-blue-500 mb-0.5">Workout Hub</p>
@@ -65,7 +61,8 @@ export default function HomePage() {
                     </Link>
                 </section>
 
-                {/* 4. AI 기능 바로가기 퀵 메뉴 */}
+                <DietSummaryCard />
+
                 <section>
                     <h2 className="text-lg font-bold text-slate-800 mb-3 px-1">AI 코치 도구</h2>
                     <div className="flex flex-col gap-3">
@@ -74,11 +71,11 @@ export default function HomePage() {
                             className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all"
                         >
                             <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-xl shrink-0">
-                                📝
+                                <Dumbbell className="h-6 w-6 text-blue-600" />
                             </div>
                             <div className="flex-1">
-                                <p className="text-base font-bold text-slate-800">루틴 생성</p>
-                                <p className="text-xs text-slate-500 mt-0.5">컨디션 맞춤형 운동 계획</p>
+                                <p className="text-base font-bold text-slate-800">AI 운동 루틴 만들기</p>
+                                <p className="text-xs text-slate-500 mt-0.5">컨디션에 맞는 운동 계획</p>
                             </div>
                             <div className="text-slate-300">
                                 <svg
@@ -102,11 +99,11 @@ export default function HomePage() {
                             className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all"
                         >
                             <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center text-xl shrink-0">
-                                🎙️
+                                <Apple className="h-6 w-6 text-orange-500" />
                             </div>
                             <div className="flex-1">
-                                <p className="text-base font-bold text-slate-800">퀵 로깅</p>
-                                <p className="text-xs text-slate-500 mt-0.5">자연어로 식단 기록</p>
+                                <p className="text-base font-bold text-slate-800">AI로 식단 기록</p>
+                                <p className="text-xs text-slate-500 mt-0.5">자연어로 빠르게 식단 기록</p>
                             </div>
                             <div className="text-slate-300">
                                 <svg
@@ -130,7 +127,7 @@ export default function HomePage() {
                             className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all"
                         >
                             <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-xl shrink-0">
-                                💊
+                                <Pill className="h-6 w-6 text-emerald-600" />
                             </div>
                             <div className="flex-1">
                                 <p className="text-base font-bold text-slate-800">영양제 코치</p>

@@ -2,11 +2,8 @@
 
 import React, { useEffect, useState } from "react"
 import { ChevronDown, User } from "lucide-react"
-import { useForm } from "react-hook-form"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
-import { useSettingsStore } from "@/store/settingsStore"
 import type { UserResponse } from "@/types/project"
-import { NUMERIC_RANGES, numericRules, toDisplayBound } from "@/utils/numericValidation"
 
 const GENDER_OPTIONS: { label: string; value: UserResponse["gender"] }[] = [
     { label: "남성", value: "MALE" },
@@ -25,20 +22,12 @@ interface ProfileEditFormProps {
 }
 
 export default function ProfileEditForm({ initialProfile, onSave, onCancel }: ProfileEditFormProps) {
-    const { weightUnit } = useSettingsStore()
     const [formData, setFormData] = useState({
         nickname: initialProfile?.nickname || "",
         gender: initialProfile?.gender || "NONE",
         birthDate: initialProfile?.birthDate ? String(initialProfile.birthDate).split("T")[0] : "",
-        bodyWeightKg: initialProfile?.bodyWeightKg || 0,
-        bodyFatPct: initialProfile?.bodyFatPct || 0,
     })
     const [nicknameStatus, setNicknameStatus] = useState<"idle" | "checking" | "available" | "duplicate">("idle")
-    const {
-        register,
-        trigger,
-        formState: { errors },
-    } = useForm<Record<string, unknown>>({ mode: "onChange" })
 
     useEffect(() => {
         const timer = window.setTimeout(async () => {
@@ -60,9 +49,6 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
         return () => window.clearTimeout(timer)
     }, [formData.nickname, initialProfile?.nickname])
 
-    const bodyFatPctRegister = register("bodyFatPct", numericRules("bodyFatPct"))
-    const bodyWeightRegister = register("bodyWeightKg", numericRules("bodyWeightKg", weightUnit))
-
     const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = event.target
         setFormData((prev) => ({ ...prev, [name]: value }))
@@ -77,9 +63,6 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
             return
         }
         if (nicknameStatus === "checking" || nicknameStatus === "duplicate") return
-
-        const isValid = await trigger()
-        if (!isValid) return
 
         if (nickname !== initialProfile?.nickname) {
             try {
@@ -97,8 +80,6 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
             nickname,
             gender: formData.gender as UserResponse["gender"],
             birthDate: formData.birthDate,
-            bodyWeightKg: formData.bodyWeightKg,
-            bodyFatPct: formData.bodyFatPct,
         })
     }
 
@@ -162,58 +143,19 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
             </section>
 
             <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h2 className="mb-4 text-base font-bold text-slate-800">신체 정보</h2>
-                <div className="grid grid-cols-2 gap-3">
-                    <label className="block space-y-1">
-                        <span className="text-xs font-semibold text-slate-500">체중 ({weightUnit})</span>
-                        <input
-                            type="number"
-                            name="bodyWeightKg"
-                            min={toDisplayBound(NUMERIC_RANGES.bodyWeightKg.min, weightUnit)}
-                            max={toDisplayBound(NUMERIC_RANGES.bodyWeightKg.max, weightUnit)}
-                            step={NUMERIC_RANGES.bodyWeightKg.step}
-                            value={
-                                formData.bodyWeightKg
-                                    ? weightUnit === "lbs"
-                                        ? +(formData.bodyWeightKg * 2.20462).toFixed(1)
-                                        : formData.bodyWeightKg
-                                    : ""
-                            }
-                            onChange={(event) => {
-                                bodyWeightRegister.onChange(event)
-                                const raw = parseFloat(event.target.value)
-                                const inKg = Number.isNaN(raw) ? 0 : weightUnit === "lbs" ? raw / 2.20462 : raw
-                                setFormData((prev) => ({ ...prev, bodyWeightKg: inKg }))
-                                void trigger("bodyWeightKg")
-                            }}
-                            className={INPUT_CLS}
-                        />
-                        {errors.bodyWeightKg?.message && (
-                            <p className="text-xs text-red-600">{String(errors.bodyWeightKg.message)}</p>
-                        )}
-                    </label>
-
-                    <label className="block space-y-1">
-                        <span className="text-xs font-semibold text-slate-500">체지방률 (%)</span>
-                        <input
-                            type="number"
-                            name="bodyFatPct"
-                            min={NUMERIC_RANGES.bodyFatPct.min}
-                            max={NUMERIC_RANGES.bodyFatPct.max}
-                            step={NUMERIC_RANGES.bodyFatPct.step}
-                            value={String(formData.bodyFatPct)}
-                            onChange={(event) => {
-                                bodyFatPctRegister.onChange(event)
-                                setFormData((prev) => ({ ...prev, bodyFatPct: Number(event.target.value) || 0 }))
-                                void trigger("bodyFatPct")
-                            }}
-                            className={INPUT_CLS}
-                        />
-                        {errors.bodyFatPct?.message && (
-                            <p className="text-xs text-red-600">{String(errors.bodyFatPct.message)}</p>
-                        )}
-                    </label>
-                </div>
+                <h2 className="text-base font-bold text-slate-800">체성분 관리</h2>
+                <p className="mt-2 text-sm font-semibold text-slate-700">
+                    체중과 체지방률은 체성분 변화에서 관리합니다.
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                    시간에 따라 변하는 신체 기록은 통계 화면에서 확인하고 기록할 수 있습니다.
+                </p>
+                <a
+                    href="/my?tab=stats"
+                    className="mt-4 inline-flex min-h-11 items-center rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50"
+                >
+                    체성분 변화로 이동
+                </a>
             </section>
 
             <div className="sticky bottom-0 -mx-4 border-t border-slate-100 bg-white/95 px-4 pb-4 pt-3 backdrop-blur-sm">

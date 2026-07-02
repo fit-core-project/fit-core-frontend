@@ -190,7 +190,7 @@ export default function NutritionPage() {
                                 href="/ai_quicklog"
                                 className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700"
                             >
-                                AI로 기록
+                                AI로 식단 기록
                             </Link>
                         </div>
                     </div>

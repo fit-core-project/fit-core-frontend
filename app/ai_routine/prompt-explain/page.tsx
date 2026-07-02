@@ -97,12 +97,12 @@ export default function PromptExplainPage() {
                         className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 transition-colors hover:text-slate-800"
                     >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        루틴 생성으로 돌아가기
+                        운동 루틴 만들기로 돌아가기
                     </Link>
                     <div className="space-y-2">
                         <p className="text-xs font-bold uppercase tracking-wide text-blue-600">Prompt Engineering</p>
                         <h1 className="text-2xl font-extrabold leading-tight text-slate-900">
-                            AI 루틴 생성 프롬프트 설계
+                            AI 운동 루틴 만들기 프롬프트 설계
                         </h1>
                         <p className="text-sm leading-6 text-slate-600">
                             실제 raw prompt 전문을 공개하지 않고, 입력 맥락, 안전 가드, 출력 스키마, 평가 지표만

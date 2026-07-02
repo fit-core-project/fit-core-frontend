@@ -160,7 +160,7 @@ export default function Routine() {
                 </div>
                 <h2 className="mb-2 text-lg font-extrabold text-slate-800">저장된 루틴이 없습니다</h2>
                 <p className="max-w-xs text-sm leading-relaxed text-slate-500">
-                    AI 루틴 생성기에서 루틴을 만들고 확정하면 이곳에서 확인할 수 있습니다.
+                    AI 운동 루틴 만들기에서 루틴을 만들고 확정하면 이곳에서 확인할 수 있습니다.
                 </p>
             </div>
         )

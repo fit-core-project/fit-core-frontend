@@ -95,7 +95,7 @@ function EmptyWorkoutState() {
                 className="flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3.5 font-bold text-white shadow-lg shadow-blue-200 transition-transform hover:bg-blue-700 active:scale-95"
             >
                 <Dumbbell className="h-4 w-4" />
-                AI 루틴 생성하기
+                AI 운동 루틴 만들기
             </button>
         </div>
     )
