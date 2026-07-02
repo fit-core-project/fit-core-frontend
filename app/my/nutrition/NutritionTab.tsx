@@ -1,7 +1,6 @@
 "use client"
 
 import { startTransition, useCallback, useEffect, useMemo, useState } from "react"
-import Link from "next/link"
 import { Plus, Utensils } from "lucide-react"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
@@ -121,11 +120,11 @@ interface NutritionTabProps {
     date?: string
     onRefresh?: () => void
     targetRefreshKey?: number
+    dataRefreshKey?: number
     hideSummary?: boolean
-    showAiLink?: boolean
 }
 
-export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0, hideSummary = false, showAiLink = false }: NutritionTabProps = {}) {
+export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0, dataRefreshKey = 0, hideSummary = false }: NutritionTabProps = {}) {
     const today = getKstToday()
     const resolvedDate = useMemo(() => date ?? today, [date, today])
     const isToday = resolvedDate === today
@@ -147,7 +146,7 @@ export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0, hi
             .then((data) => startTransition(() => setSummary(data)))
             .catch(() => startTransition(() => setError(true)))
             .finally(() => startTransition(() => setLoading(false)))
-    }, [resolvedDate])
+    }, [resolvedDate, dataRefreshKey])
 
     const handleSaved = useCallback(() => {
         fetchData()
@@ -247,27 +246,15 @@ export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0, hi
         )}
         <div className="space-y-4">
             {/* 상단 액션 버튼 */}
-            <div className={showAiLink ? "grid grid-cols-2 gap-2" : "flex justify-end"}>
+            <div className="flex justify-end">
                 <button
                     type="button"
                     onClick={() => setShowModal(true)}
-                    className={showAiLink
-                        ? "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
-                        : "flex items-center gap-1 rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white"
-                    }
+                    className="flex items-center gap-1 rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white"
                 >
-                    <Plus size={showAiLink ? 15 : 13} />
-                    직접 식단 기록
+                    <Plus size={13} />
+                    식단 추가
                 </button>
-                {showAiLink && (
-                    <Link
-                        href="/ai_quicklog"
-                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700"
-                    >
-                        <Plus size={15} />
-                        AI로 식단 기록
-                    </Link>
-                )}
             </div>
             {/* 매크로 요약 */}
             {!hideSummary && <div className="rounded-2xl bg-white p-5 shadow-sm">

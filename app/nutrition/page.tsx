@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { CalendarDays, Target, Utensils } from "lucide-react"
+import { CalendarDays, Plus, Target, Utensils } from "lucide-react"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
 import NutritionCalendarSection from "@/app/my/stats/NutritionCalendarSection"
 import NutritionTab from "@/app/my/nutrition/NutritionTab"
+import ManualEntryModal from "@/app/my/nutrition/ManualEntryModal"
 import type { DietDailyAggregationResponse, DietSummaryResponse, NutritionTarget } from "@/types/project"
 
 function getKstToday(): string {
@@ -57,6 +58,8 @@ export default function NutritionPage() {
     const [weeklyRows, setWeeklyRows] = useState<DietDailyAggregationResponse[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
+    const [showManualModal, setShowManualModal] = useState(false)
+    const [nutritionRefreshKey, setNutritionRefreshKey] = useState(0)
 
     useEffect(() => {
         Promise.all([
@@ -89,8 +92,20 @@ export default function NutritionPage() {
     const weeklyPercent = weeklyGoal ? Math.min((weeklyTotal / weeklyGoal) * 100, 100) : null
     const hasTodayItems = (summary?.items.length ?? 0) > 0
 
+    const handleManualSaved = () => {
+        dietApiClient.getToday().then(setSummary).catch(() => setSummary(null))
+        setNutritionRefreshKey((k) => k + 1)
+    }
+
     return (
         <div className="mx-auto flex w-full max-w-[480px] flex-col gap-5 p-4 pb-10">
+            {showManualModal && (
+                <ManualEntryModal
+                    defaultDate={today}
+                    onClose={() => setShowManualModal(false)}
+                    onSaved={handleManualSaved}
+                />
+            )}
             <header className="px-1">
                 <div>
                     <p className="text-xs font-black uppercase tracking-wide text-emerald-500">Nutrition</p>
@@ -179,6 +194,24 @@ export default function NutritionPage() {
                                 </p>
                             </div>
                         )}
+
+                        <div className="mt-5 grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowManualModal(true)}
+                                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                            >
+                                <Plus className="h-4 w-4" />
+                                직접 식단 기록
+                            </button>
+                            <Link
+                                href="/ai_quicklog"
+                                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700"
+                            >
+                                <Plus className="h-4 w-4" />
+                                AI로 식단 기록
+                            </Link>
+                        </div>
                     </div>
                 )}
             </section>
@@ -227,7 +260,7 @@ export default function NutritionPage() {
                     <Utensils className="h-5 w-5 text-emerald-500" />
                     <h2 className="text-base font-extrabold text-slate-800">오늘 식단 기록</h2>
                 </div>
-                <NutritionTab date={today} hideSummary showAiLink />
+                <NutritionTab date={today} hideSummary dataRefreshKey={nutritionRefreshKey} />
             </section>
 
             <section>

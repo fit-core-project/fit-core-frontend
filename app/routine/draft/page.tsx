@@ -28,6 +28,24 @@ import { FinalizeState } from "@/types/state"
 import { useForm } from "react-hook-form"
 import { NUMERIC_RANGES, NumericFieldName, numericRules, toDisplayBound, validateNumericRange } from "@/utils/numericValidation"
 
+const MUSCLE_KR: Record<string, string> = {
+    "가슴": "chest",
+    "등": "back",
+    "어깨": "shoulder",
+    "이두": "bicep",
+    "삼두": "tricep",
+    "하체": "leg",
+    "허벅지": "quadricep",
+    "햄스트링": "hamstring",
+    "종아리": "calf",
+    "복근": "abs",
+    "복부": "abs",
+    "엉덩이": "glute",
+    "전완": "forearm",
+    "승모근": "trap",
+    "광배": "lat",
+}
+
 // Fetch recent record for exerciseId and apply default weight/reps to all sets.
 async function applyRecentRecordDefaults(block: RoutineBlock, exerciseId: string): Promise<RoutineBlock> {
     const record = await getRecentRecord(exerciseId)
@@ -199,6 +217,17 @@ export default function RoutineReviewPage() {
         updateSet(blockId, arrayIndex, "targetRestSec", value)
     }
 
+    const handleCloseSwapModal = () => {
+        if (swapBlockId && draft) {
+            const block = draft.routineBlocks.find((b) => b.clientBlockId === swapBlockId)
+            if (block && !block.exerciseId) {
+                setDraft({ ...draft, routineBlocks: draft.routineBlocks.filter((b) => b.clientBlockId !== swapBlockId) })
+            }
+        }
+        setSwapBlockId(null)
+        setSwapQuery("")
+    }
+
     const addNewExerciseBlock = () => {
         if (!draft) return
         const clientBlockId = `cbid_${Date.now()}`
@@ -294,17 +323,17 @@ export default function RoutineReviewPage() {
         return (Array.isArray(catalog) ? catalog : []).filter((item) => candidateIds.has(item.id))
     }, [swapBlock, catalog])
 
-    const filteredCatalog = useMemo(
-        () =>
-            // guard: catalog may arrive as non-array; fall back to [] before filter
-            (Array.isArray(catalog) ? catalog : []).filter(
-                (item) =>
-                    item.nameKr?.includes(swapQuery) ||
-                    item.nameEn?.toLowerCase().includes(swapQuery.toLowerCase()) ||
-                    item.primaryMuscle.includes(swapQuery)
-            ),
-        [catalog, swapQuery]
-    )
+    const filteredCatalog = useMemo(() => {
+        const qLower = swapQuery.toLowerCase()
+        const enEquivalent = MUSCLE_KR[swapQuery] ?? null
+        return (Array.isArray(catalog) ? catalog : []).filter(
+            (item) =>
+                item.nameKr?.includes(swapQuery) ||
+                item.nameEn?.toLowerCase().includes(qLower) ||
+                item.primaryMuscle.toLowerCase().includes(qLower) ||
+                (enEquivalent !== null && item.primaryMuscle.toLowerCase().includes(enEquivalent))
+        )
+    }, [catalog, swapQuery])
 
     const goHomeAfterSave = useCallback(() => {
         if (postSaveNavigationRef.current) return
@@ -630,7 +659,7 @@ export default function RoutineReviewPage() {
                         <div className="flex items-center justify-between p-5 border-b border-slate-100 shrink-0">
                             <h3 className="font-bold text-slate-800 text-base">{"\uc6b4\ub3d9 \uad50\uccb4"}</h3>
                             <button
-                                onClick={() => setSwapBlockId(null)}
+                                onClick={handleCloseSwapModal}
                                 className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                             >
                                 <X className="w-5 h-5" />
