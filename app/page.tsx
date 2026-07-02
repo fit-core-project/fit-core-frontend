@@ -28,21 +28,26 @@ export default function HomePage() {
                 {/* 2. 데일리 영양 상태 (매크로) */}
                 <DietSummaryCard />
 
-                {/* 3. 오늘의 운동 일정 */}
+                {/* 3. 오늘 운동 허브 */}
                 <section>
-                    <h2 className="text-lg font-bold text-slate-800 mb-3 px-1">예정된 훈련</h2>
-                    <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex justify-between items-center group cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all">
+                    <h2 className="text-lg font-bold text-slate-800 mb-3 px-1">오늘 운동</h2>
+                    <Link
+                        href="/workout"
+                        className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex justify-between items-center group hover:border-blue-300 hover:shadow-md transition-all"
+                    >
                         <div className="flex gap-4 items-center">
-                            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-2xl group-hover:bg-emerald-50 transition-colors">
+                            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-2xl group-hover:bg-blue-50 transition-colors">
                                 🏋️‍♂️
                             </div>
                             <div>
-                                <p className="text-xs font-bold text-emerald-500 mb-0.5">Day 3</p>
-                                <h3 className="text-base font-extrabold text-slate-800">스트랭스 하체 루틴</h3>
-                                <p className="text-xs text-slate-400 mt-1">스쿼트 외 4개 종목 • 약 60분</p>
+                                <p className="text-xs font-bold text-blue-500 mb-0.5">Workout Hub</p>
+                                <h3 className="text-base font-extrabold text-slate-800">운동 기록과 목표 확인</h3>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    오늘 운동 상태와 주간 진행률을 확인하세요.
+                                </p>
                             </div>
                         </div>
-                        <div className="text-slate-300 group-hover:text-emerald-500 transition-colors">
+                        <div className="text-slate-300 group-hover:text-blue-500 transition-colors">
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 width="20"
@@ -57,7 +62,7 @@ export default function HomePage() {
                                 <polyline points="9 18 15 12 9 6"></polyline>
                             </svg>
                         </div>
-                    </div>
+                    </Link>
                 </section>
 
                 {/* 4. AI 기능 바로가기 퀵 메뉴 */}

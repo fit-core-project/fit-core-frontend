@@ -57,7 +57,7 @@ export default function DietSummaryCard() {
         nutritionTargetApiClient.getTarget().then((t) => startTransition(() => setTarget(t)))
     }, [])
 
-    const handleClick = () => router.push("/my?tab=nutrition")
+    const handleClick = () => router.push("/nutrition")
 
     const totalKcal = summary?.totalKcal ?? 0
     const totalCarbsG = summary?.totalCarbsG ?? 0
@@ -101,17 +101,19 @@ export default function DietSummaryCard() {
             )}
 
             {!loading && !error && (!summary || summary.items.length === 0) && (
-                <div
-                    className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 py-6 text-center cursor-pointer hover:shadow-md transition-all"
+                <button
+                    type="button"
+                    className="w-full bg-white p-5 rounded-3xl shadow-sm border border-slate-100 py-6 text-center cursor-pointer hover:shadow-md transition-all"
                     onClick={handleClick}
                 >
                     <p className="text-sm text-slate-400">오늘 기록 없어요</p>
-                </div>
+                </button>
             )}
 
             {!loading && !error && summary && summary.items.length > 0 && (
-                <div
-                    className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md transition-all"
+                <button
+                    type="button"
+                    className="w-full bg-white p-5 rounded-3xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md transition-all"
                     onClick={handleClick}
                 >
                     {/* kcal 진행 바 */}
@@ -203,7 +205,7 @@ export default function DietSummaryCard() {
                             당류·식이섬유·나트륨은 DB 매칭 항목만 집계
                         </p>
                     </div>
-                </div>
+                </button>
             )}
         </section>
     )
