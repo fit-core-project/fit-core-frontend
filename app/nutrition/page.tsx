@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { Apple, CalendarDays, Plus, Target, Utensils } from "lucide-react"
+import { CalendarDays, Target, Utensils } from "lucide-react"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
 import NutritionCalendarSection from "@/app/my/stats/NutritionCalendarSection"
@@ -90,18 +90,11 @@ export default function NutritionPage() {
 
     return (
         <div className="mx-auto flex w-full max-w-[480px] flex-col gap-5 p-4 pb-10">
-            <header className="flex items-end justify-between gap-3 px-1">
+            <header className="px-1">
                 <div>
                     <p className="text-xs font-black uppercase tracking-wide text-emerald-500">Nutrition</p>
                     <h1 className="text-2xl font-extrabold text-slate-900">영양</h1>
                 </div>
-                <Link
-                    href="/ai_quicklog"
-                    className="inline-flex min-h-11 items-center gap-1.5 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-colors hover:bg-emerald-700"
-                >
-                    <Plus className="h-4 w-4" />
-                    AI 퀵로그
-                </Link>
             </header>
 
             <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -191,13 +184,13 @@ export default function NutritionPage() {
                                 href="/my?tab=nutrition"
                                 className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50"
                             >
-                                식단 기록하기
+                                직접 입력
                             </Link>
                             <Link
                                 href="/ai_quicklog"
                                 className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700"
                             >
-                                AI 퀵로그
+                                AI로 기록
                             </Link>
                         </div>
                     </div>
@@ -249,27 +242,6 @@ export default function NutritionPage() {
                     <h2 className="text-base font-extrabold text-slate-800">식단 캘린더</h2>
                 </div>
                 <NutritionCalendarSection />
-            </section>
-
-            <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div className="mb-3 flex items-center gap-2">
-                    <Apple className="h-5 w-5 text-rose-500" />
-                    <h2 className="text-base font-extrabold text-slate-800">빠른 기록</h2>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                    <Link
-                        href="/my?tab=nutrition"
-                        className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50"
-                    >
-                        직접 입력
-                    </Link>
-                    <Link
-                        href="/ai_quicklog"
-                        className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-slate-800"
-                    >
-                        AI 퀵로그
-                    </Link>
-                </div>
             </section>
         </div>
     )

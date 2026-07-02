@@ -247,7 +247,7 @@ export default function NutritionTab({ date, onRefresh }: NutritionTabProps = {}
                     className="flex items-center gap-1 rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white"
                 >
                     <Plus size={13} />
-                    추가
+                    식단 추가
                 </button>
             </div>
             {/* 매크로 요약 */}
@@ -348,7 +348,7 @@ export default function NutritionTab({ date, onRefresh }: NutritionTabProps = {}
                             className="flex items-center gap-1.5 rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white"
                         >
                             <Plus size={14} />
-                            첫 식단 기록하기
+                            식단 추가
                         </button>
                     )}
                 </div>

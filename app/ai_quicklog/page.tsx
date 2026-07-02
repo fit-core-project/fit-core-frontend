@@ -212,7 +212,7 @@ export default function QuickLogPage() {
                     { duration: 7000 },
                 )
             } else {
-                toast.success("식단이 저장되었습니다. 영양 탭에서 확인하세요.")
+                toast.success("식단이 저장되었습니다. 영양 페이지에서 오늘 섭취량을 확인할 수 있습니다.")
             }
             setParsedData(null)
             setInputText("")

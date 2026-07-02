@@ -18,6 +18,11 @@ function monthRange(year: number, month: number): { from: string; to: string } {
     return { from, to }
 }
 
+function formatSelectedDateLabel(value: string): string {
+    const [, month, day] = value.split("-").map(Number)
+    return `${month}월 ${day}일 식단`
+}
+
 function dayColor(row: DietDailyAggregationResponse | undefined, kcalGoal: number | null | undefined): string {
     if (!row) return "bg-slate-100 text-slate-400"
     if (!kcalGoal) return "bg-emerald-400 text-white"
@@ -149,16 +154,29 @@ export default function NutritionCalendarSection() {
                     <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-red-400" />목표 초과</span>
                     <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-100 border border-slate-200" />기록 없음</span>
                 </div>
+                <p className="mt-3 text-xs leading-relaxed text-slate-500">
+                    캘린더에서 날짜를 선택하면 아래에서 해당 날짜의 식단 기록을 확인할 수 있습니다.
+                </p>
             </div>
 
             {/* 선택 날짜 상세 */}
             {selectedDate && (
                 <div ref={detailRef} className="mt-4">
-                    <div className="mb-2 flex items-center justify-between px-1">
-                        <span className="text-sm font-bold text-slate-700">{selectedDate} 식단</span>
+                    <div className="mb-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-wide text-emerald-600">선택 날짜 식단</p>
+                                <h3 className="mt-1 text-base font-extrabold text-slate-800">
+                                    {formatSelectedDateLabel(selectedDate)}
+                                </h3>
+                                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                                    이 날짜의 식단 기록을 확인하고 필요한 경우 식단을 추가하거나 수정할 수 있습니다.
+                                </p>
+                            </div>
                         <button type="button" onClick={() => setSelectedDate(null)} className="rounded-full p-1 hover:bg-slate-100">
                             <X size={16} className="text-slate-400" />
                         </button>
+                        </div>
                     </div>
                     <NutritionTab key={selectedDate} date={selectedDate} onRefresh={fetchRows} />
                 </div>
