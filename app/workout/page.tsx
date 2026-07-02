@@ -293,7 +293,6 @@ export default function WorkoutPage() {
                     <Dumbbell className="h-5 w-5 text-violet-500" />
                     <h2 className="text-base font-extrabold text-slate-800">저장 루틴</h2>
                 </div>
-                <p className="mb-4 text-sm text-slate-400">저장한 루틴을 확인하고 바로 운동을 시작할 수 있습니다.</p>
                 <Routine />
             </section>
 

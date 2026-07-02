@@ -1,27 +1,12 @@
 import Link from "next/link"
-import { Apple, Dumbbell, Pill, Sparkles } from "lucide-react"
+import { Apple, Dumbbell, Pill } from "lucide-react"
 import DietSummaryCard from "@/app/components/DietSummaryCard"
 
 export default function HomePage() {
     return (
         <div className="flex-1 flex flex-col pb-20">
-            <div className="bg-white px-6 pt-4 pb-8 rounded-b-3xl shadow-sm border-b border-slate-100">
-                <h1 className="text-2xl font-extrabold text-slate-800 mb-6">오늘도 화이팅하세요!</h1>
-
-                <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex gap-3 items-start">
-                    <div className="bg-white w-8 h-8 rounded-full shadow-sm flex items-center justify-center shrink-0 mt-0.5">
-                        <Sparkles className="h-4 w-4 text-emerald-600" />
-                    </div>
-                    <div>
-                        <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wide mb-1">
-                            AI Coach Insight
-                        </p>
-                        <p className="text-sm text-slate-700 leading-snug break-keep">
-                            어제 수면이 평균보다 부족했습니다. 오늘 예정된 <span className="font-bold">하체 루틴</span>
-                            은 볼륨을 조금 줄이고 부상에 주의하세요.
-                        </p>
-                    </div>
-                </div>
+            <div className="bg-white px-6 pt-4 pb-6 rounded-b-3xl shadow-sm border-b border-slate-100">
+                <h1 className="text-2xl font-extrabold text-slate-800">오늘도 화이팅하세요!</h1>
             </div>
 
             <main className="px-5 mt-8 flex flex-col gap-8">
@@ -61,7 +46,7 @@ export default function HomePage() {
                     </Link>
                 </section>
 
-                <DietSummaryCard />
+                <DietSummaryCard showDetails={false} />
 
                 <section>
                     <h2 className="text-lg font-bold text-slate-800 mb-3 px-1">AI 코치 도구</h2>

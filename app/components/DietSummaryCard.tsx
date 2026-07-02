@@ -36,7 +36,7 @@ function fiberBarPct(current: number, min: number | null | undefined): number {
     return Math.min((current / min) * 100, 100)
 }
 
-export default function DietSummaryCard() {
+export default function DietSummaryCard({ showDetails = true }: { showDetails?: boolean }) {
     const router = useRouter()
     const [summary, setSummary] = useState<DietSummaryResponse | null>(null)
     const [loading, setLoading] = useState(true)
@@ -150,6 +150,7 @@ export default function DietSummaryCard() {
                     </div>
 
                     {/* 추가 영양소 소섹션 */}
+                    {showDetails && (
                     <div className="mt-4 border-t border-slate-100 pt-3">
                         <div className="flex justify-around">
                             <div className="flex flex-col items-center w-1/3 px-2">
@@ -205,6 +206,7 @@ export default function DietSummaryCard() {
                             당류·식이섬유·나트륨은 DB 매칭 항목만 집계
                         </p>
                     </div>
+                    )}
                 </button>
             )}
         </section>

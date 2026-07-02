@@ -161,14 +161,9 @@ export default function NutritionPage() {
                                 </p>
                             </>
                         ) : (
-                            <div className="mt-3 rounded-2xl bg-amber-50 p-3">
-                                <p className="text-sm font-bold text-amber-800">
-                                    목표 칼로리가 아직 설정되지 않았습니다.
-                                </p>
-                                <p className="mt-1 text-xs leading-relaxed text-amber-700">
-                                    프로필을 완성하면 섭취량을 목표와 비교할 수 있습니다.
-                                </p>
-                            </div>
+                            <p className="mt-3 text-xs text-amber-700">
+                                목표 칼로리를 설정하면 섭취량을 목표와 비교할 수 있습니다.
+                            </p>
                         )}
 
                         <div className="mt-5 grid grid-cols-3 gap-3">
@@ -185,15 +180,6 @@ export default function NutritionPage() {
                                 <p className="mt-1 text-sm font-black text-slate-800">{summary?.totalFatG ?? 0}g</p>
                             </div>
                         </div>
-
-                        {!hasTodayItems && (
-                            <div className="mt-5 rounded-2xl bg-slate-50 p-4">
-                                <p className="text-sm font-bold text-slate-700">오늘 기록된 식단이 없습니다.</p>
-                                <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                                    식단을 기록하면 섭취 칼로리를 확인할 수 있습니다.
-                                </p>
-                            </div>
-                        )}
 
                         <div className="mt-5 grid grid-cols-2 gap-2">
                             <button

@@ -2,7 +2,6 @@
 
 import { ReactNode, useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import Link from "next/link"
 import { Dumbbell, Settings, Trophy, User, Utensils } from "lucide-react"
 import { toast } from "sonner"
 import Profile from "@/app/my/profile/Profile"
@@ -29,32 +28,6 @@ const tabs: { id: TabId; label: string; icon: ReactNode }[] = [
 
 const VALID_TABS: TabId[] = ["profile", "stats", "workout", "nutrition", "settings"]
 
-function StatsHubLink({
-    href,
-    title,
-    description,
-    icon,
-}: {
-    href: string
-    title: string
-    description: string
-    icon: ReactNode
-}) {
-    return (
-        <Link
-            href={href}
-            className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm transition-all hover:shadow-md"
-        >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                {icon}
-            </div>
-            <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-slate-800">{title}</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-slate-400">{description}</p>
-            </div>
-        </Link>
-    )
-}
 
 export default function MyPageContent() {
     const searchParams = useSearchParams()
@@ -153,23 +126,6 @@ export default function MyPageContent() {
                         <BodyCompositionPage profile={profile} onSave={onBodyCompositionSave} />
                         <PrSection />
                         <NutritionTrendSection />
-                        <div className="mt-6 space-y-3">
-                            <p className="px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                일일 기록 허브
-                            </p>
-                            <StatsHubLink
-                                href="/workout"
-                                title="운동 페이지로 이동"
-                                description="운동 기록, 운동 캘린더, 주간 목표 진행률을 확인합니다."
-                                icon={<Dumbbell size={18} />}
-                            />
-                            <StatsHubLink
-                                href="/nutrition"
-                                title="영양 페이지로 이동"
-                                description="식단 캘린더와 오늘 섭취량, 주간 칼로리 진행률을 확인합니다."
-                                icon={<Utensils size={18} />}
-                            />
-                        </div>
                     </>
                 )}
                 {activeTab === "workout" && <WorkoutTab />}
