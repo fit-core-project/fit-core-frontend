@@ -7,6 +7,7 @@ import workoutApiClient from "@/lib/api/workout/workoutApiClient"
 import type { AttendanceWeekResponse, WorkoutSessionResponse } from "@/types/project"
 import WorkoutList from "@/app/my/workout/WorkoutList"
 import Routine from "@/app/my/routine/Routine"
+import WorkoutDetailModal from "@/app/my/workout/WorkoutDetailModal"
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"]
 
@@ -94,6 +95,7 @@ export default function WorkoutPage() {
     const [loading, setLoading] = useState(true)
     const [monthCursor, setMonthCursor] = useState({ year: todayDate.getFullYear(), month: todayDate.getMonth() + 1 })
     const [selectedDate, setSelectedDate] = useState<string | null>(today)
+    const [selectedWorkoutDetail, setSelectedWorkoutDetail] = useState<WorkoutSessionResponse | null>(null)
 
     useEffect(() => {
         Promise.all([workoutApiClient.getRecent(0, 100), workoutApiClient.getAttendance()])
@@ -329,19 +331,31 @@ export default function WorkoutPage() {
                         {selectedWorkouts.length > 0 ? (
                             <div className="space-y-2">
                                 {selectedWorkouts.map((workout) => (
-                                    <div key={workout.id} className="rounded-xl bg-white px-3 py-3">
+                                    <button
+                                        key={workout.id}
+                                        type="button"
+                                        onClick={() => setSelectedWorkoutDetail(workout)}
+                                        className="w-full rounded-xl bg-white px-3 py-3 text-left transition-colors hover:bg-blue-50"
+                                    >
                                         <p className="text-sm font-bold text-slate-800">{getWorkoutTitle(workout)}</p>
                                         <p className="mt-0.5 text-xs text-slate-400">
                                             {workout.durationMin ? `${workout.durationMin}분 · ` : ""}
                                             {(workout.sets ?? []).length}세트
                                         </p>
-                                    </div>
+                                    </button>
                                 ))}
                             </div>
                         ) : (
                             <p className="text-sm text-slate-400">이 날짜에는 운동 기록이 없습니다.</p>
                         )}
                     </div>
+                )}
+
+                {selectedWorkoutDetail && (
+                    <WorkoutDetailModal
+                        workout={selectedWorkoutDetail}
+                        onClose={() => setSelectedWorkoutDetail(null)}
+                    />
                 )}
             </section>
 
