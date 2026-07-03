@@ -1,10 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Activity, ArrowRight, X } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
 import { getUserCondition } from "@/services/userDataService"
+import profileApiClient from "@/lib/api/profile/profileApiClient"
+import type { UserResponse } from "@/types/project"
 
 const LOCKED_PAIN_MESSAGE = "해당 부위는 프로필에서 수정 가능합니다"
 
@@ -13,6 +16,8 @@ export default function RoutineHome() {
     const [domsData, setDomsData] = useState<Record<string, number>>({})
     const [painAreas, setPainAreas] = useState<string[]>([])
     const [toastMessage, setToastMessage] = useState("")
+    const [profile, setProfile] = useState<UserResponse | null>(null)
+    const [profileLoading, setProfileLoading] = useState(true)
 
     useEffect(() => {
         getUserCondition()
@@ -22,6 +27,22 @@ export default function RoutineHome() {
             })
             .catch(() => {})
     }, [])
+
+    useEffect(() => {
+        profileApiClient
+            .getMe()
+            .then(setProfile)
+            .catch(() => {})
+            .finally(() => setProfileLoading(false))
+    }, [])
+
+    const missingRoutineSettings = profileLoading
+        ? []
+        : ([
+              !profile?.goalType && "운동 목표",
+              !profile?.experienceLevel && "운동 경험 수준",
+              (!profile?.equipmentAccess || profile.equipmentAccess.length === 0) && "사용 가능 장비",
+          ].filter(Boolean) as string[])
 
     useEffect(() => {
         if (!toastMessage) return
@@ -126,6 +147,20 @@ export default function RoutineHome() {
                 </div>
 
                 <div className="p-5 bg-white border-t border-slate-100 shrink-0">
+                    {missingRoutineSettings.length > 0 && (
+                        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                            <p className="font-medium">운동 설정을 보완하면 AI 루틴이 더 정확해져요.</p>
+                            <p className="mt-1 text-xs text-amber-800">
+                                부족한 항목: {missingRoutineSettings.join(", ")}
+                            </p>
+                            <Link
+                                href="/my?tab=workout"
+                                className="mt-2 inline-flex text-xs font-semibold text-amber-900 underline underline-offset-2"
+                            >
+                                운동 설정하기 →
+                            </Link>
+                        </div>
+                    )}
                     <button
                         onClick={handleNext}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center"
