@@ -198,7 +198,7 @@ export default function DietSummaryCard({
                     {/* kcal 진행 바 + 칼로리 (우측 상단) */}
                     <div className="mt-1">
                         <div className="flex justify-end mb-0.5">
-                            <span className="text-[13px] font-semibold text-slate-400">
+                            <span className="text-[26px] font-semibold text-slate-400">
                                 {totalKcal.toLocaleString()}
                                 {hasKcalGoal && ` / ${target!.kcalGoal!.toLocaleString()}`} kcal
                             </span>
