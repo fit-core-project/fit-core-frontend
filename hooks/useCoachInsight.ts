@@ -6,11 +6,8 @@ import routineApiClient from "@/lib/api/routine/routineApiClient"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
 import { deriveCoachState } from "@/utils/coachInsight"
+import { getKstToday } from "@/utils/date"
 import type { CoachInsight, CoachSignals } from "@/types/coach"
-
-function getKstToday(): string {
-    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
-}
 
 export function useCoachInsight(): { insight: CoachInsight | null; loading: boolean } {
     const [insight, setInsight] = useState<CoachInsight | null>(null)

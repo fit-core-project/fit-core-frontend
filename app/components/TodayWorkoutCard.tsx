@@ -7,10 +7,7 @@ import { toast } from "sonner"
 import workoutApiClient from "@/lib/api/workout/workoutApiClient"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
 import type { WorkoutSessionResponse } from "@/types/project"
-
-function getKstToday(): string {
-    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
-}
+import { getKstToday } from "@/utils/date"
 
 function getWorkoutTitle(session: WorkoutSessionResponse): string {
     return (
