@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Apple, Plus } from "lucide-react"
+import { Apple, Flame, Plus } from "lucide-react"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
 import type { DietSummaryResponse, NutritionTarget } from "@/types/project"
@@ -198,16 +198,22 @@ export default function DietSummaryCard({
                     {/* kcal 진행 바 + 칼로리 (우측 상단) */}
                     <div className="mt-1">
                         <div className="flex justify-end mb-0.5">
-                            <span className="text-[20px] font-semibold text-slate-400">
-                                {totalKcal.toLocaleString()}
-                                {hasKcalGoal && ` / ${target!.kcalGoal!.toLocaleString()}`} kcal
+                            <span className="flex items-baseline">
+                                <span className="text-[20px] font-bold text-slate-900">{totalKcal.toLocaleString()}</span>
+                                {hasKcalGoal && (
+                                    <span className="text-[18px] text-slate-400">/{target!.kcalGoal!.toLocaleString()}</span>
+                                )}
+                                <span className="text-[18px] text-slate-400 ml-0.5">kcal</span>
                             </span>
                         </div>
-                        <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                                className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                                style={{ width: hasKcalGoal ? `${barPct}%` : "0%" }}
-                            />
+                        <div className="flex items-center gap-2">
+                            <Flame className="h-4 w-4 shrink-0 text-orange-400" />
+                            <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                                    style={{ width: hasKcalGoal ? `${barPct}%` : "0%" }}
+                                />
+                            </div>
                         </div>
                     </div>
 
