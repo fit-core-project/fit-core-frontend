@@ -145,7 +145,7 @@ function getSourceSummary(sources: SourceDetail[]): string {
         new Set(sources.map(getSourceTypeLabel).filter((label): label is string => Boolean(label)))
     )
     const labelSummary = labels.length > 0 ? ` · ${labels.slice(0, 3).join(" · ")}` : ""
-    return `근거 ${sources.length}개${labelSummary}`
+    return `참고 근거 ${sources.length}개${labelSummary}`
 }
 
 function MessageSources({
@@ -169,7 +169,7 @@ function MessageSources({
                     aria-expanded={expanded}
                     className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 font-bold text-emerald-700 transition-colors hover:bg-emerald-100"
                 >
-                    {expanded ? "근거 접기" : "근거 보기"}
+                    {expanded ? "참고 근거 접기" : "참고 근거 보기"}
                     <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
                 </button>
             </div>
@@ -392,9 +392,9 @@ export default function SupplementChatPage() {
                             <Pill className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-extrabold text-slate-800">AI 약사 챗봇</h1>
+                            <h1 className="text-lg font-extrabold text-slate-800">영양제 코치</h1>
                             <p className="text-xs text-emerald-600 font-medium">
-                                검증된 약학 논문 & 식약처 데이터 기반
+                                복용 정보와 주의사항을 참고용으로 정리해요
                             </p>
                         </div>
                     </div>
@@ -461,7 +461,7 @@ export default function SupplementChatPage() {
                             <div className="bg-white border border-slate-100 p-4 rounded-3xl rounded-tl-none shadow-sm flex items-center space-x-3">
                                 <Loader2 className="w-5 h-5 text-emerald-500 animate-spin" />
                                 <span className="text-sm font-medium text-slate-500">
-                                    수만 건의 논문과 데이터를 교차 검증 중입니다...
+                                    관련 근거와 주의 문구를 확인하고 있어요...
                                 </span>
                             </div>
                         </div>
@@ -527,7 +527,7 @@ export default function SupplementChatPage() {
                                     placeholder={
                                         isSttLoading
                                             ? "음성 인식 중..."
-                                            : "복용 중인 약, 질환, 영양제 궁금증을 입력하세요"
+                                            : "예: 오메가3와 비타민D를 같이 먹어도 될까요?"
                                     }
                                     disabled={isSttLoading || isLoading || isRecording}
                                     className="w-full bg-transparent text-slate-800 py-3.5 pl-4 pr-2 outline-none resize-none overflow-y-auto min-h-[52px] max-h-32 text-[15px] leading-relaxed"
@@ -556,8 +556,8 @@ export default function SupplementChatPage() {
                     </div>
 
                     <div className="text-[10px] text-center text-slate-400 mt-3 px-4 font-medium">
-                        <p>AI의 답변은 의료적 진단을 대체할 수 없습니다.</p>
-                        <p>건강에 관한 중요한 결정은 반드시 전문의 또는 약사와 상담하세요.</p>
+                        <p>이 답변은 참고 정보이며 진단이나 처방을 대신하지 않습니다.</p>
+                        <p>질환이 있거나 약을 복용 중이라면 전문가와 상담해 주세요.</p>
                     </div>
                 </div>
             </div>
