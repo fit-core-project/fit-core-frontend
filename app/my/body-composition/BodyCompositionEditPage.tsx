@@ -1,6 +1,10 @@
 import React, { useState } from "react"
 import { BodyComposition } from "@/types/project"
 import { Scale } from "lucide-react"
+
+function getKstTodayDateString(): string {
+    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
 import { useSettingsStore } from "@/store/settingsStore"
 import { useForm } from "react-hook-form"
 import { NUMERIC_RANGES, numericRules, toDisplayBound } from "@/utils/numericValidation"
@@ -18,7 +22,7 @@ const WEIGHT_KG_FIELDS: (keyof BodyComposition)[] = [
 ]
 
 export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
-    const [formData, setFormData] = useState<BodyComposition | null>()
+    const [formData, setFormData] = useState<Partial<BodyComposition>>({ measuredAt: getKstTodayDateString() })
     const { weightUnit } = useSettingsStore()
     const {
         register,
@@ -29,7 +33,7 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type } = e.target
         setFormData((prev) => ({
-            ...prev,
+            ...(prev ?? {}),
             [name]: type === "number" ? (value === "" ? undefined : parseFloat(value)) : value,
         }))
     }
@@ -39,19 +43,17 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
         const isValid = await trigger()
         if (!isValid) return
 
-        if (formData) {
-            if (weightUnit === "lbs") {
-                const converted = { ...formData }
-                for (const field of WEIGHT_KG_FIELDS) {
-                    const val = converted[field] as number | undefined
-                    if (val != null) {
-                        ;(converted as Record<string, unknown>)[field] = val / 2.20462
-                    }
+        if (weightUnit === "lbs") {
+            const converted = { ...formData } as BodyComposition
+            for (const field of WEIGHT_KG_FIELDS) {
+                const val = converted[field] as number | undefined
+                if (val != null) {
+                    ;(converted as Record<string, unknown>)[field] = val / 2.20462
                 }
-                onSave(converted)
-            } else {
-                onSave(formData)
             }
+            onSave(converted)
+        } else {
+            onSave(formData as BodyComposition)
         }
     }
 

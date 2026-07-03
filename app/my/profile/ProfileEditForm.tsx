@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import Link from "next/link"
 import { ChevronDown, User } from "lucide-react"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
 import type { UserResponse } from "@/types/project"
@@ -150,12 +151,12 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
                 <p className="mt-1 text-sm leading-relaxed text-slate-500">
                     시간에 따라 변하는 신체 기록은 통계 화면에서 확인하고 기록할 수 있습니다.
                 </p>
-                <a
+                <Link
                     href="/my?tab=stats"
                     className="mt-4 inline-flex min-h-11 items-center rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50"
                 >
                     체성분 변화로 이동
-                </a>
+                </Link>
             </section>
 
             <div className="sticky bottom-0 -mx-4 border-t border-slate-100 bg-white/95 px-4 pb-4 pt-3 backdrop-blur-sm">

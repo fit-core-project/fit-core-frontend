@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Apple, Dumbbell, Home, PenLine } from "lucide-react"
 import { toast } from "sonner"
@@ -84,6 +85,16 @@ export default function StepDone() {
                     </div>
                 </button>
             </div>
+
+            <p className="text-center text-xs text-slate-400">
+                체성분을 기록하면 변화 추이를 볼 수 있어요.{" "}
+                <Link
+                    href="/my?tab=stats"
+                    className="font-medium text-slate-600 underline underline-offset-2"
+                >
+                    첫 체성분 기록하기 →
+                </Link>
+            </p>
         </div>
     )
 }

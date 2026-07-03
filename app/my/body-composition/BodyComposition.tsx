@@ -171,55 +171,73 @@ export default function BodyCompositionPage({ profile, onSave }: Props) {
         <div className="relative w-full bg-gray-50 px-1 pb-4">
             <h1 className="mb-4 text-lg font-bold text-gray-900">체성분 변화</h1>
 
-            <section className="mb-4">
-                <h2 className="mb-2 text-xs font-semibold text-gray-500">최신 측정 상태</h2>
-                <div className="grid grid-cols-3 gap-2">
-                    <StatCard
-                        label="체중"
-                        value={latestData.weight.value}
-                        unit={latestData.weight.unit}
-                        color="text-blue-600"
-                        icon={<Scale className="h-full w-full" strokeWidth={1.8} />}
-                        diff={latestData.weight.diff}
-                    />
-                    <StatCard
-                        label="골격근량"
-                        value={latestData.muscle.value}
-                        unit={latestData.muscle.unit}
-                        color="text-emerald-600"
-                        icon={<BicepsFlexed className="h-full w-full" strokeWidth={1.8} />}
-                        diff={latestData.muscle.diff}
-                    />
-                    <StatCard
-                        label="체지방률"
-                        value={latestData.fat.value}
-                        unit={latestData.fat.unit}
-                        color="text-rose-600"
-                        icon={<Percent className="h-full w-full" strokeWidth={1.8} />}
-                        diff={latestData.fat.diff}
-                    />
+            {snapshots.length === 0 ? (
+                <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+                    <Scale className="mx-auto mb-3 h-10 w-10 text-slate-300" strokeWidth={1.5} />
+                    <p className="text-sm font-bold text-slate-700">아직 체성분 기록이 없어요.</p>
+                    <p className="mt-1 text-xs text-slate-400">체중을 기록하면 변화 추이를 확인할 수 있어요.</p>
+                    <button
+                        type="button"
+                        onClick={() => setIsEditing(true)}
+                        className="mt-4 inline-flex items-center gap-1.5 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-700"
+                    >
+                        <Plus className="h-4 w-4" />
+                        첫 체성분 기록하기
+                    </button>
                 </div>
-            </section>
+            ) : (
+                <>
+                    <section className="mb-4">
+                        <h2 className="mb-2 text-xs font-semibold text-gray-500">최신 측정 상태</h2>
+                        <div className="grid grid-cols-3 gap-2">
+                            <StatCard
+                                label="체중"
+                                value={latestData.weight.value}
+                                unit={latestData.weight.unit}
+                                color="text-blue-600"
+                                icon={<Scale className="h-full w-full" strokeWidth={1.8} />}
+                                diff={latestData.weight.diff}
+                            />
+                            <StatCard
+                                label="골격근량"
+                                value={latestData.muscle.value}
+                                unit={latestData.muscle.unit}
+                                color="text-emerald-600"
+                                icon={<BicepsFlexed className="h-full w-full" strokeWidth={1.8} />}
+                                diff={latestData.muscle.diff}
+                            />
+                            <StatCard
+                                label="체지방률"
+                                value={latestData.fat.value}
+                                unit={latestData.fat.unit}
+                                color="text-rose-600"
+                                icon={<Percent className="h-full w-full" strokeWidth={1.8} />}
+                                diff={latestData.fat.diff}
+                            />
+                        </div>
+                    </section>
 
-            <section className="rounded-xl bg-white p-3 shadow-sm">
-                <div className="mb-2 flex items-center justify-between">
-                    <h2 className="text-xs font-semibold text-gray-500">변화 추이</h2>
-                    <span className="text-[11px] font-bold text-slate-400">{filteredSnapshots.length}개 기록</span>
-                </div>
-                <div className="mb-3">
-                    <BodyCompositionRangeSlider value={rangeIndex} onChange={setRangeIndex} />
-                </div>
-                <BodyCompositionChart data={filteredSnapshots} weightUnit={weightUnit} />
-            </section>
+                    <section className="rounded-xl bg-white p-3 shadow-sm">
+                        <div className="mb-2 flex items-center justify-between">
+                            <h2 className="text-xs font-semibold text-gray-500">변화 추이</h2>
+                            <span className="text-[11px] font-bold text-slate-400">{filteredSnapshots.length}개 기록</span>
+                        </div>
+                        <div className="mb-3">
+                            <BodyCompositionRangeSlider value={rangeIndex} onChange={setRangeIndex} />
+                        </div>
+                        <BodyCompositionChart data={filteredSnapshots} weightUnit={weightUnit} />
+                    </section>
 
-            <button
-                type="button"
-                aria-label="체성분 기록 추가"
-                onClick={() => setIsEditing(true)}
-                className="sticky bottom-4 left-full mt-4 flex rounded-full bg-blue-600 p-3.5 text-white shadow-lg transition-all hover:bg-blue-700"
-            >
-                <Plus size={24} />
-            </button>
+                    <button
+                        type="button"
+                        aria-label="체성분 기록 추가"
+                        onClick={() => setIsEditing(true)}
+                        className="sticky bottom-4 left-full mt-4 flex rounded-full bg-blue-600 p-3.5 text-white shadow-lg transition-all hover:bg-blue-700"
+                    >
+                        <Plus size={24} />
+                    </button>
+                </>
+            )}
         </div>
     )
 }
