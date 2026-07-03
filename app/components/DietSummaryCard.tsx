@@ -82,14 +82,15 @@ export default function DietSummaryCard({
 
     return (
         <section>
-            <div className="flex justify-between items-end mb-3 px-1">
+            <div className="flex justify-between items-center mb-3 px-1">
                 <h2 className="text-lg font-bold text-slate-800">오늘의 영양</h2>
-                {!loading && !error && (
-                    <span className="text-xs font-semibold text-slate-400">
-                        {totalKcal.toLocaleString()}
-                        {hasKcalGoal && ` / ${target!.kcalGoal!.toLocaleString()}`} kcal
-                    </span>
-                )}
+                <Link
+                    href="/ai_quicklog"
+                    className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700"
+                >
+                    <Plus className="h-3.5 w-3.5" />
+                    식단 기록
+                </Link>
             </div>
 
             {loading && (
@@ -195,6 +196,14 @@ export default function DietSummaryCard({
                                 <span className="text-[10px] text-slate-400 ml-0.5">g</span>
                             </span>
                         </div>
+                    </div>
+
+                    {/* 칼로리 */}
+                    <div className="mt-3 text-center">
+                        <span className="text-xs font-semibold text-slate-400">
+                            {totalKcal.toLocaleString()}
+                            {hasKcalGoal && ` / ${target!.kcalGoal!.toLocaleString()}`} kcal
+                        </span>
                     </div>
 
                     {/* 추가 영양소 소섹션 */}
