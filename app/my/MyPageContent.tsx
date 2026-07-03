@@ -1,7 +1,7 @@
 "use client"
 
 import { ReactNode, useCallback, useEffect, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Dumbbell, Settings, Trophy, User, Utensils } from "lucide-react"
 import { toast } from "sonner"
 import Profile from "@/app/my/profile/Profile"
@@ -30,6 +30,7 @@ const VALID_TABS: TabId[] = ["profile", "stats", "workout", "nutrition", "settin
 
 
 export default function MyPageContent() {
+    const router = useRouter()
     const searchParams = useSearchParams()
     const [isEditing, setIsEditing] = useState(false)
     const [activeTab, setActiveTab] = useState<TabId>(() => {
@@ -37,6 +38,12 @@ export default function MyPageContent() {
         return VALID_TABS.includes(param as TabId) ? (param as TabId) : "profile"
     })
     const user = useAuthStore((state) => state.user)
+
+    useEffect(() => {
+        const param = searchParams.get("tab")
+        const tab = VALID_TABS.includes(param as TabId) ? (param as TabId) : "profile"
+        setActiveTab(tab)
+    }, [searchParams])
     const [profile, setProfile] = useState<UserResponse | null>(null)
     const logout = useCallback(() => {
         useAuthStore.getState().logout()
@@ -97,7 +104,7 @@ export default function MyPageContent() {
                     <button
                         type="button"
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
+                        onClick={() => router.replace(tab.id === "profile" ? "/my" : `/my?tab=${tab.id}`, { scroll: false })}
                         className={`flex min-w-0 flex-col items-center justify-center gap-1 border-b-2 px-1 py-3 text-[11px] font-medium transition-colors ${
                             activeTab === tab.id
                                 ? "border-blue-600 text-blue-600"
