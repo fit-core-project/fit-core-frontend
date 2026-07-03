@@ -127,7 +127,7 @@ export default function RoutineGenerator() {
                 }))
             })
             .catch(() => {
-                // preferences 로드 실패 시 DOMS 데이터만 반영
+                setIsUsingDefaultEquipment(true)
                 setFormData((prev) => ({
                     ...prev,
                     domsData: parsedDoms,

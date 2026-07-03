@@ -228,14 +228,16 @@ export default function BodyCompositionPage({ profile, onSave }: Props) {
                         <BodyCompositionChart data={filteredSnapshots} weightUnit={weightUnit} />
                     </section>
 
-                    <button
-                        type="button"
-                        aria-label="체성분 기록 추가"
-                        onClick={() => setIsEditing(true)}
-                        className="sticky bottom-4 left-full mt-4 flex rounded-full bg-blue-600 p-3.5 text-white shadow-lg transition-all hover:bg-blue-700"
-                    >
-                        <Plus size={24} />
-                    </button>
+                    <div className="sticky bottom-4 mt-4 flex justify-end">
+                        <button
+                            type="button"
+                            aria-label="체성분 기록 추가"
+                            onClick={() => setIsEditing(true)}
+                            className="flex rounded-full bg-blue-600 p-3.5 text-white shadow-lg transition-all hover:bg-blue-700"
+                        >
+                            <Plus size={24} />
+                        </button>
+                    </div>
                 </>
             )}
         </div>
