@@ -3,8 +3,7 @@
 import { startTransition, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Apple, Plus } from "lucide-react"
-import Image from "next/image"
+import { Apple, Flame, Plus } from "lucide-react"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
 import type { DietSummaryResponse, NutritionTarget } from "@/types/project"
@@ -194,7 +193,7 @@ export default function DietSummaryCard({
                     </div>
 
                     {/* 구분선 */}
-                    <div className="mx-3 my-2 border-t border-slate-100" />
+                    <div className="mx-3 mt-5 mb-2 border-t border-slate-100" />
 
                     {/* kcal 진행 바 + 칼로리 (우측 상단) */}
                     <div className="mt-1">
@@ -208,7 +207,7 @@ export default function DietSummaryCard({
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Image src="/calorie-icon.jpg" alt="칼로리 아이콘" width={32} height={32} className="shrink-0 rounded-full object-cover" />
+                            <Flame className="h-8 w-8 shrink-0 text-orange-400" />
                             <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
                                 <div
                                     className={`h-full rounded-full transition-all duration-500 ${barColor}`}
