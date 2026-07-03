@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
     Activity,
@@ -69,6 +70,7 @@ export default function RoutineGenerator() {
     const router = useRouter()
     const [status, setStatus] = useState<GenerateState>("idle")
     const [isPrefsLoading, setIsPrefsLoading] = useState(true)
+    const [isUsingDefaultEquipment, setIsUsingDefaultEquipment] = useState(false)
     const [loadingMsgIndex, setLoadingMsgIndex] = useState(0)
 
     const [formData, setFormData] = useState<RoutineFormState>({
@@ -111,15 +113,16 @@ export default function RoutineGenerator() {
 
         getUserPreferences()
             .then((prefs) => {
+                const hasProfileEquipment = !!(prefs.equipment && prefs.equipment.length > 0)
+                setIsUsingDefaultEquipment(!hasProfileEquipment)
                 setFormData((prev) => ({
                     ...prev,
                     domsData: parsedDoms,
                     painAreas: parsedPainAreas,
                     timeAvailable: normalizeTimeAvailable(prefs.timeAvailable),
-                    equipment:
-                        prefs.equipment && prefs.equipment.length > 0
-                            ? (prefs.equipment as RoutineFormState["equipment"])
-                            : prev.equipment,
+                    equipment: hasProfileEquipment
+                        ? (prefs.equipment as RoutineFormState["equipment"])
+                        : prev.equipment,
                     goal: GOAL_MAP[prefs.goal] ?? "hypertrophy",
                 }))
             })
@@ -400,6 +403,17 @@ export default function RoutineGenerator() {
                                 <Dumbbell className="w-5 h-5 mr-2 text-orange-500" />
                                 사용 가능한 장비
                             </h2>
+                            {isUsingDefaultEquipment && (
+                                <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                    프로필에 장비 설정이 없어 전체 장비 기준으로 처리됩니다.{" "}
+                                    <Link
+                                        href="/my?tab=workout"
+                                        className="font-medium underline underline-offset-2"
+                                    >
+                                        장비 설정하기
+                                    </Link>
+                                </div>
+                            )}
                             <div className="flex flex-wrap gap-2">
                                 {EQUIPMENTS.map((item) => (
                                     <button

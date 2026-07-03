@@ -1,6 +1,7 @@
 "use client"
 
 import { startTransition, useEffect, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Apple, Plus } from "lucide-react"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
@@ -134,6 +135,17 @@ export default function DietSummaryCard({
                                 AI로 식단 기록
                             </button>
                         </div>
+                        {!hasKcalGoal && (
+                            <div className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
+                                <span>목표 칼로리를 설정하면 식단 기록을 더 의미 있게 추적할 수 있어요. </span>
+                                <Link
+                                    href="/my?tab=nutrition"
+                                    className="font-medium text-emerald-600 hover:text-emerald-700"
+                                >
+                                    영양 목표 설정 →
+                                </Link>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <button
@@ -244,6 +256,17 @@ export default function DietSummaryCard({
                     </div>
                     )}
                 </button>
+            )}
+            {!hasKcalGoal && !loading && !error && summary && summary.items.length > 0 && (
+                <div className="mt-2 px-1 text-xs text-slate-500">
+                    <span>목표 칼로리를 설정하면 섭취량을 목표와 비교할 수 있어요. </span>
+                    <Link
+                        href="/my?tab=nutrition"
+                        className="font-medium text-amber-700 hover:text-amber-800"
+                    >
+                        목표 칼로리 설정하기 →
+                    </Link>
+                </div>
             )}
         </section>
     )
