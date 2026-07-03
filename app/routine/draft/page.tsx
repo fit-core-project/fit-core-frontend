@@ -890,7 +890,7 @@ function ExerciseCard({
             )}
 
             {/* Set table header */}
-            <div className="grid grid-cols-[1.25rem_1fr_1fr_3rem_1.25rem] gap-x-1.5 mb-2 px-1">
+            <div className="mb-2 hidden grid-cols-[1.25rem_1fr_1fr_3rem_1.25rem] gap-x-1.5 px-1 sm:grid">
                 <span className="text-[10px] font-black text-slate-400 uppercase text-center">SET</span>
                 <span className="text-[10px] font-black text-slate-400 uppercase text-center">{displayUnit.toUpperCase()}</span>
                 <span className="text-[10px] font-black text-slate-400 uppercase text-center">REPS</span>
@@ -899,7 +899,7 @@ function ExerciseCard({
             </div>
 
             {/* Set rows */}
-            <div className="space-y-1.5">
+            <div className="space-y-2 sm:space-y-1.5">
                 {block.prescription.map((set, arrayIndex) => (
                     <SetRow
                         key={arrayIndex}
@@ -994,10 +994,16 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
     }
 
     return (
-        <div className="grid grid-cols-[1.25rem_1fr_1fr_3rem_1.25rem] gap-x-1.5 items-start">
-            <span className="text-xs font-black text-slate-500 text-center">{arrayIndex + 1}</span>
+        <div className="grid grid-cols-[2.5rem_1fr_1fr_2.5rem] items-start gap-x-2 gap-y-2 rounded-xl bg-slate-50/70 p-2 sm:grid-cols-[1.25rem_1fr_1fr_3rem_1.25rem] sm:gap-x-1.5 sm:gap-y-0 sm:bg-transparent sm:p-0">
+            <span className="pt-7 text-center text-xs font-black text-slate-500 sm:pt-0">
+                <span className="sm:hidden">SET </span>
+                {arrayIndex + 1}
+            </span>
 
             <div>
+                <span className="mb-1 block text-[10px] font-black uppercase text-slate-400 sm:hidden">
+                    {displayUnit.toUpperCase()}
+                </span>
                 <input
                     type="number"
                     min={toDisplayBound(NUMERIC_RANGES.weightKg.min, displayUnit)}
@@ -1016,6 +1022,7 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
             </div>
 
             <div>
+                <span className="mb-1 block text-[10px] font-black uppercase text-slate-400 sm:hidden">REPS</span>
                 <input
                     type="number"
                     min={NUMERIC_RANGES.reps.min}
@@ -1032,11 +1039,14 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
                 {errors.reps?.message && <p className="mt-1 text-[10px] text-red-600">{String(errors.reps.message)}</p>}
             </div>
 
-            <div className="flex flex-col items-center gap-0.5">
+            <div className="order-5 col-span-4 grid grid-cols-[3.5rem_2.75rem_1fr_2.75rem] items-center gap-2 sm:order-none sm:col-span-1 sm:flex sm:flex-col sm:gap-0.5">
+                <span className="text-[10px] font-black uppercase text-slate-400 sm:hidden">REST</span>
                 <button
                     type="button"
                     onClick={() => handleRestStep(30)}
-                    className="w-full text-[9px] font-bold text-slate-400 hover:text-blue-500 leading-none py-0.5 hover:bg-blue-50 rounded transition-colors"
+                    aria-label={`${arrayIndex + 1}세트 휴식 시간 30초 증가`}
+                    title="휴식 시간 30초 증가"
+                    className="min-h-9 w-full rounded-lg text-xs font-bold leading-none text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-500 sm:min-h-0 sm:py-0.5 sm:text-[9px]"
                 >
                     ▲
                 </button>
@@ -1051,23 +1061,32 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
                         handleRestChange(e.target.value)
                         void trigger("restSec")
                     }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-0.5 py-0.5 text-[10px] font-black text-center text-slate-600 tabular-nums leading-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-center text-xs font-black tabular-nums text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-400 sm:rounded-lg sm:bg-slate-50 sm:px-0.5 sm:py-0.5 sm:text-[10px] sm:leading-none"
                 />
-                {errors.restSec?.message && <p className="mt-1 text-[10px] text-red-600">{String(errors.restSec.message)}</p>}
+                {errors.restSec?.message && (
+                    <p className="col-span-4 mt-1 text-[10px] text-red-600 sm:col-span-1">
+                        {String(errors.restSec.message)}
+                    </p>
+                )}
                 <button
                     type="button"
                     onClick={() => handleRestStep(-30)}
                     disabled={set.targetRestSec <= 0}
-                    className="w-full text-[9px] font-bold text-slate-400 hover:text-blue-500 leading-none py-0.5 hover:bg-blue-50 rounded transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                    aria-label={`${arrayIndex + 1}세트 휴식 시간 30초 감소`}
+                    title="휴식 시간 30초 감소"
+                    className="min-h-9 w-full rounded-lg text-xs font-bold leading-none text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-20 sm:min-h-0 sm:py-0.5 sm:text-[9px]"
                 >
                     ▼
                 </button>
             </div>
 
             <button
+                type="button"
                 onClick={() => onDelete(blockId, arrayIndex)}
                 disabled={isOnly}
-                className="flex items-center justify-center text-slate-300 hover:text-red-400 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                aria-label={`${arrayIndex + 1}세트 삭제`}
+                title={`${arrayIndex + 1}세트 삭제`}
+                className="order-4 flex min-h-10 items-center justify-center rounded-xl text-slate-300 transition-colors hover:bg-red-50 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-20 sm:order-none sm:min-h-0 sm:rounded-none sm:hover:bg-transparent"
             >
                 <X className="w-4 h-4" />
             </button>
