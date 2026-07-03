@@ -84,11 +84,17 @@ export default function DietSummaryCard({
     return (
         <section>
             <div className="flex justify-between items-center mb-3 px-1">
-                <h2 className="text-lg font-bold text-slate-800">오늘의 영양</h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-extrabold text-slate-900">오늘의 영양</h2>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100">
+                        <Apple className="h-3.5 w-3.5" />
+                        Diet
+                    </span>
+                </div>
                 <button
                     type="button"
                     onClick={() => setShowDietOptions(true)}
-                    className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700"
+                    className="inline-flex min-h-9 items-center gap-1 rounded-2xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-[0_8px_18px_rgba(5,150,105,0.20)] transition-colors hover:bg-emerald-700"
                 >
                     <Plus className="h-3.5 w-3.5" />
                     식단 기록
@@ -96,7 +102,7 @@ export default function DietSummaryCard({
             </div>
 
             {loading && (
-                <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+                <div className="rounded-3xl border border-emerald-100/80 bg-white p-5 shadow-[0_14px_36px_rgba(5,150,105,0.08)]">
                     <div className="w-full h-3 bg-slate-100 rounded-full mb-6 animate-pulse" />
                     <div className="grid grid-cols-3 gap-4">
                         {[0, 1, 2].map((i) => (
@@ -110,180 +116,191 @@ export default function DietSummaryCard({
             )}
 
             {error && (
-                <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 py-6 text-center">
+                <div className="rounded-3xl border border-emerald-100/80 bg-white p-5 py-6 text-center shadow-[0_14px_36px_rgba(5,150,105,0.08)]">
                     <p className="text-sm text-slate-400">데이터를 불러오지 못했습니다.</p>
                 </div>
             )}
 
-            {!loading && !error && (!summary || summary.items.length === 0) && (
-                onManualAdd ? (
-                    <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
-                        <p className="text-sm font-bold text-slate-800">오늘 식단 기록이 없어요.</p>
-                        <p className="mt-1 text-sm text-slate-500">식단을 기록해 영양 목표를 확인해 보세요.</p>
-                        <div className="mt-4 grid grid-cols-2 gap-2">
-                            <button
-                                type="button"
-                                onClick={onManualAdd}
-                                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
-                            >
-                                <Plus className="h-4 w-4" />
-                                직접 식단 기록
-                            </button>
-                            <button
-                                type="button"
-                                onClick={onAiLog}
-                                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700"
-                            >
-                                <Apple className="h-4 w-4" />
-                                AI로 식단 기록
-                            </button>
-                        </div>
-                        {!hasKcalGoal && (
-                            <div className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
-                                <span>목표 칼로리를 설정하면 식단 기록을 더 의미 있게 추적할 수 있어요. </span>
-                                <Link
-                                    href="/my?tab=nutrition"
-                                    className="font-medium text-emerald-600 hover:text-emerald-700"
+            {!loading &&
+                !error &&
+                (!summary || summary.items.length === 0) &&
+                (onManualAdd ? (
+                    <div className="overflow-hidden rounded-3xl border border-emerald-100/80 bg-white shadow-[0_14px_36px_rgba(5,150,105,0.08)]">
+                        <div className="h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-lime-300" />
+                        <div className="bg-gradient-to-br from-emerald-50/80 via-white to-white p-5">
+                            <p className="text-sm font-bold text-slate-800">오늘 식단 기록이 없어요.</p>
+                            <p className="mt-1 text-sm text-slate-500">식단을 기록해 영양 목표를 확인해 보세요.</p>
+                            <div className="mt-4 grid grid-cols-2 gap-2.5">
+                                <button
+                                    type="button"
+                                    onClick={onManualAdd}
+                                    className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-2xl border border-emerald-100 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-emerald-50"
                                 >
-                                    영양 목표 설정 →
-                                </Link>
+                                    <Plus className="h-4 w-4" />
+                                    직접 식단 기록
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={onAiLog}
+                                    className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white shadow-[0_10px_22px_rgba(5,150,105,0.22)] transition-colors hover:bg-emerald-700"
+                                >
+                                    <Apple className="h-4 w-4" />
+                                    AI로 식단 기록
+                                </button>
                             </div>
-                        )}
+                            {!hasKcalGoal && (
+                                <div className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
+                                    <span>목표 칼로리를 설정하면 식단 기록을 더 의미 있게 추적할 수 있어요. </span>
+                                    <Link
+                                        href="/my?tab=nutrition"
+                                        className="font-medium text-emerald-600 hover:text-emerald-700"
+                                    >
+                                        영양 목표 설정 →
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 ) : (
                     <button
                         type="button"
-                        className="w-full bg-white p-5 rounded-3xl shadow-sm border border-slate-100 py-6 text-center cursor-pointer hover:shadow-md transition-all"
+                        className="w-full cursor-pointer rounded-3xl border border-emerald-100/80 bg-white p-5 py-6 text-center shadow-[0_14px_36px_rgba(5,150,105,0.08)] transition-all hover:shadow-[0_18px_42px_rgba(5,150,105,0.12)]"
                         onClick={handleClick}
                     >
                         <p className="text-sm text-slate-400">오늘 기록 없어요</p>
                     </button>
-                )
-            )}
+                ))}
 
             {!loading && !error && summary && summary.items.length > 0 && (
                 <button
                     type="button"
-                    className="w-full bg-white p-5 rounded-3xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md transition-all"
+                    className="w-full cursor-pointer overflow-hidden rounded-3xl border border-emerald-100/80 bg-white text-left shadow-[0_14px_36px_rgba(5,150,105,0.08)] transition-all hover:shadow-[0_18px_42px_rgba(5,150,105,0.12)]"
                     onClick={handleClick}
                 >
-                    {/* 탄/단/지 요약 */}
-                    <div className="grid grid-cols-3 gap-2">
-                        <div className="flex flex-col items-center">
-                            <span className="text-xs font-bold text-slate-400 mb-0.5">탄수화물</span>
-                            <span className="text-[21px] font-extrabold text-slate-700">
-                                {totalCarbsG}
-                                <span className="text-[13px] text-slate-400 ml-0.5">g</span>
-                            </span>
-                        </div>
-                        <div className="flex flex-col items-center border-l border-r border-slate-100">
-                            <span className="text-xs font-bold text-emerald-500 mb-0.5">단백질</span>
-                            <span className="text-[21px] font-extrabold text-slate-700">
-                                {totalProteinG}
-                                <span className="text-[13px] text-slate-400 ml-0.5">g</span>
-                            </span>
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <span className="text-xs font-bold text-slate-400 mb-0.5">지방</span>
-                            <span className="text-[21px] font-extrabold text-slate-700">
-                                {totalFatG}
-                                <span className="text-[13px] text-slate-400 ml-0.5">g</span>
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* 구분선 */}
-                    <div className="mx-3 mt-5 mb-2 border-t border-slate-100" />
-
-                    {/* kcal 진행 바 + 칼로리 (우측 상단) */}
-                    <div className="mt-1">
-                        <div className="flex justify-end mb-0.5">
-                            <span className="flex items-baseline">
-                                <span className="text-[20px] font-bold text-slate-900">{totalKcal.toLocaleString()}</span>
-                                {hasKcalGoal && (
-                                    <span className="text-[18px] text-slate-400">/{target!.kcalGoal!.toLocaleString()}</span>
-                                )}
-                                <span className="text-[18px] text-slate-400 ml-0.5">kcal</span>
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Flame className="h-8 w-8 shrink-0 text-orange-400" />
-                            <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-lime-300" />
+                    <div className="bg-gradient-to-br from-emerald-50/80 via-white to-white p-5">
+                        <div className="mb-5 rounded-3xl border border-emerald-100 bg-white/80 p-4">
+                            <div className="mb-2 flex items-end justify-between gap-3">
+                                <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-emerald-700">
+                                    <Flame className="h-4 w-4 text-orange-400" />
+                                    오늘 kcal
+                                </span>
+                                <span className="flex shrink-0 items-baseline">
+                                    <span className="text-[24px] font-extrabold text-slate-950">
+                                        {totalKcal.toLocaleString()}
+                                    </span>
+                                    {hasKcalGoal && (
+                                        <span className="text-[15px] font-bold text-slate-400">
+                                            /{target!.kcalGoal!.toLocaleString()}
+                                        </span>
+                                    )}
+                                    <span className="ml-0.5 text-[13px] font-bold text-slate-400">kcal</span>
+                                </span>
+                            </div>
+                            <div className="h-3 overflow-hidden rounded-full bg-slate-100">
                                 <div
                                     className={`h-full rounded-full transition-all duration-500 ${barColor}`}
                                     style={{ width: hasKcalGoal ? `${barPct}%` : "0%" }}
                                 />
                             </div>
                         </div>
-                    </div>
 
-                    {/* 추가 영양소 소섹션 */}
-                    {showDetails && (
-                    <div className="mt-4 border-t border-slate-100 pt-3">
-                        <div className="flex justify-around">
-                            <div className="flex flex-col items-center w-1/3 px-2">
-                                <span className="text-[10px] text-slate-400">당류</span>
-                                <span className="text-[15px] font-semibold text-slate-700">
-                                    {Number(summary?.totalSugarG ?? 0)}
-                                    <span className="text-[13px] font-normal text-slate-400 ml-0.5">g</span>
+                        {/* 탄/단/지 요약 */}
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="flex flex-col items-center">
+                                <span className="text-xs font-bold text-slate-400 mb-0.5">탄수화물</span>
+                                <span className="text-[21px] font-extrabold text-slate-700">
+                                    {totalCarbsG}
+                                    <span className="text-[13px] text-slate-400 ml-0.5">g</span>
                                 </span>
-                                {target?.sugarMax != null && (
-                                    <span className="text-[10px] text-slate-400">~{target.sugarMax}g</span>
-                                )}
-                                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                                    <div
-                                        className={`h-full rounded-full transition-all duration-500 ${upperBarColor(Number(summary?.totalSugarG ?? 0), target?.sugarMax)}`}
-                                        style={{ width: `${upperBarPct(Number(summary?.totalSugarG ?? 0), target?.sugarMax)}%` }}
-                                    />
-                                </div>
                             </div>
-                            <div className="flex flex-col items-center w-1/3 px-2">
-                                <span className="text-[10px] text-slate-400">식이섬유</span>
-                                <span className="text-[15px] font-semibold text-slate-700">
-                                    {Number(summary?.totalFiberG ?? 0)}
-                                    <span className="text-[13px] font-normal text-slate-400 ml-0.5">g</span>
+                            <div className="flex flex-col items-center border-l border-r border-slate-100">
+                                <span className="text-xs font-bold text-emerald-500 mb-0.5">단백질</span>
+                                <span className="text-[21px] font-extrabold text-slate-700">
+                                    {totalProteinG}
+                                    <span className="text-[13px] text-slate-400 ml-0.5">g</span>
                                 </span>
-                                {target?.fiberMin != null && (
-                                    <span className="text-[10px] text-slate-400">{target.fiberMin}g~</span>
-                                )}
-                                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                                    <div
-                                        className={`h-full rounded-full transition-all duration-500 ${fiberBarColor(Number(summary?.totalFiberG ?? 0), target?.fiberMin)}`}
-                                        style={{ width: `${fiberBarPct(Number(summary?.totalFiberG ?? 0), target?.fiberMin)}%` }}
-                                    />
-                                </div>
                             </div>
-                            <div className="flex flex-col items-center w-1/3 px-2">
-                                <span className="text-[10px] text-slate-400">나트륨</span>
-                                <span className="text-[15px] font-semibold text-slate-700">
-                                    {summary?.totalSodiumMg ?? 0}
-                                    <span className="text-[13px] font-normal text-slate-400 ml-0.5">mg</span>
+                            <div className="flex flex-col items-center">
+                                <span className="text-xs font-bold text-slate-400 mb-0.5">지방</span>
+                                <span className="text-[21px] font-extrabold text-slate-700">
+                                    {totalFatG}
+                                    <span className="text-[13px] text-slate-400 ml-0.5">g</span>
                                 </span>
-                                {target?.sodiumMax != null && (
-                                    <span className="text-[10px] text-slate-400">~{target.sodiumMax}mg</span>
-                                )}
-                                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                                    <div
-                                        className={`h-full rounded-full transition-all duration-500 ${upperBarColor(summary?.totalSodiumMg ?? 0, target?.sodiumMax)}`}
-                                        style={{ width: `${upperBarPct(summary?.totalSodiumMg ?? 0, target?.sodiumMax)}%` }}
-                                    />
-                                </div>
                             </div>
                         </div>
-                        <p className="mt-2 text-[10px] text-slate-300 text-center">
-                            당류·식이섬유·나트륨은 DB 매칭 항목만 집계
-                        </p>
+
+                        {/* 추가 영양소 소섹션 */}
+                        {showDetails && (
+                            <div className="mt-4 border-t border-slate-100 pt-3">
+                                <div className="flex justify-around">
+                                    <div className="flex flex-col items-center w-1/3 px-2">
+                                        <span className="text-[10px] text-slate-400">당류</span>
+                                        <span className="text-[15px] font-semibold text-slate-700">
+                                            {Number(summary?.totalSugarG ?? 0)}
+                                            <span className="text-[13px] font-normal text-slate-400 ml-0.5">g</span>
+                                        </span>
+                                        {target?.sugarMax != null && (
+                                            <span className="text-[10px] text-slate-400">~{target.sugarMax}g</span>
+                                        )}
+                                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                            <div
+                                                className={`h-full rounded-full transition-all duration-500 ${upperBarColor(Number(summary?.totalSugarG ?? 0), target?.sugarMax)}`}
+                                                style={{
+                                                    width: `${upperBarPct(Number(summary?.totalSugarG ?? 0), target?.sugarMax)}%`,
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-center w-1/3 px-2">
+                                        <span className="text-[10px] text-slate-400">식이섬유</span>
+                                        <span className="text-[15px] font-semibold text-slate-700">
+                                            {Number(summary?.totalFiberG ?? 0)}
+                                            <span className="text-[13px] font-normal text-slate-400 ml-0.5">g</span>
+                                        </span>
+                                        {target?.fiberMin != null && (
+                                            <span className="text-[10px] text-slate-400">{target.fiberMin}g~</span>
+                                        )}
+                                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                            <div
+                                                className={`h-full rounded-full transition-all duration-500 ${fiberBarColor(Number(summary?.totalFiberG ?? 0), target?.fiberMin)}`}
+                                                style={{
+                                                    width: `${fiberBarPct(Number(summary?.totalFiberG ?? 0), target?.fiberMin)}%`,
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-center w-1/3 px-2">
+                                        <span className="text-[10px] text-slate-400">나트륨</span>
+                                        <span className="text-[15px] font-semibold text-slate-700">
+                                            {summary?.totalSodiumMg ?? 0}
+                                            <span className="text-[13px] font-normal text-slate-400 ml-0.5">mg</span>
+                                        </span>
+                                        {target?.sodiumMax != null && (
+                                            <span className="text-[10px] text-slate-400">~{target.sodiumMax}mg</span>
+                                        )}
+                                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                            <div
+                                                className={`h-full rounded-full transition-all duration-500 ${upperBarColor(summary?.totalSodiumMg ?? 0, target?.sodiumMax)}`}
+                                                style={{
+                                                    width: `${upperBarPct(summary?.totalSodiumMg ?? 0, target?.sodiumMax)}%`,
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="mt-2 text-[10px] text-slate-300 text-center">
+                                    당류·식이섬유·나트륨은 DB 매칭 항목만 집계
+                                </p>
+                            </div>
+                        )}
                     </div>
-                    )}
                 </button>
             )}
             {!hasKcalGoal && !loading && !error && summary && summary.items.length > 0 && (
                 <div className="mt-2 px-1 text-xs text-slate-500">
                     <span>목표 칼로리를 설정하면 섭취량을 목표와 비교할 수 있어요. </span>
-                    <Link
-                        href="/my?tab=nutrition"
-                        className="font-medium text-amber-700 hover:text-amber-800"
-                    >
+                    <Link href="/my?tab=nutrition" className="font-medium text-amber-700 hover:text-amber-800">
                         목표 칼로리 설정하기 →
                     </Link>
                 </div>

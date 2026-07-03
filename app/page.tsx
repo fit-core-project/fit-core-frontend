@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Pill } from "lucide-react"
+import { ChevronRight, Pill } from "lucide-react"
 import TodayWorkoutCard from "@/app/components/TodayWorkoutCard"
 import DietSummaryCard from "@/app/components/DietSummaryCard"
 import ManualEntryModal from "@/app/my/nutrition/ManualEntryModal"
@@ -25,7 +25,7 @@ export default function HomePage() {
     }
 
     return (
-        <div className="flex-1 flex flex-col pb-20">
+        <div className="flex-1 flex flex-col bg-gradient-to-b from-sky-50 via-white to-emerald-50/40 pb-24">
             {showManualModal && (
                 <ManualEntryModal
                     defaultDate={today}
@@ -33,11 +33,23 @@ export default function HomePage() {
                     onSaved={handleManualSaved}
                 />
             )}
-            <div className="bg-white px-6 pt-4 pb-6 rounded-b-3xl shadow-sm border-b border-slate-100">
-                <h1 className="text-2xl font-extrabold text-slate-800">오늘도 화이팅하세요!</h1>
+            <div className="px-5 pt-4">
+                <div className="overflow-hidden rounded-[28px] border border-white/70 bg-gradient-to-br from-blue-600 via-indigo-500 to-emerald-400 p-[1px] shadow-[0_18px_45px_rgba(37,99,235,0.18)]">
+                    <div className="rounded-[27px] bg-white/90 px-5 py-5 backdrop-blur">
+                        <div>
+                            <p className="text-[11px] font-extrabold uppercase text-blue-600">Fit Core Today</p>
+                            <h1 className="mt-2 text-[25px] font-extrabold leading-tight text-slate-950">
+                                오늘의 루틴을 가볍게 시작해볼까요?
+                            </h1>
+                            <p className="mt-2 max-w-[280px] text-sm font-medium leading-5 text-slate-600">
+                                운동과 식단 기록을 한 화면에서 이어가세요.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <main className="px-5 mt-8 flex flex-col gap-8">
+            <main className="px-5 mt-6 flex flex-col gap-7">
                 <TodayWorkoutCard />
 
                 <DietSummaryCard
@@ -48,35 +60,23 @@ export default function HomePage() {
                 />
 
                 <section>
-                    <h2 className="text-lg font-bold text-slate-800 mb-3 px-1">AI 코치 도구</h2>
+                    <h2 className="mb-3 px-1 text-base font-extrabold text-slate-800">AI 코치 도구</h2>
                     <div className="flex flex-col gap-3">
                         <button
                             type="button"
                             onClick={() => router.push("/ai_supplement")}
-                            className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all"
+                            className="flex min-h-20 items-center gap-3 rounded-3xl border border-slate-200/80 bg-white/80 p-4 text-left shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white hover:shadow-[0_16px_38px_rgba(15,23,42,0.09)]"
                         >
-                            <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
-                                <Pill className="h-6 w-6 text-emerald-600" />
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 ring-1 ring-emerald-100">
+                                <Pill className="h-5 w-5 text-emerald-600" />
                             </div>
-                            <div className="flex-1 text-left">
-                                <p className="text-base font-bold text-slate-800">영양제 코치</p>
-                                <p className="text-xs text-slate-500 mt-0.5">안전한 복용 가이드 확인</p>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-extrabold text-slate-800">영양제 코치</p>
+                                <p className="mt-0.5 text-xs font-medium text-slate-500">
+                                    복용 전 주의사항과 조합을 확인하세요.
+                                </p>
                             </div>
-                            <div className="text-slate-300">
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="18"
-                                    height="18"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                >
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
-                            </div>
+                            <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />
                         </button>
                     </div>
                 </section>
