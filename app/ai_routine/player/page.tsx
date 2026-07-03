@@ -299,7 +299,7 @@ export default function WorkoutPlayer() {
         if (pendingPayload.current) trySave(pendingPayload.current)
     }
 
-    const handleSaveLater = () => {
+    const handleDiscardWorkout = () => {
         localStorage.removeItem("fitcore_active_routine")
         localStorage.removeItem("fitcore_doms_data")
         localStorage.removeItem("fitcore_pain_areas")
@@ -320,21 +320,23 @@ export default function WorkoutPlayer() {
                 <p className="text-slate-400 text-center mb-2 leading-relaxed">
                     네트워크 문제로 기록 저장에 실패했습니다.
                 </p>
-                <p className="text-slate-500 text-sm text-center mb-10">데이터는 안전하게 보관되어 있습니다.</p>
+                <p className="text-slate-500 text-sm text-center mb-10">
+                    기록을 남기려면 저장을 다시 시도해 주세요. 나가면 현재 운동 기록은 저장되지 않습니다.
+                </p>
                 <div className="w-full max-w-md space-y-3">
                     <button
                         onClick={handleRetry}
                         disabled={isSaving}
                         className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:text-blue-400 text-white font-bold rounded-2xl transition-colors"
                     >
-                        {isSaving ? "저장 중..." : "다시 시도"}
+                        {isSaving ? "저장 중..." : "저장 다시 시도"}
                     </button>
                     <button
-                        onClick={handleSaveLater}
+                        onClick={handleDiscardWorkout}
                         disabled={isSaving}
-                        className="w-full py-4 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 font-bold rounded-2xl transition-colors"
+                        className="w-full py-4 bg-slate-800 hover:bg-red-950 disabled:opacity-50 text-slate-300 hover:text-red-100 font-bold rounded-2xl transition-colors"
                     >
-                        나중에 저장
+                        저장하지 않고 나가기
                     </button>
                 </div>
             </main>
