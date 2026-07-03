@@ -475,7 +475,12 @@ export default function WorkoutPlayer() {
                                         </div>
 
                                         <button
+                                            type="button"
                                             onClick={() => handleCheckSet(blockIndex, setArrayIndex, set.targetRestSec)}
+                                            aria-label={
+                                                isChecked ? `${set.setIndex}세트 완료 취소` : `${set.setIndex}세트 완료 처리`
+                                            }
+                                            title={isChecked ? `${set.setIndex}세트 완료 취소` : `${set.setIndex}세트 완료 처리`}
                                             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 ${
                                                 isChecked
                                                     ? "bg-blue-500 text-white shadow-inner"
@@ -487,7 +492,7 @@ export default function WorkoutPlayer() {
                                             {isChecked ? (
                                                 <Check className="w-6 h-6 stroke-[3]" />
                                             ) : (
-                                                <Play className="w-5 h-5 ml-1" />
+                                                <Check className="w-5 h-5 stroke-[3]" />
                                             )}
                                         </button>
                                     </div>
