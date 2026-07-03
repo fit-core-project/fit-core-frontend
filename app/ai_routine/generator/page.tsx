@@ -26,15 +26,13 @@ type Equipment = "BARBELL" | "DUMBBELL" | "MACHINE" | "CABLE" | "BODYWEIGHT"
 const DEFAULT_AVAILABLE_EQUIPMENT: Equipment[] = ["BARBELL", "DUMBBELL", "MACHINE", "CABLE", "BODYWEIGHT"]
 
 const LOADING_MESSAGES = [
-    "근육들이 긴급 회의를 소집했습니다...",
-    "오늘은 어디를 괴롭힐지 계산 중입니다...",
-    "내일의 근육통을 정성껏 설계하고 있습니다...",
-    "벤치프레스가 당신을 애타게 기다립니다...",
-    "하체가 도망가기 전에 퇴로를 차단하는 중...",
-    "운동하기 싫은 마음을 강제 종료하는 중...",
-    "숨쉬기 운동은 루틴에서 과감히 뺐습니다...",
-    "AI 코치가 매의 눈으로 스탯을 분석 중입니다...",
-    "단백질이 가장 달콤해질 타이밍을 재는 중...",
+    "선택한 운동 부위를 기준으로 루틴을 구성하고 있어요.",
+    "컨디션과 장비 정보를 반영해 운동 순서를 조정하고 있어요.",
+    "무리하지 않도록 세트와 반복 수를 맞추는 중이에요.",
+    "운동 흐름이 자연스럽도록 루틴을 정리하고 있어요.",
+    "잠시만 기다려 주세요. 오늘 수행할 수 있는 루틴을 준비하고 있어요.",
+    "선택한 조건에 맞춰 대체 운동 가능성을 확인하고 있어요.",
+    "운동 강도와 휴식 구성을 점검하고 있어요.",
 ]
 
 const EQUIPMENTS: { label: string; value: Equipment }[] = [
@@ -445,6 +443,11 @@ export default function RoutineGenerator() {
 
                     {/* 3. 하단 고정 버튼 영역 */}
                     <div className="p-4 bg-white border-t border-slate-100 shrink-0">
+                        {formData.targetMuscles.length === 0 && (
+                            <p className="mb-3 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-2 text-center text-xs font-semibold leading-relaxed text-blue-700">
+                                인체 모델에서 오늘 운동할 부위를 하나 이상 선택해 주세요.
+                            </p>
+                        )}
                         <p className="text-xs text-slate-400 text-center pb-3 leading-relaxed">
                             본 서비스에서 제공하는 루틴 및 중량 처방은 AI 기술에 기반한 가이드라인이며, 의학적 진단이나 의료적 조언을 대신할 수 없습니다. 운동 중 통증이나 이상 징후가 발생할 경우 즉시 수행을 중단하십시오.
                         </p>
