@@ -1,6 +1,7 @@
 export type CoachFocus = "workout" | "diet" | "routine" | "setup" | "done"
 
 export type CoachStateId =
+    | "NO_EQUIPMENT"
     | "NO_ROUTINE"
     | "NO_KCAL_GOAL"
     | "WORKOUT_DONE_NO_DIET"
@@ -11,6 +12,7 @@ export type CoachStateId =
     | "TODAY_NOT_STARTED"
 
 export interface CoachSignals {
+    equipmentEmpty: boolean
     finalsTotal: number
     kcalGoal: number | null
     totalKcal: number | null

@@ -3,6 +3,7 @@ import { deriveCoachState, LOW_ATTENDANCE_THRESHOLD } from "../coachInsight"
 import type { CoachSignals, CoachStateId } from "../../types/coach"
 
 const BASE: CoachSignals = {
+    equipmentEmpty: false,
     finalsTotal: 1,
     kcalGoal: 2000,
     totalKcal: 1500,
@@ -16,6 +17,7 @@ const BASE: CoachSignals = {
 // ─── Layer 1: 상태 커버리지 (8 케이스) ───────────────────────────────────────
 
 const stateCoverage: Array<[string, CoachSignals, CoachStateId]> = [
+    ["NO_EQUIPMENT: equipmentEmpty=true", { ...BASE, equipmentEmpty: true }, "NO_EQUIPMENT"],
     ["NO_ROUTINE: finalsTotal=0", { ...BASE, finalsTotal: 0 }, "NO_ROUTINE"],
     ["NO_KCAL_GOAL: kcalGoal null", { ...BASE, kcalGoal: null }, "NO_KCAL_GOAL"],
     [
@@ -59,6 +61,12 @@ describe("Layer 1 — 상태 커버리지", () => {
 // ─── Layer 2: 우선순위 경계 (6 케이스) ──────────────────────────────────────
 
 describe("Layer 2 — 우선순위 경계", () => {
+    it("equipmentEmpty=true + finalsTotal=0 → NO_EQUIPMENT이 이김 (장비가 루틴보다 위)", () => {
+        expect(
+            deriveCoachState({ ...BASE, equipmentEmpty: true, finalsTotal: 0 }).stateId
+        ).toBe("NO_EQUIPMENT")
+    })
+
     it("finalsTotal=0 + kcalGoal null → NO_ROUTINE이 이김", () => {
         expect(
             deriveCoachState({ ...BASE, finalsTotal: 0, kcalGoal: null }).stateId
@@ -178,8 +186,9 @@ describe("Layer 3 — 숫자 포맷 정확도", () => {
 // ─── Meta: 죽은 코드 회귀 가드 ───────────────────────────────────────────────
 
 describe("Meta — 죽은 코드 가드", () => {
-    it("Layer 1의 expected 값이 8개 CoachStateId를 전부 커버함", () => {
+    it("Layer 1의 expected 값이 9개 CoachStateId를 전부 커버함", () => {
         const ALL_STATE_IDS: CoachStateId[] = [
+            "NO_EQUIPMENT",
             "NO_ROUTINE",
             "NO_KCAL_GOAL",
             "WORKOUT_DONE_NO_DIET",
@@ -193,6 +202,7 @@ describe("Meta — 죽은 코드 가드", () => {
         for (const id of ALL_STATE_IDS) {
             expect(covered.has(id), `${id} not covered in Layer 1`).toBe(true)
         }
+        expect(covered.size).toBe(9)
     })
 
     it("LOW_ATTENDANCE_THRESHOLD 상수가 0.6임", () => {

@@ -3,6 +3,17 @@ import type { CoachInsight, CoachSignals } from "../types/coach"
 export const LOW_ATTENDANCE_THRESHOLD = 0.6
 
 export function deriveCoachState(s: CoachSignals): CoachInsight {
+    // 0. 장비 미설정
+    if (s.equipmentEmpty) {
+        return {
+            stateId: "NO_EQUIPMENT",
+            focus: "setup",
+            message: "운동 장비를 설정하면 더 맞는 루틴을 추천받을 수 있어요.",
+            action: { label: "장비 설정하기", href: "/my?tab=workout" },
+            isAlert: false,
+        }
+    }
+
     // 1. 저장 루틴 없음
     if (s.finalsTotal === 0) {
         return {
