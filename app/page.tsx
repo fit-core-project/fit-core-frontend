@@ -51,9 +51,9 @@ export default function HomePage() {
             </div>
 
             <main className="px-5 mt-6 flex flex-col gap-7">
-                <TodayWorkoutCard />
-
                 <CoachInsightCard />
+                
+                <TodayWorkoutCard />
 
                 <DietSummaryCard
                     showDetails={false}
