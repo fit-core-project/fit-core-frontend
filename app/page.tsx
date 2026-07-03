@@ -40,7 +40,7 @@ export default function HomePage() {
                         <div>
                             <p className="text-[11px] font-extrabold uppercase text-blue-600">Fit Core Today</p>
                             <h1 className="mt-2 text-[25px] font-extrabold leading-tight text-slate-950">
-                                오늘의 루틴을 가볍게 시작해볼까요?
+                                오늘도 핏코어와 함께해요
                             </h1>
                             <p className="mt-2 max-w-[280px] text-sm font-medium leading-5 text-slate-600">
                                 운동과 식단 기록을 한 화면에서 이어가세요.
@@ -52,7 +52,7 @@ export default function HomePage() {
 
             <main className="px-5 mt-6 flex flex-col gap-7">
                 <CoachInsightCard />
-                
+
                 <TodayWorkoutCard />
 
                 <DietSummaryCard
