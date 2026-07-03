@@ -168,44 +168,47 @@ export default function DietSummaryCard({
                     onClick={handleClick}
                 >
                     {/* 탄/단/지 요약 */}
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-2">
                         <div className="flex flex-col items-center">
-                            <span className="text-xs font-bold text-slate-400 mb-1">탄수화물</span>
-                            <span className="text-[17px] font-extrabold text-slate-700">
+                            <span className="text-xs font-bold text-slate-400 mb-0.5">탄수화물</span>
+                            <span className="text-[21px] font-extrabold text-slate-700">
                                 {totalCarbsG}
                                 <span className="text-[13px] text-slate-400 ml-0.5">g</span>
                             </span>
                         </div>
                         <div className="flex flex-col items-center border-l border-r border-slate-100">
-                            <span className="text-xs font-bold text-emerald-500 mb-1">단백질</span>
-                            <span className="text-[17px] font-extrabold text-slate-700">
+                            <span className="text-xs font-bold text-emerald-500 mb-0.5">단백질</span>
+                            <span className="text-[21px] font-extrabold text-slate-700">
                                 {totalProteinG}
                                 <span className="text-[13px] text-slate-400 ml-0.5">g</span>
                             </span>
                         </div>
                         <div className="flex flex-col items-center">
-                            <span className="text-xs font-bold text-slate-400 mb-1">지방</span>
-                            <span className="text-[17px] font-extrabold text-slate-700">
+                            <span className="text-xs font-bold text-slate-400 mb-0.5">지방</span>
+                            <span className="text-[21px] font-extrabold text-slate-700">
                                 {totalFatG}
                                 <span className="text-[13px] text-slate-400 ml-0.5">g</span>
                             </span>
                         </div>
                     </div>
 
-                    {/* 칼로리 */}
-                    <div className="mt-3 text-center">
-                        <span className="text-[15px] font-semibold text-slate-400">
-                            {totalKcal.toLocaleString()}
-                            {hasKcalGoal && ` / ${target!.kcalGoal!.toLocaleString()}`} kcal
-                        </span>
-                    </div>
+                    {/* 구분선 */}
+                    <div className="mx-3 my-2 border-t border-slate-100" />
 
-                    {/* kcal 진행 바 */}
-                    <div className="mt-3 w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                            className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                            style={{ width: hasKcalGoal ? `${barPct}%` : "0%" }}
-                        />
+                    {/* kcal 진행 바 + 칼로리 (우측 상단) */}
+                    <div className="mt-1">
+                        <div className="flex justify-end mb-0.5">
+                            <span className="text-[13px] font-semibold text-slate-400">
+                                {totalKcal.toLocaleString()}
+                                {hasKcalGoal && ` / ${target!.kcalGoal!.toLocaleString()}`} kcal
+                            </span>
+                        </div>
+                        <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                                className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                                style={{ width: hasKcalGoal ? `${barPct}%` : "0%" }}
+                            />
+                        </div>
                     </div>
 
                     {/* 추가 영양소 소섹션 */}
