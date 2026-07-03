@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { BarChart2, Dumbbell, Home, Utensils, User } from "lucide-react"
 
 const navItems = [
@@ -22,6 +22,7 @@ function isActive(pathname: string, searchParams: URLSearchParams, href: string)
 export default function BottomNav() {
     const pathname = usePathname()
     const searchParams = useSearchParams()
+    const router = useRouter()
 
     return (
         <nav
@@ -32,6 +33,25 @@ export default function BottomNav() {
                 {navItems.map((item) => {
                     const active = isActive(pathname, searchParams, item.href)
                     const Icon = item.icon
+                    const isMyTab = item.href === "/my" || item.href === "/my?tab=stats"
+
+                    if (isMyTab) {
+                        return (
+                            <button
+                                key={item.href}
+                                type="button"
+                                aria-current={active ? "page" : undefined}
+                                onClick={() => router.replace(item.href, { scroll: false })}
+                                className={`flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-xs font-medium transition-colors ${
+                                    active ? "bg-violet-50 text-violet-600" : "text-slate-400 hover:text-slate-600"
+                                }`}
+                            >
+                                <Icon className="h-5 w-5" />
+                                <span>{item.label}</span>
+                            </button>
+                        )
+                    }
+
                     return (
                         <Link
                             key={item.href}
