@@ -35,23 +35,10 @@ export default function HomePage() {
                 />
             )}
             <div className="px-5 pt-4">
-                <div className="overflow-hidden rounded-[28px] border border-white/70 bg-gradient-to-br from-blue-600 via-indigo-500 to-emerald-400 p-[1px] shadow-[0_18px_45px_rgba(37,99,235,0.18)]">
-                    <div className="rounded-[27px] bg-white/90 px-5 py-5 backdrop-blur">
-                        <div>
-                            <p className="text-[11px] font-extrabold uppercase text-blue-600">Fit Core Today</p>
-                            <h1 className="mt-2 text-[25px] font-extrabold leading-tight text-slate-950">
-                                오늘도 핏코어와 함께해요
-                            </h1>
-                            <p className="mt-2 max-w-[280px] text-sm font-medium leading-5 text-slate-600">
-                                운동과 식단 기록을 한 화면에서 이어가세요.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+                <CoachInsightCard />
             </div>
 
             <main className="px-5 mt-6 flex flex-col gap-7">
-                <CoachInsightCard />
 
                 <TodayWorkoutCard />
 
