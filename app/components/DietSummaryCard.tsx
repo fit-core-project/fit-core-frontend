@@ -102,7 +102,7 @@ export default function DietSummaryCard({
             </div>
 
             {loading && (
-                <div className="rounded-3xl border border-emerald-100/80 bg-white p-5 shadow-[0_14px_36px_rgba(5,150,105,0.08)]">
+                <div className="rounded-[28px] border border-emerald-100/80 bg-white p-5 shadow-[0_14px_36px_rgba(5,150,105,0.08)]">
                     <div className="w-full h-3 bg-slate-100 rounded-full mb-6 animate-pulse" />
                     <div className="grid grid-cols-3 gap-4">
                         {[0, 1, 2].map((i) => (
@@ -116,7 +116,7 @@ export default function DietSummaryCard({
             )}
 
             {error && (
-                <div className="rounded-3xl border border-emerald-100/80 bg-white p-5 py-6 text-center shadow-[0_14px_36px_rgba(5,150,105,0.08)]">
+                <div className="rounded-[28px] border border-emerald-100/80 bg-white p-5 py-6 text-center shadow-[0_14px_36px_rgba(5,150,105,0.08)]">
                     <p className="text-sm text-slate-400">데이터를 불러오지 못했습니다.</p>
                 </div>
             )}
@@ -125,7 +125,7 @@ export default function DietSummaryCard({
                 !error &&
                 (!summary || summary.items.length === 0) &&
                 (onManualAdd ? (
-                    <div className="overflow-hidden rounded-3xl border border-emerald-100/80 bg-white shadow-[0_14px_36px_rgba(5,150,105,0.08)]">
+                    <div className="overflow-hidden rounded-[28px] border border-emerald-100/80 bg-white shadow-[0_14px_36px_rgba(5,150,105,0.08)]">
                         <div className="h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-lime-300" />
                         <div className="bg-gradient-to-br from-emerald-50/80 via-white to-white p-5">
                             <p className="text-sm font-bold text-slate-800">오늘 식단 기록이 없어요.</p>
@@ -164,7 +164,7 @@ export default function DietSummaryCard({
                 ) : (
                     <button
                         type="button"
-                        className="w-full cursor-pointer rounded-3xl border border-emerald-100/80 bg-white p-5 py-6 text-center shadow-[0_14px_36px_rgba(5,150,105,0.08)] transition-all hover:shadow-[0_18px_42px_rgba(5,150,105,0.12)]"
+                        className="w-full cursor-pointer rounded-[28px] border border-emerald-100/80 bg-white p-5 py-6 text-center shadow-[0_14px_36px_rgba(5,150,105,0.08)] transition-all hover:shadow-[0_18px_42px_rgba(5,150,105,0.12)]"
                         onClick={handleClick}
                     >
                         <p className="text-sm text-slate-400">오늘 기록 없어요</p>
@@ -174,7 +174,7 @@ export default function DietSummaryCard({
             {!loading && !error && summary && summary.items.length > 0 && (
                 <button
                     type="button"
-                    className="w-full cursor-pointer overflow-hidden rounded-3xl border border-emerald-100/80 bg-white text-left shadow-[0_14px_36px_rgba(5,150,105,0.08)] transition-all hover:shadow-[0_18px_42px_rgba(5,150,105,0.12)]"
+                    className="w-full cursor-pointer overflow-hidden rounded-[28px] border border-emerald-100/80 bg-white text-left shadow-[0_14px_36px_rgba(5,150,105,0.08)] transition-all hover:shadow-[0_18px_42px_rgba(5,150,105,0.12)]"
                     onClick={handleClick}
                 >
                     <div className="h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-lime-300" />

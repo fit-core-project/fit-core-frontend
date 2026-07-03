@@ -67,7 +67,7 @@ export default function TodayWorkoutCard() {
                     Workout
                 </span>
             </div>
-            <div className="overflow-hidden rounded-3xl border border-blue-100/80 bg-white shadow-[0_14px_36px_rgba(37,99,235,0.10)]">
+            <div className="overflow-hidden rounded-[28px] border border-blue-100/80 bg-white shadow-[0_14px_36px_rgba(37,99,235,0.10)]">
                 <div className="h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-sky-400" />
                 <div className="bg-gradient-to-br from-blue-50/80 via-white to-white p-5">
                     {isLoading ? (
