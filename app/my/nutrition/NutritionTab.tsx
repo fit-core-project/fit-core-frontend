@@ -146,7 +146,7 @@ export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0, da
             .then((data) => startTransition(() => setSummary(data)))
             .catch(() => startTransition(() => setError(true)))
             .finally(() => startTransition(() => setLoading(false)))
-    }, [resolvedDate, dataRefreshKey])
+    }, [resolvedDate])
 
     const handleSaved = useCallback(() => {
         fetchData()
@@ -155,7 +155,7 @@ export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0, da
 
     useEffect(() => {
         fetchData()
-    }, [fetchData])
+    }, [fetchData, dataRefreshKey])
 
     useEffect(() => {
         nutritionTargetApiClient
