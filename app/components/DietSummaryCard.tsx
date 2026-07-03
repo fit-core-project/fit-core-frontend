@@ -54,6 +54,7 @@ export default function DietSummaryCard({
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
     const [target, setTarget] = useState<NutritionTarget | null>(null)
+    const [showDietOptions, setShowDietOptions] = useState(false)
 
     useEffect(() => {
         startTransition(() => {
@@ -84,13 +85,14 @@ export default function DietSummaryCard({
         <section>
             <div className="flex justify-between items-center mb-3 px-1">
                 <h2 className="text-lg font-bold text-slate-800">오늘의 영양</h2>
-                <Link
-                    href="/ai_quicklog"
+                <button
+                    type="button"
+                    onClick={() => setShowDietOptions(true)}
                     className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700"
                 >
                     <Plus className="h-3.5 w-3.5" />
                     식단 기록
-                </Link>
+                </button>
             </div>
 
             {loading && (
@@ -275,6 +277,44 @@ export default function DietSummaryCard({
                     >
                         목표 칼로리 설정하기 →
                     </Link>
+                </div>
+            )}
+            {showDietOptions && (
+                <div
+                    className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
+                    onClick={() => setShowDietOptions(false)}
+                >
+                    <div
+                        className="w-full max-w-[480px] rounded-t-3xl bg-white p-6 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <p className="mb-4 text-center text-base font-bold text-slate-800">식단 기록 방법 선택</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowDietOptions(false)
+                                    onManualAdd?.()
+                                }}
+                                className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                            >
+                                <Plus className="h-4 w-4" />
+                                직접 식단 기록
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowDietOptions(false)
+                                    if (onAiLog) onAiLog()
+                                    else router.push("/ai_quicklog")
+                                }}
+                                className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700"
+                            >
+                                <Apple className="h-4 w-4" />
+                                AI로 식단 기록
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </section>
