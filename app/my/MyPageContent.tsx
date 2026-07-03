@@ -1,6 +1,6 @@
 "use client"
 
-import { ReactNode, useCallback, useEffect, useState } from "react"
+import { ReactNode, useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Dumbbell, Settings, Trophy, User, Utensils } from "lucide-react"
 import { toast } from "sonner"
@@ -33,17 +33,11 @@ export default function MyPageContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const [isEditing, setIsEditing] = useState(false)
-    const [activeTab, setActiveTab] = useState<TabId>(() => {
+    const activeTab = useMemo<TabId>(() => {
         const param = searchParams.get("tab")
         return VALID_TABS.includes(param as TabId) ? (param as TabId) : "profile"
-    })
-    const user = useAuthStore((state) => state.user)
-
-    useEffect(() => {
-        const param = searchParams.get("tab")
-        const tab = VALID_TABS.includes(param as TabId) ? (param as TabId) : "profile"
-        setActiveTab(tab)
     }, [searchParams])
+    const user = useAuthStore((state) => state.user)
     const [profile, setProfile] = useState<UserResponse | null>(null)
     const logout = useCallback(() => {
         useAuthStore.getState().logout()

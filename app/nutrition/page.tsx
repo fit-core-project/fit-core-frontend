@@ -90,8 +90,6 @@ export default function NutritionPage() {
     const weeklyTotal = weeklyRows.reduce((total, row) => total + row.totalKcal, 0)
     const weeklyGoal = hasKcalGoal ? kcalGoal * 7 : null
     const weeklyPercent = weeklyGoal ? Math.min((weeklyTotal / weeklyGoal) * 100, 100) : null
-    const hasTodayItems = (summary?.items.length ?? 0) > 0
-
     const handleManualSaved = () => {
         dietApiClient.getToday().then(setSummary).catch(() => setSummary(null))
         setNutritionRefreshKey((k) => k + 1)
