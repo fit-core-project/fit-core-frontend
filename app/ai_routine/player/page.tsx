@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Check, Timer, Play, Pause, Flame, Trophy, SkipForward, X } from "lucide-react"
 import { RoutineDraft } from "@/types/routine"
 import workoutApiClient, { WorkoutSaveRequest } from "@/lib/api/workout/workoutApiClient"
+import { getKstToday } from "@/utils/date"
 import { WorkoutState } from "@/types/state"
 import { toast } from "sonner"
 
@@ -225,7 +226,7 @@ export default function WorkoutPlayer() {
         if (!routine) return
         setWorkoutStatus("saving")
 
-        const workoutDate = new Date().toISOString().split("T")[0]
+        const workoutDate = getKstToday()
         // eslint-disable-next-line react-hooks/purity
         const durationMin = Math.max(1, Math.round((Date.now() - workoutStartTime.current) / 60_000))
 
