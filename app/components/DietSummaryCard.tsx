@@ -91,14 +91,16 @@ export default function DietSummaryCard({
                         Diet
                     </span>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => setShowDietOptions(true)}
-                    className="inline-flex min-h-9 items-center gap-1 rounded-2xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-[0_8px_18px_rgba(5,150,105,0.20)] transition-colors hover:bg-emerald-700"
-                >
-                    <Plus className="h-3.5 w-3.5" />
-                    식단 기록
-                </button>
+                {!loading && summary && summary.items.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => setShowDietOptions(true)}
+                        className="inline-flex min-h-9 items-center gap-1 rounded-2xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-[0_8px_18px_rgba(5,150,105,0.20)] transition-colors hover:bg-emerald-700"
+                    >
+                        <Plus className="h-3.5 w-3.5" />
+                        식단 기록
+                    </button>
+                )}
             </div>
 
             {loading && (

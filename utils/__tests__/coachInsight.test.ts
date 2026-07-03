@@ -132,7 +132,7 @@ describe("Layer 2 — 우선순위 경계", () => {
 // ─── Layer 3: 숫자 포맷 정확도 (4 케이스) ────────────────────────────────────
 
 describe("Layer 3 — 숫자 포맷 정확도", () => {
-    it("OVER: 2320-2000=320 → message에 '320kcal 초과' 포함", () => {
+    it("OVER: 2320-2000=320 → message에 '320kcal 더' 포함", () => {
         const result = deriveCoachState({
             ...BASE,
             todayWorkoutDone: true,
@@ -141,7 +141,7 @@ describe("Layer 3 — 숫자 포맷 정확도", () => {
             kcalGoal: 2000,
         })
         expect(result.stateId).toBe("WORKOUT_DONE_DIET_OVER")
-        expect(result.message).toContain("320kcal 초과")
+        expect(result.message).toContain("320kcal 더")
     })
 
     it("OK: message에 '1,850/2,000kcal' 포함", () => {
@@ -156,7 +156,7 @@ describe("Layer 3 — 숫자 포맷 정확도", () => {
         expect(result.message).toContain("1,850/2,000kcal")
     })
 
-    it("LOW: message에 '2/5회' 포함 (순서 안 뒤집힘)", () => {
+    it("LOW: message에 '2번' 및 '목표 5번' 포함", () => {
         const result = deriveCoachState({
             ...BASE,
             todayWorkoutDone: false,
@@ -166,7 +166,8 @@ describe("Layer 3 — 숫자 포맷 정확도", () => {
             targetDays: 5,
         })
         expect(result.stateId).toBe("LOW_ATTENDANCE")
-        expect(result.message).toContain("2/5회")
+        expect(result.message).toContain("2번")
+        expect(result.message).toContain("목표 5번")
     })
 
     it("OK null fallback: totalKcal null → 'null'/'NaN' 미노출", () => {

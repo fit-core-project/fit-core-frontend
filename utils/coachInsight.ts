@@ -42,7 +42,7 @@ export function deriveCoachState(s: CoachSignals): CoachInsight {
             return {
                 stateId: "WORKOUT_DONE_NO_DIET",
                 focus: "diet",
-                message: "오늘 운동을 완료했어요. 식단도 기록해 균형을 확인해볼까요?",
+                message: "오늘 운동 기록했어요. 식단도 남기면 하루가 완성돼요.",
                 action: { label: "식단 기록하기", href: "/ai_quicklog" },
                 isAlert: false,
             }
@@ -52,15 +52,15 @@ export function deriveCoachState(s: CoachSignals): CoachInsight {
             return {
                 stateId: "WORKOUT_DONE_DIET_OVER",
                 focus: "diet",
-                message: `목표보다 ${overKcal.toLocaleString()}kcal 초과했어요. 다음 식사는 가볍게 조절해볼까요?`,
+                message: `오늘 목표보다 ${overKcal.toLocaleString()}kcal 더 먹었어요. 다음 끼는 가볍게 가볼까요?`,
                 action: { label: "식단 보기", href: "/nutrition" },
                 isAlert: true,
             }
         }
         const okMessage =
             s.totalKcal != null
-                ? `${s.totalKcal.toLocaleString()}/${s.kcalGoal.toLocaleString()}kcal, 목표 안에 있어요. 오늘 흐름을 유지해볼까요?`
-                : "오늘 식단을 목표 안에서 잘 채웠어요. 이 흐름을 유지해볼까요?"
+                ? `오늘 ${s.totalKcal.toLocaleString()}/${s.kcalGoal.toLocaleString()}kcal, 목표 안이에요. 이 페이스 좋아요.`
+                : "오늘 목표 안에서 잘 채웠어요. 이 페이스 좋아요."
         return {
             stateId: "WORKOUT_DONE_DIET_OK",
             focus: "done",
@@ -75,7 +75,7 @@ export function deriveCoachState(s: CoachSignals): CoachInsight {
         return {
             stateId: "NO_WORKOUT_DIET_LOGGED",
             focus: "workout",
-            message: "식단은 기록했어요. 오늘 운동도 이어서 진행해볼까요?",
+            message: "식단 기록했어요. 오늘 운동도 채우면 완벽해요.",
             action: { label: "운동 시작하기", href: "/workout" },
             isAlert: false,
         }
@@ -87,8 +87,8 @@ export function deriveCoachState(s: CoachSignals): CoachInsight {
     if (s.weeklyRate != null && s.weeklyRate < LOW_ATTENDANCE_THRESHOLD) {
         const hasNumbers = s.actualDays != null && s.targetDays != null && s.targetDays > 0
         const message = hasNumbers
-            ? `이번 주 ${s.actualDays}/${s.targetDays}회 완료했어요. 오늘 한 번 채워볼까요?`
-            : "이번 주 운동이 조금 부족했어요. 오늘 한 번 채워볼까요?"
+            ? `이번 주 운동 ${s.actualDays}번 했어요 (목표 ${s.targetDays}번). 오늘 한 번 더 어때요?`
+            : "이번 주 운동이 조금 부족했어요. 오늘 한 번 더 어때요?"
         return {
             stateId: "LOW_ATTENDANCE",
             focus: "workout",
@@ -102,7 +102,7 @@ export function deriveCoachState(s: CoachSignals): CoachInsight {
     return {
         stateId: "TODAY_NOT_STARTED",
         focus: "workout",
-        message: "오늘 루틴으로 가볍게 시작해볼까요?",
+        message: "오늘은 아직 시작 전이에요. 가볍게 몸 풀어볼까요?",
         action: { label: "운동 시작하기", href: "/workout" },
         isAlert: false,
     }

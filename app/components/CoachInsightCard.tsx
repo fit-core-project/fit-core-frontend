@@ -15,7 +15,7 @@ const FOCUS_ICON: Record<CoachFocus, LucideIcon> = {
 }
 
 const OUTER = "overflow-hidden rounded-[28px] border border-white/70 bg-gradient-to-br from-blue-600 via-indigo-500 to-emerald-400 p-[1px] shadow-[0_18px_45px_rgba(37,99,235,0.18)]"
-const INNER = "rounded-[27px] bg-white/90 px-5 py-5 backdrop-blur"
+const INNER = "relative overflow-hidden rounded-[27px] bg-white/90 px-5 py-5 backdrop-blur"
 
 export default function CoachInsightCard() {
     const { insight, loading } = useCoachInsight()
@@ -39,19 +39,17 @@ export default function CoachInsightCard() {
     return (
         <div className={OUTER}>
             <div className={INNER}>
-                <div className="flex items-start gap-3">
-                    <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                            <p className="text-[11px] font-extrabold uppercase text-blue-600">Fit Core Today</p>
-                            {isAlert && (
-                                <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
-                            )}
-                        </div>
-                        <h1 className="mt-2 text-[20px] font-extrabold leading-snug text-slate-950">
-                            {message}
-                        </h1>
+                <Icon className="absolute -right-3 -top-3 h-24 w-24 text-blue-500 opacity-[0.07]" />
+                <div className="relative">
+                    <div className="flex items-center gap-1.5">
+                        <p className="text-[11px] font-extrabold uppercase text-blue-600">Fit Core Today</p>
+                        {isAlert && (
+                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+                        )}
                     </div>
-                    <Icon className="mt-1 h-10 w-10 shrink-0 text-blue-500 opacity-[0.13]" />
+                    <h1 className="mt-2 text-[20px] font-bold leading-snug text-slate-950 [word-break:keep-all]">
+                        {message}
+                    </h1>
                 </div>
             </div>
         </div>
