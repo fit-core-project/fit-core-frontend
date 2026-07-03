@@ -39,7 +39,7 @@ export default function CoachInsightCard() {
     return (
         <div className={OUTER}>
             <div className={INNER}>
-                <Icon className="absolute -right-3 -top-3 h-24 w-24 text-blue-500 opacity-[0.07]" />
+                <Icon className="absolute right-4 top-1/2 h-16 w-16 -translate-y-1/2 text-blue-500 opacity-[0.07]" />
                 <div className="relative">
                     <div className="flex items-center gap-1.5">
                         <p className="text-[11px] font-extrabold uppercase text-blue-600">Fit Core Today</p>
@@ -47,7 +47,7 @@ export default function CoachInsightCard() {
                             <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
                         )}
                     </div>
-                    <h1 className="mt-2 text-[20px] font-bold leading-snug text-slate-950 [word-break:keep-all]">
+                    <h1 className="mt-2 text-[20px] font-semibold leading-snug text-slate-950 [word-break:keep-all]">
                         {message}
                     </h1>
                 </div>
