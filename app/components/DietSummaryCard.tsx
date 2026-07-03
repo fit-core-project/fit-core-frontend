@@ -167,45 +167,45 @@ export default function DietSummaryCard({
                     className="w-full bg-white p-5 rounded-3xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md transition-all"
                     onClick={handleClick}
                 >
-                    {/* kcal 진행 바 */}
-                    <div className="w-full h-3 bg-slate-100 rounded-full mb-6 overflow-hidden">
-                        <div
-                            className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                            style={{ width: hasKcalGoal ? `${barPct}%` : "0%" }}
-                        />
-                    </div>
-
                     {/* 탄/단/지 요약 */}
                     <div className="grid grid-cols-3 gap-4">
                         <div className="flex flex-col items-center">
                             <span className="text-xs font-bold text-slate-400 mb-1">탄수화물</span>
-                            <span className="text-sm font-extrabold text-slate-700">
+                            <span className="text-[17px] font-extrabold text-slate-700">
                                 {totalCarbsG}
-                                <span className="text-[10px] text-slate-400 ml-0.5">g</span>
+                                <span className="text-[13px] text-slate-400 ml-0.5">g</span>
                             </span>
                         </div>
                         <div className="flex flex-col items-center border-l border-r border-slate-100">
                             <span className="text-xs font-bold text-emerald-500 mb-1">단백질</span>
-                            <span className="text-sm font-extrabold text-slate-700">
+                            <span className="text-[17px] font-extrabold text-slate-700">
                                 {totalProteinG}
-                                <span className="text-[10px] text-slate-400 ml-0.5">g</span>
+                                <span className="text-[13px] text-slate-400 ml-0.5">g</span>
                             </span>
                         </div>
                         <div className="flex flex-col items-center">
                             <span className="text-xs font-bold text-slate-400 mb-1">지방</span>
-                            <span className="text-sm font-extrabold text-slate-700">
+                            <span className="text-[17px] font-extrabold text-slate-700">
                                 {totalFatG}
-                                <span className="text-[10px] text-slate-400 ml-0.5">g</span>
+                                <span className="text-[13px] text-slate-400 ml-0.5">g</span>
                             </span>
                         </div>
                     </div>
 
                     {/* 칼로리 */}
                     <div className="mt-3 text-center">
-                        <span className="text-xs font-semibold text-slate-400">
+                        <span className="text-[15px] font-semibold text-slate-400">
                             {totalKcal.toLocaleString()}
                             {hasKcalGoal && ` / ${target!.kcalGoal!.toLocaleString()}`} kcal
                         </span>
+                    </div>
+
+                    {/* kcal 진행 바 */}
+                    <div className="mt-3 w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                            className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                            style={{ width: hasKcalGoal ? `${barPct}%` : "0%" }}
+                        />
                     </div>
 
                     {/* 추가 영양소 소섹션 */}
@@ -214,9 +214,9 @@ export default function DietSummaryCard({
                         <div className="flex justify-around">
                             <div className="flex flex-col items-center w-1/3 px-2">
                                 <span className="text-[10px] text-slate-400">당류</span>
-                                <span className="text-xs font-semibold text-slate-700">
+                                <span className="text-[15px] font-semibold text-slate-700">
                                     {Number(summary?.totalSugarG ?? 0)}
-                                    <span className="text-[10px] font-normal text-slate-400 ml-0.5">g</span>
+                                    <span className="text-[13px] font-normal text-slate-400 ml-0.5">g</span>
                                 </span>
                                 {target?.sugarMax != null && (
                                     <span className="text-[10px] text-slate-400">~{target.sugarMax}g</span>
@@ -230,9 +230,9 @@ export default function DietSummaryCard({
                             </div>
                             <div className="flex flex-col items-center w-1/3 px-2">
                                 <span className="text-[10px] text-slate-400">식이섬유</span>
-                                <span className="text-xs font-semibold text-slate-700">
+                                <span className="text-[15px] font-semibold text-slate-700">
                                     {Number(summary?.totalFiberG ?? 0)}
-                                    <span className="text-[10px] font-normal text-slate-400 ml-0.5">g</span>
+                                    <span className="text-[13px] font-normal text-slate-400 ml-0.5">g</span>
                                 </span>
                                 {target?.fiberMin != null && (
                                     <span className="text-[10px] text-slate-400">{target.fiberMin}g~</span>
@@ -246,9 +246,9 @@ export default function DietSummaryCard({
                             </div>
                             <div className="flex flex-col items-center w-1/3 px-2">
                                 <span className="text-[10px] text-slate-400">나트륨</span>
-                                <span className="text-xs font-semibold text-slate-700">
+                                <span className="text-[15px] font-semibold text-slate-700">
                                     {summary?.totalSodiumMg ?? 0}
-                                    <span className="text-[10px] font-normal text-slate-400 ml-0.5">mg</span>
+                                    <span className="text-[13px] font-normal text-slate-400 ml-0.5">mg</span>
                                 </span>
                                 {target?.sodiumMax != null && (
                                     <span className="text-[10px] text-slate-400">~{target.sodiumMax}mg</span>
