@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronRight, Pill } from "lucide-react"
 import TodayWorkoutCard from "@/app/components/TodayWorkoutCard"
+import CoachInsightCard from "@/app/components/CoachInsightCard"
 import DietSummaryCard from "@/app/components/DietSummaryCard"
 import ManualEntryModal from "@/app/my/nutrition/ManualEntryModal"
 import { useOnboardingGuard } from "@/hooks/useOnboardingGuard"
@@ -51,6 +52,8 @@ export default function HomePage() {
 
             <main className="px-5 mt-6 flex flex-col gap-7">
                 <TodayWorkoutCard />
+
+                <CoachInsightCard />
 
                 <DietSummaryCard
                     showDetails={false}
