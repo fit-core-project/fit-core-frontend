@@ -207,7 +207,7 @@ export default function DietSummaryCard({
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Flame className="h-4 w-4 shrink-0 text-orange-400" />
+                            <Flame className="h-8 w-8 shrink-0 text-orange-400" />
                             <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
                                 <div
                                     className={`h-full rounded-full transition-all duration-500 ${barColor}`}

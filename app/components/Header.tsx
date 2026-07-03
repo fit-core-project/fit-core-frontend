@@ -25,7 +25,7 @@ export default function Header() {
     if (shouldHideHeader(pathname)) return null
 
     return (
-        <header className="px-6 pt-12 pb-4 bg-white rounded-b-3xl shadow-sm border-b border-slate-100 flex justify-between items-center z-50 relative">
+        <header className="px-6 pt-6 pb-4 bg-white rounded-b-3xl shadow-sm border-b border-slate-100 flex justify-between items-center z-50 relative">
             <Link
                 href="/"
                 className="text-2xl font-black text-emerald-600 tracking-tighter hover:opacity-80 transition-opacity"
