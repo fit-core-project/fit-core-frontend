@@ -161,9 +161,13 @@ export default function NutritionPage() {
                                 </p>
                             </>
                         ) : (
-                            <p className="mt-3 text-xs text-amber-700">
-                                목표 칼로리를 설정하면 섭취량을 목표와 비교할 수 있습니다.
-                            </p>
+                            <Link
+                                href="/my?tab=nutrition"
+                                className="mt-3 inline-flex items-center rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-100"
+                            >
+                                목표 칼로리를 설정하면 섭취량을 목표와 비교할 수 있어요.
+                                <span className="ml-1 underline underline-offset-2">영양 목표 설정 →</span>
+                            </Link>
                         )}
 
                         <div className="mt-5 grid grid-cols-3 gap-3">
