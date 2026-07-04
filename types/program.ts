@@ -7,6 +7,10 @@ export interface ProgramCreateRequest {
     routineFinalIds: string[]
 }
 
+export interface ProgramUpdateRequest {
+    name: string
+}
+
 export interface ProgramItemResponse {
     programItemId: string
     position: number

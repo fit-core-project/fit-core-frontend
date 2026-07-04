@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { AxiosError } from "axios"
-import { Archive, CheckCircle2, ChevronRight, ListChecks, Plus, RotateCcw, Timer } from "lucide-react"
+import { Archive, CheckCircle2, ChevronRight, ListChecks, Plus, RotateCcw, Timer, Trash2 } from "lucide-react"
 import programApiClient from "@/lib/api/program/programApiClient"
 import type { ProgramSummaryResponse, ProgramStatus } from "@/types/program"
 
@@ -32,6 +32,7 @@ export default function ProgramListPage() {
     const [programs, setPrograms] = useState<ProgramSummaryResponse[]>([])
     const [loading, setLoading] = useState(true)
     const [activatingId, setActivatingId] = useState<string | null>(null)
+    const [deletingId, setDeletingId] = useState<string | null>(null)
     const [message, setMessage] = useState<string | null>(null)
 
     useEffect(() => {
@@ -55,6 +56,22 @@ export default function ProgramListPage() {
             setMessage(activateErrorMessage(error))
         } finally {
             setActivatingId(null)
+        }
+    }
+
+    const deleteProgramPermanently = async (programId: string) => {
+        if (deletingId) return
+        const ok = window.confirm("이 보관된 프로그램을 영구 삭제할까요? 저장 루틴과 운동 기록은 삭제되지 않습니다.")
+        if (!ok) return
+        setDeletingId(programId)
+        setMessage(null)
+        try {
+            await programApiClient.deleteProgramPermanently(programId)
+            setPrograms((current) => current.filter((program) => program.programId !== programId))
+        } catch {
+            setMessage("프로그램을 영구 삭제하지 못했습니다. 보관된 프로그램만 삭제할 수 있어요.")
+        } finally {
+            setDeletingId(null)
         }
     }
 
@@ -158,15 +175,26 @@ export default function ProgramListPage() {
                                 <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />
                             </Link>
                             {program.status === "ARCHIVED" && (
-                                <button
-                                    type="button"
-                                    onClick={() => activateProgram(program.programId)}
-                                    disabled={activatingId === program.programId}
-                                    className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-extrabold text-blue-700 transition-colors hover:bg-blue-100 disabled:opacity-50"
-                                >
-                                    <RotateCcw className="h-4 w-4" />
-                                    {activatingId === program.programId ? "활성화 중..." : "다시 활성화"}
-                                </button>
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => activateProgram(program.programId)}
+                                        disabled={activatingId === program.programId || deletingId === program.programId}
+                                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm font-extrabold text-blue-700 transition-colors hover:bg-blue-100 disabled:opacity-50"
+                                    >
+                                        <RotateCcw className="h-4 w-4" />
+                                        {activatingId === program.programId ? "활성화 중..." : "다시 활성화"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => deleteProgramPermanently(program.programId)}
+                                        disabled={deletingId === program.programId || activatingId === program.programId}
+                                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-extrabold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                        {deletingId === program.programId ? "삭제 중..." : "영구 삭제"}
+                                    </button>
+                                </div>
                             )}
                         </div>
                     ))

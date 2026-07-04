@@ -3,11 +3,15 @@ import type {
     ProgramCreateRequest,
     ProgramDetailResponse,
     ProgramSummaryResponse,
+    ProgramUpdateRequest,
 } from "@/types/program"
 
 const programApiClient = {
     createProgram: (request: ProgramCreateRequest): Promise<ProgramDetailResponse> =>
         AxiosController.post<ProgramDetailResponse>("/api/programs", request),
+
+    updateProgram: (programId: string, request: ProgramUpdateRequest): Promise<ProgramDetailResponse> =>
+        AxiosController.patch<ProgramDetailResponse>(`/api/programs/${programId}`, request),
 
     getActiveProgram: async (): Promise<ProgramSummaryResponse | null> => {
         const data = await AxiosController.get<ProgramSummaryResponse | "" | null>("/api/programs/active")
@@ -25,6 +29,9 @@ const programApiClient = {
 
     activateProgram: (programId: string): Promise<ProgramDetailResponse> =>
         AxiosController.patch<ProgramDetailResponse>(`/api/programs/${programId}/activate`),
+
+    deleteProgramPermanently: (programId: string): Promise<void> =>
+        AxiosController.delete<void>(`/api/programs/${programId}/permanent`),
 }
 
 export default programApiClient

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { AxiosError } from "axios"
-import { Archive, CheckCircle2, ChevronLeft, Circle, Play, RotateCcw, Timer } from "lucide-react"
+import { Archive, CheckCircle2, ChevronLeft, Circle, Pencil, Play, RotateCcw, Timer, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import programApiClient from "@/lib/api/program/programApiClient"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
@@ -39,12 +39,19 @@ export default function ProgramDetailPage() {
     const [starting, setStarting] = useState(false)
     const [archiving, setArchiving] = useState(false)
     const [activating, setActivating] = useState(false)
+    const [editingName, setEditingName] = useState(false)
+    const [nameDraft, setNameDraft] = useState("")
+    const [savingName, setSavingName] = useState(false)
+    const [deleting, setDeleting] = useState(false)
 
     useEffect(() => {
         if (!programId) return
         programApiClient
             .getProgram(programId)
-            .then(setProgram)
+            .then((data) => {
+                setProgram(data)
+                setNameDraft(data.name)
+            })
             .catch(() => {
                 toast.error("프로그램을 불러오지 못했습니다.")
                 router.push("/workout/programs")
@@ -104,6 +111,44 @@ export default function ProgramDetailPage() {
         }
     }
 
+    const updateProgramName = async () => {
+        if (!program || savingName) return
+        const nextName = nameDraft.trim()
+        if (!nextName) {
+            toast.error("프로그램 이름을 입력해 주세요.")
+            return
+        }
+        setSavingName(true)
+        try {
+            const updated = await programApiClient.updateProgram(program.programId, { name: nextName })
+            setProgram(updated)
+            setNameDraft(updated.name)
+            setEditingName(false)
+            toast.success("프로그램 이름을 수정했습니다.")
+        } catch {
+            toast.error("프로그램 이름을 수정하지 못했습니다.")
+        } finally {
+            setSavingName(false)
+        }
+    }
+
+    const deleteProgramPermanently = async () => {
+        if (!program || deleting) return
+        const ok = window.confirm("이 보관된 프로그램을 영구 삭제할까요? 저장 루틴과 운동 기록은 삭제되지 않습니다.")
+        if (!ok) return
+        setDeleting(true)
+        try {
+            await programApiClient.deleteProgramPermanently(program.programId)
+            clearProgramContextIfProgram(program.programId)
+            toast.success("프로그램을 영구 삭제했습니다.")
+            router.push("/workout/programs")
+        } catch {
+            toast.error("프로그램을 영구 삭제하지 못했습니다. 보관된 프로그램만 삭제할 수 있어요.")
+        } finally {
+            setDeleting(false)
+        }
+    }
+
     const activateProgram = async () => {
         if (!program || activating) return
         setActivating(true)
@@ -151,7 +196,49 @@ export default function ProgramDetailPage() {
                 </button>
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                        <h1 className="break-words text-2xl font-extrabold text-slate-900">{program.name}</h1>
+                        {editingName ? (
+                            <div className="space-y-2">
+                                <input
+                                    value={nameDraft}
+                                    onChange={(event) => setNameDraft(event.target.value)}
+                                    className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-lg font-extrabold text-slate-900 outline-none focus:border-blue-400"
+                                    aria-label="프로그램 이름"
+                                />
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={updateProgramName}
+                                        disabled={savingName || !nameDraft.trim()}
+                                        className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-extrabold text-white disabled:bg-slate-200 disabled:text-slate-400"
+                                    >
+                                        {savingName ? "저장 중..." : "저장"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setNameDraft(program.name)
+                                            setEditingName(false)
+                                        }}
+                                        className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-extrabold text-slate-600"
+                                    >
+                                        취소
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex items-start gap-2">
+                                <h1 className="break-words text-2xl font-extrabold text-slate-900">{program.name}</h1>
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingName(true)}
+                                    className="mt-1 shrink-0 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                                    aria-label="프로그램 이름 수정"
+                                    title="이름 수정"
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                </button>
+                            </div>
+                        )}
                         <p className="mt-1 text-sm font-semibold text-slate-500">
                             현재 {program.currentPosition}/{program.totalItems}
                         </p>
@@ -256,6 +343,18 @@ export default function ProgramDetailPage() {
                 >
                     <Archive className="h-4 w-4" />
                     {archiving ? "보관 중..." : "프로그램 보관"}
+                </button>
+            )}
+
+            {isArchived && (
+                <button
+                    type="button"
+                    onClick={deleteProgramPermanently}
+                    disabled={deleting}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+                >
+                    <Trash2 className="h-4 w-4" />
+                    {deleting ? "삭제 중..." : "영구 삭제"}
                 </button>
             )}
         </main>
