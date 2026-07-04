@@ -170,12 +170,12 @@ export default function NutritionPage() {
 
                         <div className="mt-5 grid grid-cols-3 gap-3">
                             <div className="rounded-2xl bg-slate-50 p-3 text-center">
-                                <p className="text-[11px] font-bold text-slate-400">단백질</p>
-                                <p className="mt-1 text-sm font-black text-slate-800">{summary?.totalProteinG ?? 0}g</p>
-                            </div>
-                            <div className="rounded-2xl bg-slate-50 p-3 text-center">
                                 <p className="text-[11px] font-bold text-slate-400">탄수화물</p>
                                 <p className="mt-1 text-sm font-black text-slate-800">{summary?.totalCarbsG ?? 0}g</p>
+                            </div>
+                            <div className="rounded-2xl bg-slate-50 p-3 text-center">
+                                <p className="text-[11px] font-bold text-slate-400">단백질</p>
+                                <p className="mt-1 text-sm font-black text-slate-800">{summary?.totalProteinG ?? 0}g</p>
                             </div>
                             <div className="rounded-2xl bg-slate-50 p-3 text-center">
                                 <p className="text-[11px] font-bold text-slate-400">지방</p>
