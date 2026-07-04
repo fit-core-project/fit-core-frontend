@@ -22,6 +22,9 @@ const programApiClient = {
 
     archiveProgram: (programId: string): Promise<ProgramDetailResponse> =>
         AxiosController.delete<ProgramDetailResponse>(`/api/programs/${programId}`),
+
+    activateProgram: (programId: string): Promise<ProgramDetailResponse> =>
+        AxiosController.patch<ProgramDetailResponse>(`/api/programs/${programId}/activate`),
 }
 
 export default programApiClient

@@ -7,6 +7,7 @@ vi.mock("@/lib/axios/AxiosController", () => ({
         get: vi.fn(),
         post: vi.fn(),
         delete: vi.fn(),
+        patch: vi.fn(),
     },
 }))
 
@@ -14,6 +15,7 @@ const mockedAxios = AxiosController as unknown as {
     get: ReturnType<typeof vi.fn>
     post: ReturnType<typeof vi.fn>
     delete: ReturnType<typeof vi.fn>
+    patch: ReturnType<typeof vi.fn>
 }
 
 describe("programApiClient", () => {
@@ -43,5 +45,13 @@ describe("programApiClient", () => {
         await programApiClient.archiveProgram("program-1")
 
         expect(mockedAxios.delete).toHaveBeenCalledWith("/api/programs/program-1")
+    })
+
+    it("calls activate endpoint through PATCH", async () => {
+        mockedAxios.patch.mockResolvedValueOnce({ programId: "program-1", status: "ACTIVE" })
+
+        await programApiClient.activateProgram("program-1")
+
+        expect(mockedAxios.patch).toHaveBeenCalledWith("/api/programs/program-1/activate")
     })
 })

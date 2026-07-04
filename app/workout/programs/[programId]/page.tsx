@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Archive, CheckCircle2, ChevronLeft, Circle, Play, Timer } from "lucide-react"
+import { AxiosError } from "axios"
+import { Archive, CheckCircle2, ChevronLeft, Circle, Play, RotateCcw, Timer } from "lucide-react"
 import { toast } from "sonner"
 import programApiClient from "@/lib/api/program/programApiClient"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
@@ -37,6 +38,7 @@ export default function ProgramDetailPage() {
     const [loading, setLoading] = useState(true)
     const [starting, setStarting] = useState(false)
     const [archiving, setArchiving] = useState(false)
+    const [activating, setActivating] = useState(false)
 
     useEffect(() => {
         if (!programId) return
@@ -99,6 +101,24 @@ export default function ProgramDetailPage() {
             toast.error("프로그램을 보관하지 못했습니다.")
         } finally {
             setArchiving(false)
+        }
+    }
+
+    const activateProgram = async () => {
+        if (!program || activating) return
+        setActivating(true)
+        try {
+            const activated = await programApiClient.activateProgram(program.programId)
+            setProgram(activated)
+            toast.success("프로그램을 다시 활성화했습니다.")
+        } catch (error) {
+            if (error instanceof AxiosError && error.response?.status === 409) {
+                toast.error("이미 진행 중인 프로그램이 있습니다. 먼저 기존 프로그램을 보관한 뒤 다시 활성화해 주세요.")
+            } else {
+                toast.error("프로그램을 다시 활성화하지 못했습니다.")
+            }
+        } finally {
+            setActivating(false)
         }
     }
 
@@ -178,6 +198,18 @@ export default function ProgramDetailPage() {
                         <p className="mt-2 text-sm leading-relaxed text-slate-500">
                             보관된 프로그램은 시작할 수 없습니다.
                         </p>
+                        <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                            진행 중인 프로그램으로 되돌립니다.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={activateProgram}
+                            disabled={activating}
+                            className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            <RotateCcw className="h-4 w-4" />
+                            {activating ? "활성화 중..." : "다시 활성화"}
+                        </button>
                     </div>
                 )}
             </section>
