@@ -41,6 +41,9 @@ const routineApiClient = {
             `/api/routines/finals?page=${page}&size=${size}`
         ),
 
+    getFinal: (routineFinalId: string): Promise<RoutineFinalResponse> =>
+        AxiosController.get<RoutineFinalResponse>(`/api/routines/finals/${routineFinalId}`),
+
     createManualDraft: async (title?: string): Promise<RoutineDraft> => {
         const data = await AxiosController.post<RoutineDraft>(
             "/api/routines/drafts/manual",

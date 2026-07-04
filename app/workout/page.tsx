@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, PenLine, Plus, Target } from "lucide-react"
+import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, ListChecks, PenLine, Plus, Target } from "lucide-react"
 import { toast } from "sonner"
 import workoutApiClient from "@/lib/api/workout/workoutApiClient"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
@@ -171,6 +171,22 @@ export default function WorkoutPage() {
                 <p className="text-xs font-black uppercase tracking-wide text-blue-500">Workout</p>
                 <h1 className="text-2xl font-extrabold text-slate-900">운동</h1>
             </header>
+
+            <Link
+                href="/workout/programs"
+                className="flex items-center gap-3 rounded-3xl border border-blue-100 bg-white p-4 shadow-sm transition-colors hover:bg-blue-50"
+            >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                    <ListChecks className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-extrabold text-slate-900">운동 프로그램</span>
+                    <span className="mt-0.5 block text-xs font-semibold text-slate-500">
+                        저장한 루틴을 순서대로 묶어 진행해요.
+                    </span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />
+            </Link>
 
             <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center gap-2">

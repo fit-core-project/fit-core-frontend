@@ -22,6 +22,8 @@ export interface WorkoutSaveRequest {
     workoutDate: string
     splitLabel: string
     sourceRoutineFinalId: string | null
+    programId?: string
+    programItemId?: string
     timeAvailableMin: number
     durationMin: number
     readinessLevel: string

@@ -8,12 +8,15 @@ import workoutApiClient, { WorkoutSaveRequest } from "@/lib/api/workout/workoutA
 import { getKstToday } from "@/utils/date"
 import { WorkoutState } from "@/types/state"
 import { toast } from "sonner"
+import type { ProgramPlayerContext } from "@/types/program"
+import { parseProgramPlayerContext, PROGRAM_CONTEXT_STORAGE_KEY } from "@/utils/programContext"
 
 export default function WorkoutPlayer() {
     const router = useRouter()
 
     const [routine, setRoutine] = useState<RoutineDraft | null>(null)
     const [routineFinalId, setRoutineFinalId] = useState<string | null>(null)
+    const [programContext, setProgramContext] = useState<ProgramPlayerContext | null>(null)
     const [checkedSets, setCheckedSets] = useState<Set<string>>(new Set())
 
     const [isTimerActive, setIsTimerActive] = useState(false)
@@ -36,6 +39,7 @@ export default function WorkoutPlayer() {
         workoutStartTime.current = Date.now()
         const savedRoutine = localStorage.getItem("fitcore_active_routine")
         const savedFinalId = localStorage.getItem("fitcore_routine_final_id")
+        const savedProgramContext = parseProgramPlayerContext(localStorage.getItem(PROGRAM_CONTEXT_STORAGE_KEY))
         if (savedRoutine) {
             let parsedRoutine: RoutineDraft
             try {
@@ -63,6 +67,7 @@ export default function WorkoutPlayer() {
             router.push("/ai_routine")
         }
         if (savedFinalId) setRoutineFinalId(savedFinalId)
+        if (savedProgramContext) setProgramContext(savedProgramContext)
     }, [router])
 
     useEffect(() => {
@@ -258,10 +263,27 @@ export default function WorkoutPlayer() {
         const targetSplitLabel = localStorage.getItem("fitcore_split_label")
         const routineTitle = routine.summaryTitle || targetSplitLabel || "오늘의 루틴"
 
+        const validProgramContext =
+            programContext &&
+            routineFinalId &&
+            programContext.routineFinalId === routineFinalId
+                ? programContext
+                : null
+
+        if (programContext && !validProgramContext) {
+            toast.error("프로그램 정보가 현재 루틴과 맞지 않아 일반 운동으로 저장합니다.")
+        }
+
         const finalWorkoutData: WorkoutSaveRequest = {
             workoutDate,
             splitLabel: routineTitle,
-            sourceRoutineFinalId: routineFinalId,
+            sourceRoutineFinalId: validProgramContext?.routineFinalId ?? routineFinalId,
+            ...(validProgramContext
+                ? {
+                    programId: validProgramContext.programId,
+                    programItemId: validProgramContext.programItemId,
+                }
+                : {}),
             timeAvailableMin: routine.totalEstimatedTime,
             durationMin,
             readinessLevel: "normal",
@@ -279,16 +301,19 @@ export default function WorkoutPlayer() {
         setWorkoutStatus("saving")
         try {
             await workoutApiClient.save(payload)
+            const savedProgramContext = parseProgramPlayerContext(localStorage.getItem(PROGRAM_CONTEXT_STORAGE_KEY))
+            const redirectToProgram = savedProgramContext?.programId
             localStorage.removeItem("fitcore_active_routine")
             localStorage.removeItem("fitcore_doms_data")
             localStorage.removeItem("fitcore_pain_areas")
             localStorage.removeItem("fitcore_routine_final_id")
+            localStorage.removeItem(PROGRAM_CONTEXT_STORAGE_KEY)
             localStorage.removeItem("fitcore_split_label")
             localStorage.removeItem("fitcore_unavailable_equipment")
             localStorage.removeItem("fitcore_failed_workout_save")
             localStorage.removeItem("fitcore_player_progress")
             setWorkoutStatus("saved")
-            router.push("/workout")
+            router.push(redirectToProgram ? `/workout/programs/${redirectToProgram}` : "/workout")
         } catch (err) {
             console.error("[player] POST /api/workouts failed:", err)
             localStorage.setItem("fitcore_failed_workout_save", JSON.stringify(payload))
@@ -305,6 +330,7 @@ export default function WorkoutPlayer() {
         localStorage.removeItem("fitcore_doms_data")
         localStorage.removeItem("fitcore_pain_areas")
         localStorage.removeItem("fitcore_routine_final_id")
+        localStorage.removeItem(PROGRAM_CONTEXT_STORAGE_KEY)
         localStorage.removeItem("fitcore_split_label")
         localStorage.removeItem("fitcore_unavailable_equipment")
         localStorage.removeItem("fitcore_failed_workout_save")
