@@ -73,7 +73,7 @@ export default function TodayWorkoutCard() {
                     <button
                         type="button"
                         onClick={() => setShowWorkoutOptions(true)}
-                        className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white shadow-sm transition-colors hover:bg-blue-700"
+                        className="inline-flex min-h-9 items-center gap-1 rounded-2xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-blue-700"
                     >
                         <Plus className="h-3.5 w-3.5" />
                         운동 루틴 생성
@@ -181,7 +181,7 @@ export default function TodayWorkoutCard() {
                                 닫기
                             </button>
                         </div>
-                        <div className="flex flex-col gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                             <button
                                 type="button"
                                 onClick={() => { setShowWorkoutOptions(false); handleCreateManualRoutine() }}
