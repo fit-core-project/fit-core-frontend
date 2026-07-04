@@ -71,6 +71,22 @@ export function deriveCoachState(s: CoachSignals): CoachInsight {
     }
 
     // 4. 식단 기록 있으나 운동 없음 (오늘 운동X)
+    if (s.activeProgram) {
+        const timeText =
+            s.activeProgram.estimatedTime != null
+                ? ` 예상 소요 시간은 약 ${s.activeProgram.estimatedTime}분이에요.`
+                : ""
+        return {
+            stateId: "PROGRAM_NEXT_UP",
+            focus: "workout",
+            message: `다음은 ${s.activeProgram.nextRoutineName ?? "다음 루틴"} 차례예요`,
+            description: `현재 ${s.activeProgram.currentPosition}/${s.activeProgram.totalItems} 순서까지 진행 중이에요.${timeText}`,
+            action: { label: "프로그램 보기", href: `/workout/programs/${s.activeProgram.programId}` },
+            isAlert: false,
+            showAction: true,
+        }
+    }
+
     if (s.todayDietLogged) {
         return {
             stateId: "NO_WORKOUT_DIET_LOGGED",

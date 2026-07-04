@@ -12,6 +12,20 @@ const BASE: CoachSignals = {
     weeklyRate: 0.8,
     actualDays: 4,
     targetDays: 5,
+    activeProgram: null,
+}
+
+const ACTIVE_PROGRAM: NonNullable<CoachSignals["activeProgram"]> = {
+    programId: "program-1",
+    name: "PPL",
+    status: "ACTIVE",
+    currentPosition: 2,
+    totalItems: 6,
+    nextRoutineName: "Pull",
+    nextRoutineFinalId: "final-1",
+    nextProgramItemId: "item-1",
+    estimatedTime: 45,
+    targetSplitLabel: "pull",
 }
 
 // ─── Layer 1: 상태 커버리지 (8 케이스) ───────────────────────────────────────
@@ -208,5 +222,42 @@ describe("Meta — 죽은 코드 가드", () => {
 
     it("LOW_ATTENDANCE_THRESHOLD 상수가 0.6임", () => {
         expect(LOW_ATTENDANCE_THRESHOLD).toBe(0.6)
+    })
+})
+describe("PROGRAM_NEXT_UP", () => {
+    it("returns program next-up when active program exists and today's workout is not done", () => {
+        const result = deriveCoachState({
+            ...BASE,
+            activeProgram: ACTIVE_PROGRAM,
+        })
+
+        expect(result.stateId).toBe("PROGRAM_NEXT_UP")
+        expect(result.message).toContain("Pull")
+        expect(result.description).toContain("2/6")
+        expect(result.description).toContain("45")
+        expect(result.action).toEqual({ label: "프로그램 보기", href: "/workout/programs/program-1" })
+        expect(result.showAction).toBe(true)
+    })
+
+    it("keeps workout-done states ahead of program next-up", () => {
+        expect(
+            deriveCoachState({
+                ...BASE,
+                todayWorkoutDone: true,
+                todayDietLogged: false,
+                activeProgram: ACTIVE_PROGRAM,
+            }).stateId
+        ).toBe("WORKOUT_DONE_NO_DIET")
+    })
+
+    it("does not break description when estimated time is null", () => {
+        const result = deriveCoachState({
+            ...BASE,
+            activeProgram: { ...ACTIVE_PROGRAM, estimatedTime: null },
+        })
+
+        expect(result.stateId).toBe("PROGRAM_NEXT_UP")
+        expect(result.description).toContain("2/6")
+        expect(result.description).not.toContain("null")
     })
 })

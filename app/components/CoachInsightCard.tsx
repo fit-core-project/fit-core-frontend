@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { type LucideIcon, Apple, CheckCircle, ClipboardList, Dumbbell, Settings } from "lucide-react"
 import type { CoachFocus } from "@/types/coach"
 import { useCoachInsight } from "@/hooks/useCoachInsight"
@@ -35,6 +36,7 @@ export default function CoachInsightCard() {
     const isAlert = insight?.isAlert ?? false
     const focus = insight?.focus ?? "workout"
     const Icon = FOCUS_ICON[focus]
+    const showAction = insight?.showAction === true
 
     return (
         <div className={OUTER}>
@@ -50,6 +52,19 @@ export default function CoachInsightCard() {
                     <h1 className="mt-2 text-[20px] font-semibold leading-snug text-slate-950 [word-break:keep-all]">
                         {message}
                     </h1>
+                    {insight?.description && (
+                        <p className="mt-2 max-w-[85%] text-sm font-semibold leading-relaxed text-slate-600 [word-break:keep-all]">
+                            {insight.description}
+                        </p>
+                    )}
+                    {showAction && insight?.action && (
+                        <Link
+                            href={insight.action.href}
+                            className="mt-4 inline-flex h-10 items-center rounded-full bg-slate-950 px-4 text-sm font-extrabold text-white shadow-sm transition-colors hover:bg-slate-800"
+                        >
+                            {insight.action.label}
+                        </Link>
+                    )}
                 </div>
             </div>
         </div>
