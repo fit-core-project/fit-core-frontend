@@ -21,6 +21,7 @@ import { RoutineFormState, assembleRoutineRequest } from "@/utils/requestAssembl
 import { getUserPreferences } from "@/services/userDataService"
 import { generateRoutine } from "@/services/aiRoutineService"
 import { GenerateState } from "@/types/state"
+import { clearProgramContext } from "@/utils/programContext"
 
 type Equipment = "BARBELL" | "DUMBBELL" | "MACHINE" | "CABLE" | "BODYWEIGHT"
 const DEFAULT_AVAILABLE_EQUIPMENT: Equipment[] = ["BARBELL", "DUMBBELL", "MACHINE", "CABLE", "BODYWEIGHT"]
@@ -212,6 +213,7 @@ export default function RoutineGenerator() {
 
     const handleSubmit = async () => {
         setStatus("loading")
+        clearProgramContext()
         try {
             const payload = assembleRoutineRequest(formData)
             const routineDraft = await generateRoutine(payload)

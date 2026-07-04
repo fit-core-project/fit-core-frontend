@@ -7,6 +7,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, ListChecks, PenLine,
 import { toast } from "sonner"
 import workoutApiClient from "@/lib/api/workout/workoutApiClient"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
+import { clearProgramContext } from "@/utils/programContext"
 import type { AttendanceWeekResponse, WorkoutSessionResponse } from "@/types/project"
 import WorkoutList from "@/app/my/workout/WorkoutList"
 import Routine from "@/app/my/routine/Routine"
@@ -146,6 +147,7 @@ export default function WorkoutPage() {
     const handleCreateManualRoutine = async () => {
         if (isCreatingManualRoutine) return
         setIsCreatingManualRoutine(true)
+        clearProgramContext()
         try {
             const draft = await routineApiClient.createManualDraft("새 루틴")
             localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))

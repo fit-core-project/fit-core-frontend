@@ -8,7 +8,7 @@ import programApiClient from "@/lib/api/program/programApiClient"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
 import type { ProgramDetailResponse, ProgramItemResponse, ProgramItemState } from "@/types/program"
 import type { RoutineDraft } from "@/types/routine"
-import { buildProgramPlayerContext, PROGRAM_CONTEXT_STORAGE_KEY } from "@/utils/programContext"
+import { buildProgramPlayerContext, clearProgramContextIfProgram, setProgramContext } from "@/utils/programContext"
 
 const STATE_LABEL: Record<ProgramItemState, string> = {
     DONE: "완료",
@@ -72,14 +72,11 @@ export default function ProgramDetailPage() {
             if (finalRoutine.targetSplitLabel) {
                 localStorage.setItem("fitcore_split_label", finalRoutine.targetSplitLabel)
             }
-            localStorage.setItem(
-                PROGRAM_CONTEXT_STORAGE_KEY,
-                JSON.stringify(buildProgramPlayerContext(
-                    program.programId,
-                    program.nextItem.programItemId,
-                    finalRoutine.routineFinalId
-                ))
-            )
+            setProgramContext(buildProgramPlayerContext(
+                program.programId,
+                program.nextItem.programItemId,
+                finalRoutine.routineFinalId
+            ))
             router.push("/ai_routine/player")
         } catch {
             toast.error("다음 루틴을 시작하지 못했습니다.")
@@ -95,6 +92,7 @@ export default function ProgramDetailPage() {
         setArchiving(true)
         try {
             await programApiClient.archiveProgram(program.programId)
+            clearProgramContextIfProgram(program.programId)
             toast.success("프로그램을 보관했습니다.")
             router.push("/workout/programs")
         } catch {

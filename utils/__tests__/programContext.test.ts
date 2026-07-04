@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest"
 import {
     buildProgramPlayerContext,
     clearProgramContext,
+    clearProgramContextIfProgram,
     parseProgramPlayerContext,
     PROGRAM_CONTEXT_STORAGE_KEY,
     readProgramContext,
     readValidProgramContext,
+    setProgramContext,
 } from "@/utils/programContext"
 
 function storageWith(value: string | null) {
@@ -13,7 +15,8 @@ function storageWith(value: string | null) {
     if (value !== null) store.set(PROGRAM_CONTEXT_STORAGE_KEY, value)
     return {
         getItem: (key: string) => store.get(key) ?? null,
-        removeItem: (key: string) => store.delete(key),
+        removeItem: (key: string) => { store.delete(key) },
+        setItem: (key: string, val: string) => { store.set(key, val) },
         hasContext: () => store.has(PROGRAM_CONTEXT_STORAGE_KEY),
     }
 }
@@ -78,5 +81,35 @@ describe("program player context", () => {
         expect(readProgramContext(storage)?.programId).toBe("program-1")
         clearProgramContext(storage)
         expect(storage.hasContext()).toBe(false)
+    })
+
+    it("sets context and reads it back", () => {
+        const storage = storageWith(null)
+        setProgramContext(buildProgramPlayerContext("p1", "i1", "f1"), storage)
+        expect(readProgramContext(storage)).toEqual({ programId: "p1", programItemId: "i1", routineFinalId: "f1" })
+    })
+
+    it("clearProgramContextIfProgram removes context when programId matches", () => {
+        const storage = storageWith(JSON.stringify(buildProgramPlayerContext("program-1", "item-1", "final-1")))
+        clearProgramContextIfProgram("program-1", storage)
+        expect(storage.hasContext()).toBe(false)
+    })
+
+    it("clearProgramContextIfProgram preserves context when programId does not match", () => {
+        const storage = storageWith(JSON.stringify(buildProgramPlayerContext("program-1", "item-1", "final-1")))
+        clearProgramContextIfProgram("program-99", storage)
+        expect(storage.hasContext()).toBe(true)
+    })
+
+    it("clearProgramContextIfProgram is no-op when context is absent", () => {
+        const storage = storageWith(null)
+        clearProgramContextIfProgram("program-1", storage)
+        expect(storage.hasContext()).toBe(false)
+    })
+
+    it("clearProgramContextIfProgram is no-op when context is malformed", () => {
+        const storage = storageWith(JSON.stringify({ programId: "program-1" }))
+        clearProgramContextIfProgram("program-1", storage)
+        expect(storage.hasContext()).toBe(true)
     })
 })

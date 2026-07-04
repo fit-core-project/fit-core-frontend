@@ -6,6 +6,7 @@ import { Dumbbell, PenLine, Plus } from "lucide-react"
 import { toast } from "sonner"
 import workoutApiClient from "@/lib/api/workout/workoutApiClient"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
+import { clearProgramContext } from "@/utils/programContext"
 import type { WorkoutSessionResponse } from "@/types/project"
 import { getKstToday } from "@/utils/date"
 
@@ -48,6 +49,7 @@ export default function TodayWorkoutCard() {
     const handleCreateManualRoutine = async () => {
         if (isCreatingManualRoutine) return
         setIsCreatingManualRoutine(true)
+        clearProgramContext()
         try {
             const draft = await routineApiClient.createManualDraft("새 루틴")
             localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))
