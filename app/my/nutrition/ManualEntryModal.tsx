@@ -221,11 +221,11 @@ export default function ManualEntryModal({ onClose, onSaved, editItem, defaultDa
                         <p className="mb-3 text-xs font-semibold text-slate-500">매크로 (g, 선택사항)</p>
                         <div className="grid grid-cols-3 gap-3">
                             <div className="space-y-1">
-                                <label className="text-[11px] font-semibold text-slate-400">단백질</label>
+                                <label className="text-[11px] font-semibold text-slate-400">탄수화물</label>
                                 <input
                                     type="number"
-                                    value={protein}
-                                    onChange={(e) => setProtein(e.target.value)}
+                                    value={carbs}
+                                    onChange={(e) => setCarbs(e.target.value)}
                                     placeholder="0.0"
                                     min={0}
                                     max={1000}
@@ -234,11 +234,11 @@ export default function ManualEntryModal({ onClose, onSaved, editItem, defaultDa
                                 />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[11px] font-semibold text-slate-400">탄수화물</label>
+                                <label className="text-[11px] font-semibold text-slate-400">단백질</label>
                                 <input
                                     type="number"
-                                    value={carbs}
-                                    onChange={(e) => setCarbs(e.target.value)}
+                                    value={protein}
+                                    onChange={(e) => setProtein(e.target.value)}
                                     placeholder="0.0"
                                     min={0}
                                     max={1000}

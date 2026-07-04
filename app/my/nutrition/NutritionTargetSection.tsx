@@ -176,18 +176,18 @@ export default function NutritionTargetSection({ onSaved }: NutritionTargetSecti
                 {numberInputProps("일일 칼로리 목표 (kcal)", form.kcalGoal, (value) => updateField("kcalGoal", value), "예: 2000")}
 
                 <div>
-                    <p className="mb-1 text-xs font-semibold text-slate-500">단백질 목표 (g)</p>
-                    <div className="grid grid-cols-2 gap-2">
-                        {numberInputProps("최소", form.proteinGMin, (value) => updateField("proteinGMin", value), "최솟값")}
-                        {numberInputProps("최대", form.proteinGMax, (value) => updateField("proteinGMax", value), "최댓값")}
-                    </div>
-                </div>
-
-                <div>
                     <p className="mb-1 text-xs font-semibold text-slate-500">탄수화물 목표 (g)</p>
                     <div className="grid grid-cols-2 gap-2">
                         {numberInputProps("최소", form.carbsGMin, (value) => updateField("carbsGMin", value), "최솟값")}
                         {numberInputProps("최대", form.carbsGMax, (value) => updateField("carbsGMax", value), "최댓값")}
+                    </div>
+                </div>
+
+                <div>
+                    <p className="mb-1 text-xs font-semibold text-slate-500">단백질 목표 (g)</p>
+                    <div className="grid grid-cols-2 gap-2">
+                        {numberInputProps("최소", form.proteinGMin, (value) => updateField("proteinGMin", value), "최솟값")}
+                        {numberInputProps("최대", form.proteinGMax, (value) => updateField("proteinGMax", value), "최댓값")}
                     </div>
                 </div>
 
