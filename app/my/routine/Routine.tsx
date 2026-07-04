@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { AlertCircle, ChevronDown, Dumbbell, Play } from "lucide-react"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
 import { RoutineFinalResponse, RoutineDraft } from "@/types/routine"
+import { clearProgramContext } from "@/utils/programContext"
 
 const SPLIT_LABELS: Record<string, string> = {
     push: "푸시",
@@ -137,6 +138,7 @@ export default function Routine() {
             warnings: payload.warnings ?? [],
             routineBlocks: payload.routineBlocks,
         }
+        clearProgramContext()
         localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))
         localStorage.setItem("fitcore_routine_final_id", routine.routineFinalId)
         router.push("/ai_routine/player")

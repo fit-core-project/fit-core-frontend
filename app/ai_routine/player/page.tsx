@@ -9,7 +9,7 @@ import { getKstToday } from "@/utils/date"
 import { WorkoutState } from "@/types/state"
 import { toast } from "sonner"
 import type { ProgramPlayerContext } from "@/types/program"
-import { parseProgramPlayerContext, PROGRAM_CONTEXT_STORAGE_KEY } from "@/utils/programContext"
+import { clearProgramContext, readValidProgramContext } from "@/utils/programContext"
 
 export default function WorkoutPlayer() {
     const router = useRouter()
@@ -26,6 +26,7 @@ export default function WorkoutPlayer() {
 
     const [workoutStatus, setWorkoutStatus] = useState<WorkoutState>("idle")
     const pendingPayload = useRef<WorkoutSaveRequest | null>(null)
+    const pendingProgramContext = useRef<ProgramPlayerContext | null>(null)
     const workoutStartTime = useRef<number>(0)
 
     // ── Timer refs ──────────────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ export default function WorkoutPlayer() {
         workoutStartTime.current = Date.now()
         const savedRoutine = localStorage.getItem("fitcore_active_routine")
         const savedFinalId = localStorage.getItem("fitcore_routine_final_id")
-        const savedProgramContext = parseProgramPlayerContext(localStorage.getItem(PROGRAM_CONTEXT_STORAGE_KEY))
+        const savedProgramContext = readValidProgramContext(savedFinalId)
         if (savedRoutine) {
             let parsedRoutine: RoutineDraft
             try {
@@ -189,7 +190,6 @@ export default function WorkoutPlayer() {
                 setIsTimerActive(false)
             } else {
                 nextKeyRef.current = computeNextKey(blockIndex, setArrayIndex)
-                // eslint-disable-next-line react-hooks/purity
                 endTimeRef.current = Date.now() + restSec * 1000
                 setTimeLeft(restSec)
                 setIsPaused(false)
@@ -232,7 +232,6 @@ export default function WorkoutPlayer() {
         setWorkoutStatus("saving")
 
         const workoutDate = getKstToday()
-        // eslint-disable-next-line react-hooks/purity
         const durationMin = Math.max(1, Math.round((Date.now() - workoutStartTime.current) / 60_000))
 
         const DOMS_LEVEL_MAP: Record<number, string> = { 1: "mild", 2: "moderate", 3: "severe" }
@@ -263,12 +262,8 @@ export default function WorkoutPlayer() {
         const targetSplitLabel = localStorage.getItem("fitcore_split_label")
         const routineTitle = routine.summaryTitle || targetSplitLabel || "오늘의 루틴"
 
-        const validProgramContext =
-            programContext &&
-            routineFinalId &&
-            programContext.routineFinalId === routineFinalId
-                ? programContext
-                : null
+        const validProgramContext = readValidProgramContext(routineFinalId)
+        setProgramContext(validProgramContext)
 
         if (programContext && !validProgramContext) {
             toast.error("프로그램 정보가 현재 루틴과 맞지 않아 일반 운동으로 저장합니다.")
@@ -294,24 +289,29 @@ export default function WorkoutPlayer() {
         }
 
         pendingPayload.current = finalWorkoutData
-        await trySave(finalWorkoutData)
+        pendingProgramContext.current = validProgramContext
+        await trySave(finalWorkoutData, validProgramContext)
     }
 
-    const trySave = async (payload: WorkoutSaveRequest) => {
+    const trySave = async (
+        payload: WorkoutSaveRequest,
+        contextSnapshot: ProgramPlayerContext | null = pendingProgramContext.current
+    ) => {
         setWorkoutStatus("saving")
         try {
             await workoutApiClient.save(payload)
-            const savedProgramContext = parseProgramPlayerContext(localStorage.getItem(PROGRAM_CONTEXT_STORAGE_KEY))
-            const redirectToProgram = savedProgramContext?.programId
+            const redirectToProgram = contextSnapshot?.programId
             localStorage.removeItem("fitcore_active_routine")
             localStorage.removeItem("fitcore_doms_data")
             localStorage.removeItem("fitcore_pain_areas")
             localStorage.removeItem("fitcore_routine_final_id")
-            localStorage.removeItem(PROGRAM_CONTEXT_STORAGE_KEY)
+            clearProgramContext()
             localStorage.removeItem("fitcore_split_label")
             localStorage.removeItem("fitcore_unavailable_equipment")
             localStorage.removeItem("fitcore_failed_workout_save")
             localStorage.removeItem("fitcore_player_progress")
+            pendingProgramContext.current = null
+            setProgramContext(null)
             setWorkoutStatus("saved")
             router.push(redirectToProgram ? `/workout/programs/${redirectToProgram}` : "/workout")
         } catch (err) {
@@ -322,7 +322,7 @@ export default function WorkoutPlayer() {
     }
 
     const handleRetry = () => {
-        if (pendingPayload.current) trySave(pendingPayload.current)
+        if (pendingPayload.current) trySave(pendingPayload.current, pendingProgramContext.current)
     }
 
     const handleDiscardWorkout = () => {
@@ -330,7 +330,7 @@ export default function WorkoutPlayer() {
         localStorage.removeItem("fitcore_doms_data")
         localStorage.removeItem("fitcore_pain_areas")
         localStorage.removeItem("fitcore_routine_final_id")
-        localStorage.removeItem(PROGRAM_CONTEXT_STORAGE_KEY)
+        clearProgramContext()
         localStorage.removeItem("fitcore_split_label")
         localStorage.removeItem("fitcore_unavailable_equipment")
         localStorage.removeItem("fitcore_failed_workout_save")
