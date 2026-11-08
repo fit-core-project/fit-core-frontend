@@ -4,6 +4,7 @@ import generateGolden from "@/docs/ops/golden-examples/generate.response.success
 import finalizeGolden from "@/docs/ops/golden-examples/finalize.response.golden.json"
 import workoutGolden from "@/docs/ops/golden-examples/workout-save.response.golden.json"
 import { mockRecentWorkoutsPage, mockWorkoutSessions } from "./workoutFixtures"
+import { mockRoutineFinal, mockRoutineFinalsPage } from "./routineFinalFixtures"
 
 const SIM_DELAY_MS = 1500
 const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:8080"
@@ -17,6 +18,16 @@ export const handlers = [
     http.post(`${BASE}/api/routines/drafts/:routineDraftId/finalize`, async () => {
         await delay(SIM_DELAY_MS)
         return HttpResponse.json(finalizeGolden)
+    }),
+
+    http.get(`${BASE}/api/routines/finals`, async () => {
+        await delay(600)
+        return HttpResponse.json(mockRoutineFinalsPage)
+    }),
+
+    http.get(`${BASE}/api/routines/finals/:routineFinalId`, async () => {
+        await delay(600)
+        return HttpResponse.json(mockRoutineFinal)
     }),
 
     http.post(`${BASE}/api/workouts`, async () => {

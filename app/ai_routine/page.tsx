@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Activity, ArrowRight, X } from "lucide-react"
+import { ArrowLeft, Lock } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
 import { getUserCondition } from "@/services/userDataService"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
 import type { UserResponse } from "@/types/project"
+import { muscleLabel } from "@/utils/displayLabels"
+import { Button, Notice, Section } from "@/components/ui"
 
-const LOCKED_PAIN_MESSAGE = "해당 부위는 프로필에서 수정 가능합니다"
+const LOCKED_PAIN_MESSAGE = "통증 부위는 마이 > 운동 설정에서 바꿀 수 있어요"
 
 export default function RoutineHome() {
     const router = useRouter()
@@ -62,7 +64,7 @@ export default function RoutineHome() {
 
         setDomsData((prev) => {
             const current = prev[muscleName] || 0
-            const next = (current + 1) % 3  // 0(정상) → 1(뻐근함) → 2(근육통) → 0
+            const next = (current + 1) % 3 // 0(정상) → 1(뻐근함) → 2(근육통) → 0
             const newData = { ...prev }
             if (next === 0) delete newData[muscleName]
             else newData[muscleName] = next
@@ -77,98 +79,77 @@ export default function RoutineHome() {
     }
 
     return (
-        <div className="flex-1 w-full h-full flex items-center justify-center p-4">
-            <div className="w-full max-w-md bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col h-full max-h-[800px] min-h-0 overflow-hidden">
+        <div className="flex min-h-full w-full flex-col bg-ground">
+            <header className="sticky top-0 z-20 flex items-center gap-1 border-b border-hairline bg-ground px-2 py-1.5">
+                <button
+                    type="button"
+                    onClick={() => router.push("/")}
+                    aria-label="홈으로"
+                    className="inline-flex size-11 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
+                >
+                    <ArrowLeft className="size-5" aria-hidden />
+                </button>
+                <h1 className="min-w-0 flex-1 truncate text-body font-bold text-ink">컨디션 체크</h1>
+            </header>
+
+            <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 top-4 z-50 flex justify-center px-4">
                 {toastMessage && (
-                    <div
-                        role="status"
-                        aria-live="polite"
-                        className="fixed left-1/2 top-5 z-50 -translate-x-1/2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white shadow-xl"
-                    >
+                    <p className="max-w-[440px] rounded-control bg-ink px-4 py-3 text-body-sm font-medium text-white">
                         {toastMessage}
-                    </div>
+                    </p>
                 )}
-                <div className="bg-blue-50/50 p-6 border-b border-blue-100 shrink-0 flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-md shadow-blue-200">
-                            <Activity className="w-6 h-6 text-white" />
-                        </div>
-                        <h1 className="text-xl font-extrabold text-slate-800">컨디션 체크</h1>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => router.push("/")}
-                        aria-label="홈으로 돌아가기"
-                        className="rounded-xl p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                    >
-                        <X className="h-5 w-5" />
-                    </button>
+            </div>
+
+            <div className="flex flex-1 flex-col gap-6 px-4 py-5">
+                <div className="flex flex-col gap-1">
+                    <p className="text-title-sm font-bold text-ink">오늘 몸 상태를 알려 주세요</p>
+                    <p className="text-body-sm text-ink-2">
+                        부위를 누를 때마다 정상, 뻐근함, 근육통 순서로 바뀌어요. AI가 이 상태를 보고 운동량을 조절해요.
+                    </p>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
-                    {/* 분리된 컴포넌트 사용 */}
-                    <AnatomyModel
-                        data={domsData}
-                        onMuscleClick={handleMuscleClick}
-                        mode="doms"
-                        lockedMuscles={painAreas}
-                    />
-                    {painAreas.length > 0 && (
-                        <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4">
-                            <p className="mb-3 text-xs font-black uppercase tracking-wide text-red-700">
-                                Protected Pain Areas
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                                {painAreas.map((painArea) => (
-                                    <span
-                                        key={painArea}
-                                        role="button"
-                                        tabIndex={0}
+                <AnatomyModel data={domsData} onMuscleClick={handleMuscleClick} mode="doms" lockedMuscles={painAreas} />
+
+                {painAreas.length > 0 && (
+                    <Section title="프로필의 통증 부위">
+                        <p className="-mt-1 text-body-sm text-ink-2">
+                            이 부위는 루틴에서 보호돼요. 바꾸려면 마이 &gt; 운동 설정으로 가세요.
+                        </p>
+                        <ul className="flex flex-wrap gap-2">
+                            {painAreas.map((painArea) => (
+                                <li key={painArea}>
+                                    <button
+                                        type="button"
                                         aria-disabled="true"
-                                        className="inline-flex"
-                                        onPointerDown={showLockedPainToast}
-                                        onKeyDown={(event) => {
-                                            if (event.key === "Enter" || event.key === " ") showLockedPainToast()
-                                        }}
+                                        onClick={showLockedPainToast}
+                                        className="inline-flex min-h-11 items-center gap-1.5 rounded-control border border-danger bg-danger-bg px-3 text-body-sm font-medium text-danger-ink"
                                     >
-                                        <button
-                                            type="button"
-                                            disabled
-                                            aria-disabled="true"
-                                            className="pointer-events-none rounded-full border border-red-500 bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700"
-                                        >
-                                            {painArea}
-                                        </button>
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                                        <Lock className="size-3.5" aria-hidden />
+                                        {muscleLabel(painArea)}
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </Section>
+                )}
 
-                <div className="p-5 bg-white border-t border-slate-100 shrink-0">
-                    {missingRoutineSettings.length > 0 && (
-                        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                            <p className="font-medium">운동 설정을 보완하면 AI 루틴이 더 정확해져요.</p>
-                            <p className="mt-1 text-xs text-amber-800">
-                                부족한 항목: {missingRoutineSettings.join(", ")}
-                            </p>
-                            <Link
-                                href="/my?tab=workout"
-                                className="mt-2 inline-flex text-xs font-semibold text-amber-900 underline underline-offset-2"
-                            >
-                                운동 설정하기 →
-                            </Link>
-                        </div>
-                    )}
-                    <button
-                        onClick={handleNext}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center"
-                    >
-                        루틴 세부 설정하기
-                        <ArrowRight className="w-5 h-5 ml-2" />
-                    </button>
-                </div>
+                {missingRoutineSettings.length > 0 && (
+                    <Notice title="운동 설정을 채우면 루틴이 더 정확해져요">
+                        <p className="mt-0.5 text-ink-2">비어 있는 항목: {missingRoutineSettings.join(", ")}</p>
+                        <Link
+                            href="/my?tab=workout"
+                            className="mt-1 inline-flex min-h-11 items-center font-bold text-ink underline underline-offset-2"
+                        >
+                            운동 설정하기
+                        </Link>
+                    </Notice>
+                )}
+            </div>
+
+            <div className="sticky bottom-0 z-10 mt-auto border-t border-hairline bg-ground px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+                <Button variant="primary" size="lg" block onClick={handleNext}>
+                    루틴 세부 설정하기
+                </Button>
             </div>
         </div>
     )

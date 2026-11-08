@@ -1,27 +1,31 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CalendarCheck } from "lucide-react"
 import workoutApiClient from "@/lib/api/workout/workoutApiClient"
 import { AttendanceWeekResponse } from "@/types/project"
+import { EmptyState, Section, Skeleton, Surface } from "@/components/ui"
 
 function formatMD(dateStr: string) {
     const d = new Date(dateStr)
     return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
-function RateBar({ rate }: { rate: number | null }) {
-    if (rate === null) return <div className="text-xs text-slate-400">목표 미설정</div>
+function RateBar({ rate, label }: { rate: number | null; label: string }) {
+    if (rate === null) return <p className="text-caption text-ink-2">목표 횟수를 정하면 달성률이 보여요.</p>
     const pct = Math.min(rate * 100, 100)
-    const color = pct >= 100 ? "bg-blue-500" : pct >= 60 ? "bg-emerald-400" : "bg-slate-300"
     return (
-        <div className="flex items-center gap-2">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-                <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+        <div className="flex items-center gap-3">
+            <div
+                className="h-1.5 flex-1 overflow-hidden rounded-full bg-hairline"
+                role="meter"
+                aria-label={label}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(pct)}
+            >
+                <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
             </div>
-            <span className="w-9 text-right text-xs font-semibold text-slate-600">
-                {Math.round(pct)}%
-            </span>
+            <span className="w-10 text-right text-body-sm font-bold tabular-nums text-ink">{Math.round(pct)}%</span>
         </div>
     )
 }
@@ -38,44 +42,37 @@ export default function AttendanceSection() {
             .finally(() => setLoading(false))
     }, [])
 
-    if (loading) {
-        return (
-            <div className="mt-4 rounded-2xl bg-white p-5 shadow-sm">
-                <div className="mb-4 h-5 w-28 animate-pulse rounded bg-slate-200" />
-                {[...Array(4)].map((_, i) => (
-                    <div key={i} className="mb-3 h-8 animate-pulse rounded bg-slate-100" />
-                ))}
-            </div>
-        )
-    }
-
     return (
-        <div className="mt-4 rounded-2xl bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-                <CalendarCheck size={16} className="text-emerald-500" />
-                <h3 className="text-sm font-bold text-slate-800">최근 4주 출석률</h3>
-            </div>
-
-            {weeks.length === 0 ? (
-                <p className="text-center text-sm text-slate-400">아직 기록된 운동이 없습니다.</p>
-            ) : (
-                <div className="space-y-3">
-                    {weeks.map((w) => (
-                        <div key={w.weekStart}>
-                            <div className="mb-1 flex items-center justify-between">
-                                <span className="text-xs text-slate-500">
-                                    {formatMD(w.weekStart)} – {formatMD(w.weekEnd)}
-                                </span>
-                                <span className="text-xs text-slate-600">
-                                    {w.actualDays}
-                                    {w.targetDays != null ? `/${w.targetDays}일` : "일"}
-                                </span>
-                            </div>
-                            <RateBar rate={w.rate} />
-                        </div>
+        <Section title="최근 4주 출석">
+            {loading ? (
+                <Surface className="flex flex-col gap-4" aria-busy="true">
+                    {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-9 w-full" />
                     ))}
-                </div>
+                </Surface>
+            ) : weeks.length === 0 ? (
+                <Surface>
+                    <EmptyState title="아직 출석 기록이 없어요" body="운동을 마치면 주마다 몇 번 나왔는지 여기에 쌓여요." />
+                </Surface>
+            ) : (
+                <Surface className="flex flex-col gap-4">
+                    {weeks.map((w) => {
+                        const range = `${formatMD(w.weekStart)} – ${formatMD(w.weekEnd)}`
+                        return (
+                            <div key={w.weekStart} className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-body-sm tabular-nums text-ink-2">{range}</span>
+                                    <span className="text-body-sm font-medium tabular-nums text-ink">
+                                        {w.actualDays}
+                                        {w.targetDays != null ? `/${w.targetDays}일` : "일"}
+                                    </span>
+                                </div>
+                                <RateBar rate={w.rate} label={`${range} 출석 달성률`} />
+                            </div>
+                        )
+                    })}
+                </Surface>
             )}
-        </div>
+        </Section>
     )
 }

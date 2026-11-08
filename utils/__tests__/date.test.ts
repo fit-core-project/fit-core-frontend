@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest"
-import { getKstToday } from "../date"
+import { getKstToday, toYmd } from "../date"
 
 afterEach(() => {
     vi.useRealTimers()
@@ -28,5 +28,16 @@ describe("getKstToday", () => {
     it("YYYY-MM-DD 형식을 반환한다", () => {
         vi.setSystemTime(new Date("2026-07-03T16:00:00.000Z"))
         expect(getKstToday()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    })
+})
+
+describe("toYmd", () => {
+    it("로컬 자정 무렵의 Date도 UTC로 밀리지 않고 그날 날짜를 반환한다", () => {
+        expect(toYmd(new Date(2026, 10, 8, 0, 30))).toBe("2026-11-08")
+    })
+
+    it("ISO 문자열은 날짜 부분만 남긴다", () => {
+        expect(toYmd("2026-11-08")).toBe("2026-11-08")
+        expect(toYmd("2026-11-08T23:59:00")).toBe("2026-11-08")
     })
 })

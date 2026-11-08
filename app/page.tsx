@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ChevronRight, Pill } from "lucide-react"
 import TodayWorkoutCard from "@/app/components/TodayWorkoutCard"
@@ -8,10 +9,8 @@ import CoachInsightCard from "@/app/components/CoachInsightCard"
 import DietSummaryCard from "@/app/components/DietSummaryCard"
 import ManualEntryModal from "@/app/my/nutrition/ManualEntryModal"
 import { useOnboardingGuard } from "@/hooks/useOnboardingGuard"
-
-function getKstToday(): string {
-    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
-}
+import { getKstToday } from "@/utils/date"
+import { Section } from "@/components/ui"
 
 export default function HomePage() {
     const router = useRouter()
@@ -26,51 +25,34 @@ export default function HomePage() {
     }
 
     return (
-        <div className="flex-1 flex flex-col bg-gradient-to-b from-sky-50 via-white to-emerald-50/40 pb-24">
-            {showManualModal && (
-                <ManualEntryModal
-                    defaultDate={today}
-                    onClose={() => setShowManualModal(false)}
-                    onSaved={handleManualSaved}
-                />
-            )}
-            <div className="px-5 pt-4">
-                <CoachInsightCard />
-            </div>
+        <div className="flex flex-1 flex-col gap-7 bg-ground px-4 pb-24 pt-5">
+            {showManualModal && <ManualEntryModal defaultDate={today} onClose={() => setShowManualModal(false)} onSaved={handleManualSaved} />}
+            <h1 className="sr-only">홈</h1>
 
-            <main className="px-5 mt-6 flex flex-col gap-7">
+            <TodayWorkoutCard />
 
-                <TodayWorkoutCard />
+            <CoachInsightCard />
 
-                <DietSummaryCard
-                    showDetails={false}
-                    onManualAdd={() => setShowManualModal(true)}
-                    onAiLog={() => router.push("/ai_quicklog")}
-                    refreshKey={dietRefreshKey}
-                />
+            <DietSummaryCard
+                showDetails={false}
+                onManualAdd={() => setShowManualModal(true)}
+                onAiLog={() => router.push("/ai_quicklog")}
+                refreshKey={dietRefreshKey}
+            />
 
-                <section>
-                    <h2 className="mb-3 px-1 text-base font-extrabold text-slate-800">AI 코치 도구</h2>
-                    <div className="flex flex-col gap-3">
-                        <button
-                            type="button"
-                            onClick={() => router.push("/ai_supplement")}
-                            className="flex min-h-20 items-center gap-3 rounded-3xl border border-slate-200/80 bg-white/80 p-4 text-left shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white hover:shadow-[0_16px_38px_rgba(15,23,42,0.09)]"
-                        >
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 ring-1 ring-emerald-100">
-                                <Pill className="h-5 w-5 text-emerald-600" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-sm font-extrabold text-slate-800">영양제 코치</p>
-                                <p className="mt-0.5 text-xs font-medium text-slate-500">
-                                    복용 전 주의사항과 조합을 확인하세요.
-                                </p>
-                            </div>
-                            <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />
-                        </button>
-                    </div>
-                </section>
-            </main>
+            <Section title="코치 도구">
+                <Link
+                    href="/ai_supplement"
+                    className="flex min-h-16 items-center gap-3 rounded-panel border border-hairline bg-ground px-4 py-3 hover:bg-surface"
+                >
+                    <Pill className="size-5 shrink-0 text-ink-2" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                        <span className="block text-body font-bold text-ink">영양제 코치</span>
+                        <span className="block text-body-sm text-ink-2">복용 전 주의사항과 조합을 확인해요.</span>
+                    </span>
+                    <ChevronRight className="size-5 shrink-0 text-ink-3" aria-hidden />
+                </Link>
+            </Section>
         </div>
     )
 }

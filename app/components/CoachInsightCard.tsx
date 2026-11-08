@@ -1,72 +1,45 @@
 "use client"
 
 import Link from "next/link"
-import { type LucideIcon, Apple, CheckCircle, ClipboardList, Dumbbell, Settings } from "lucide-react"
-import type { CoachFocus } from "@/types/coach"
+import { ChevronRight, MessageCircle } from "lucide-react"
 import { useCoachInsight } from "@/hooks/useCoachInsight"
+import { Skeleton } from "@/components/ui"
 
 const FALLBACK_MESSAGE = "오늘도 핏코어와 함께해요"
 
-const FOCUS_ICON: Record<CoachFocus, LucideIcon> = {
-    workout: Dumbbell,
-    diet: Apple,
-    routine: ClipboardList,
-    setup: Settings,
-    done: CheckCircle,
-}
-
-const OUTER = "overflow-hidden rounded-[28px] border border-white/70 bg-gradient-to-br from-blue-600 via-indigo-500 to-emerald-400 p-[1px] shadow-[0_18px_45px_rgba(37,99,235,0.18)]"
-const INNER = "relative overflow-hidden rounded-[27px] bg-white/90 px-5 py-5 backdrop-blur"
-
+/** A single coaching line above the day's route: no card chrome, the sentence is the content. */
 export default function CoachInsightCard() {
     const { insight, loading } = useCoachInsight()
 
     if (loading) {
         return (
-            <div className={OUTER}>
-                <div className={INNER}>
-                    <div className="h-3 w-20 animate-pulse rounded bg-slate-200" />
-                    <div className="mt-3 h-6 w-4/5 animate-pulse rounded bg-slate-200" />
-                </div>
+            <div className="flex flex-col gap-2" aria-busy="true">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-6 w-4/5" />
             </div>
         )
     }
 
     const message = insight?.message ?? FALLBACK_MESSAGE
     const isAlert = insight?.isAlert ?? false
-    const focus = insight?.focus ?? "workout"
-    const Icon = FOCUS_ICON[focus]
-    const showAction = insight?.showAction === true
+    const showAction = insight?.showAction === true && insight?.action
 
     return (
-        <div className={OUTER}>
-            <div className={INNER}>
-                <Icon className="absolute right-4 top-1/2 h-16 w-16 -translate-y-1/2 text-blue-500 opacity-[0.07]" />
-                <div className="relative">
-                    <div className="flex items-center gap-1.5">
-                        <p className="text-[11px] font-extrabold uppercase text-blue-600">Fit Core Today</p>
-                        {isAlert && (
-                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
-                        )}
-                    </div>
-                    <h1 className="mt-2 text-[20px] font-semibold leading-snug text-slate-950 [word-break:keep-all]">
-                        {message}
-                    </h1>
-                    {insight?.description && (
-                        <p className="mt-2 max-w-[85%] text-sm font-semibold leading-relaxed text-slate-600 [word-break:keep-all]">
-                            {insight.description}
-                        </p>
-                    )}
-                    {showAction && insight?.action && (
-                        <Link
-                            href={insight.action.href}
-                            className="mt-4 inline-flex h-10 items-center rounded-full bg-slate-950 px-4 text-sm font-extrabold text-white shadow-sm transition-colors hover:bg-slate-800"
-                        >
-                            {insight.action.label}
-                        </Link>
-                    )}
-                </div>
+        <aside aria-label="코치 한마디" className="flex gap-3">
+            <MessageCircle className={`mt-0.5 size-5 shrink-0 ${isAlert ? "text-danger" : "text-ink-2"}`} aria-hidden />
+            <div className="min-w-0">
+                <p className={`text-body font-medium ${isAlert ? "text-danger-ink" : "text-ink"}`}>{message}</p>
+                {insight?.description && <p className="mt-1 text-body-sm text-ink-2">{insight.description}</p>}
+                {showAction && (
+                    <Link
+                        href={insight!.action!.href}
+                        className="mt-1 inline-flex min-h-11 items-center gap-0.5 text-body-sm font-bold text-ink underline-offset-2 hover:underline"
+                    >
+                        {insight!.action!.label}
+                        <ChevronRight className="size-4" aria-hidden />
+                    </Link>
+                )}
             </div>
-        </div>
+        </aside>
     )
 }

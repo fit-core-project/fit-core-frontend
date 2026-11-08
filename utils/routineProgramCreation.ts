@@ -1,4 +1,5 @@
 import type { RoutineFinalResponse } from "@/types/routine"
+import { splitLabel as splitLabelText, splitTitle } from "@/utils/displayLabels"
 
 export interface RoutineProgramDisplay {
     title: string
@@ -21,8 +22,8 @@ export function moveSelectedRoutineIds(ids: string[], fromIndex: number, toIndex
 export function getRoutineProgramDisplay(routine: RoutineFinalResponse): RoutineProgramDisplay {
     const payload = routine.finalRoutinePayload
     const blocks = payload?.routineBlocks ?? []
-    const title = payload?.summaryTitle?.trim() || routine.targetSplitLabel?.trim() || "저장 루틴"
-    const splitLabel = routine.targetSplitLabel?.trim() || null
+    const title = payload?.summaryTitle?.trim() || splitTitle(routine.targetSplitLabel) || "저장 루틴"
+    const splitLabel = routine.targetSplitLabel?.trim() ? splitLabelText(routine.targetSplitLabel) : null
     const exercisePreview = blocks
         .map((block) => block.exerciseName?.trim())
         .filter((name): name is string => Boolean(name))

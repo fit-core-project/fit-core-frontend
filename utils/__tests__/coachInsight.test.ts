@@ -87,6 +87,12 @@ describe("Layer 2 — 우선순위 경계", () => {
         ).toBe("NO_ROUTINE")
     })
 
+    it("finalsTotal=0이어도 오늘 운동을 마쳤으면 NO_ROUTINE으로 재촉하지 않는다", () => {
+        expect(
+            deriveCoachState({ ...BASE, finalsTotal: 0, todayWorkoutDone: true, todayDietLogged: false }).stateId
+        ).toBe("WORKOUT_DONE_NO_DIET")
+    })
+
     it("kcalGoal null + 운동 완료 + 식단 있음 → NO_KCAL_GOAL이 이김", () => {
         expect(
             deriveCoachState({

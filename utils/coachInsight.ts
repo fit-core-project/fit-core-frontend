@@ -14,8 +14,8 @@ export function deriveCoachState(s: CoachSignals): CoachInsight {
         }
     }
 
-    // 1. 저장 루틴 없음
-    if (s.finalsTotal === 0) {
+    // 1. 저장 루틴 없음 — 오늘 이미 운동했다면 재촉하지 않는다
+    if (s.finalsTotal === 0 && !s.todayWorkoutDone) {
         return {
             stateId: "NO_ROUTINE",
             focus: "routine",

@@ -1,40 +1,89 @@
 @import "tailwindcss";
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Subway-map direction tokens. Line colors keep >= 4.5:1 with white text.
+   `static` emits every token even before a utility uses it; base styles read them via var(). */
+@theme static {
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-ink: #14213d;
+  --color-ink-2: #5b6478;
+  --color-ink-3: #8a93a6;
+  --color-ground: #ffffff;
+  --color-surface: #f4f6f9;
+  --color-hairline: #e3e7ee;
+  --color-rail: #c9d1de;
+
+  --color-line-push: #0052a4;
+  --color-line-pull: #00875a;
+  --color-line-legs: #b9520a;
+  --color-line-core: #8e5bb5;
+
+  --color-danger: #d92d20;
+  --color-danger-ink: #7a271a;
+  --color-danger-bg: #fef3f2;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.5;
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-title-sm: 1.1875rem;
+  --text-title-sm--line-height: 1.4;
+  --text-title: 1.4375rem;
+  --text-title--line-height: 1.3;
+  --text-headline: 1.75rem;
+  --text-headline--line-height: 1.25;
+  --text-display: 3rem;
+  --text-display--line-height: 1;
+
+  --radius-control: 6px;
+  --radius-panel: 12px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    -webkit-tap-highlight-color: transparent;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+
+  input,
+  select,
+  textarea {
+    color: var(--color-ink);
+    color-scheme: light;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-ink-3);
+  }
+
+  :where(input, select, textarea):focus-visible {
+    outline: 2px solid var(--color-line-push);
+    outline-offset: 1px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-input,
-select,
-textarea {
-  color: #0f172a;
-  color-scheme: light;
-}
-
-input::placeholder,
-textarea::placeholder {
-  color: #94a3b8;
+/* Unlayered on purpose: must beat the many `outline-none` utilities so keyboard focus stays visible. */
+:where(button, a, summary, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--color-line-push);
+  outline-offset: 2px;
 }
 
 .gsi-material-button {
@@ -140,8 +189,3 @@ textarea::placeholder {
   background-color: #303030;
   opacity: 8%;
 }
-
-svg path[data-name="3점"] { fill: #ef4444 !important; }
-svg path[data-name="2점"] { fill: #f97316 !important; }
-svg path[data-name="1점"] { fill: #eab308 !important; }
-svg path[data-name="selected"] { fill: #3b82f6 !important; }

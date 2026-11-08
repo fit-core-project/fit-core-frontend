@@ -1,33 +1,35 @@
 "use client"
 
 import { useState } from "react"
+import { Minus, Plus } from "lucide-react"
 import { toast } from "sonner"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
+import { Button, ToggleChip } from "@/components/ui"
+import { equipmentLabel, experienceLabel, goalLabel } from "@/utils/displayLabels"
 
-const GOAL_OPTIONS = [
-    { label: "근력 강화", value: "strength" },
-    { label: "근비대", value: "hypertrophy" },
-    { label: "체지방 감량", value: "fatLoss" },
-    { label: "바디 리컴포지션", value: "recomposition" },
-    { label: "건강 유지", value: "generalFitness" },
-]
+const GOAL_OPTIONS = ["strength", "hypertrophy", "fatLoss", "recomposition", "generalFitness"] as const
 
 const EXP_OPTIONS = [
-    { label: "초급", value: "beginner", desc: "운동 시작 1년 미만" },
-    { label: "중급", value: "intermediate", desc: "1~3년" },
-    { label: "상급", value: "advanced", desc: "3년 이상" },
-]
+    { value: "beginner", desc: "운동 시작 1년 미만" },
+    { value: "intermediate", desc: "1~3년" },
+    { value: "advanced", desc: "3년 이상" },
+] as const
 
-const EQUIPMENTS = [
-    { label: "바벨", value: "BARBELL" },
-    { label: "덤벨", value: "DUMBBELL" },
-    { label: "머신", value: "MACHINE" },
-    { label: "케이블", value: "CABLE" },
-    { label: "맨몸", value: "BODYWEIGHT" },
-]
+const EQUIPMENTS = ["BARBELL", "DUMBBELL", "MACHINE", "CABLE", "BODYWEIGHT"] as const
+
+const STEPPER_CLS =
+    "inline-flex size-11 items-center justify-center rounded-control border border-rail bg-ground text-ink hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40"
 
 interface Props {
     onNext: () => void
+}
+
+function FieldLabel({ id, children }: { id: string; children: React.ReactNode }) {
+    return (
+        <p id={id} className="mb-2 text-body-sm font-medium text-ink">
+            {children}
+        </p>
+    )
 }
 
 export default function StepWorkout({ onNext }: Props) {
@@ -57,114 +59,93 @@ export default function StepWorkout({ onNext }: Props) {
             })
             onNext()
         } catch {
-            toast.error("운동 설정 저장 중 오류가 발생했습니다.")
+            toast.error("운동 설정을 저장하지 못했어요. 잠시 후 다시 시도하세요.")
         } finally {
             setSaving(false)
         }
     }
 
     return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-8">
             <div>
-                <h2 className="text-xl font-extrabold text-slate-900">운동 설정을 알려주세요</h2>
-                <p className="mt-1 text-sm text-slate-500">AI가 맞춤 루틴을 만드는 데 활용돼요.</p>
+                <h1 className="text-title font-bold text-ink">운동 설정을 알려주세요</h1>
+                <p className="mt-1 text-body-sm text-ink-2">AI가 맞춤 루틴을 만들 때 써요.</p>
             </div>
 
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-6">
                 <div>
-                    <p className="mb-2 text-xs font-semibold text-slate-500">운동 목표 *</p>
-                    <div className="flex flex-col gap-2">
-                        {GOAL_OPTIONS.map((opt) => (
-                            <button
-                                key={opt.value}
-                                type="button"
-                                onClick={() => setGoalType(opt.value)}
-                                className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-bold transition-all ${
-                                    goalType === opt.value
-                                        ? "border-emerald-600 bg-emerald-50 text-emerald-700"
-                                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-                                }`}
-                            >
-                                {opt.label}
-                            </button>
+                    <FieldLabel id="onboarding-goal">운동 목표</FieldLabel>
+                    <div className="flex flex-wrap gap-2" role="group" aria-labelledby="onboarding-goal">
+                        {GOAL_OPTIONS.map((value) => (
+                            <ToggleChip key={value} pressed={goalType === value} onClick={() => setGoalType(value)}>
+                                {goalLabel(value)}
+                            </ToggleChip>
                         ))}
                     </div>
                 </div>
 
                 <div>
-                    <p className="mb-2 text-xs font-semibold text-slate-500">운동 경력 *</p>
-                    <div className="flex flex-col gap-2">
+                    <FieldLabel id="onboarding-exp">운동 경력</FieldLabel>
+                    <div className="flex flex-col gap-2" role="group" aria-labelledby="onboarding-exp">
                         {EXP_OPTIONS.map((opt) => (
-                            <button
+                            <ToggleChip
                                 key={opt.value}
-                                type="button"
+                                pressed={experienceLevel === opt.value}
                                 onClick={() => setExperienceLevel(opt.value)}
-                                className={`w-full rounded-xl border px-4 py-3 text-left transition-all ${
-                                    experienceLevel === opt.value
-                                        ? "border-emerald-600 bg-emerald-50"
-                                        : "border-slate-200 bg-white hover:border-slate-300"
-                                }`}
                             >
-                                <span className={`text-sm font-bold ${experienceLevel === opt.value ? "text-emerald-700" : "text-slate-700"}`}>
-                                    {opt.label}
+                                <span className="flex w-full items-baseline gap-2 py-2 text-left">
+                                    <span className="font-bold">{experienceLabel(opt.value)}</span>
+                                    <span className={experienceLevel === opt.value ? "text-white" : "text-ink-2"}>{opt.desc}</span>
                                 </span>
-                                <span className="ml-2 text-xs text-slate-400">{opt.desc}</span>
-                            </button>
+                            </ToggleChip>
                         ))}
                     </div>
                 </div>
 
                 <div>
-                    <p className="mb-2 text-xs font-semibold text-slate-500">사용 가능한 장비 * (1개 이상)</p>
-                    <div className="flex flex-wrap gap-2">
-                        {EQUIPMENTS.map((item) => (
-                            <button
-                                key={item.value}
-                                type="button"
-                                onClick={() => toggleEquipment(item.value)}
-                                className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
-                                    equipmentAccess.includes(item.value)
-                                        ? "border-slate-700 bg-slate-800 text-white"
-                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                                }`}
-                            >
-                                {item.label}
-                            </button>
+                    <FieldLabel id="onboarding-equipment">
+                        쓸 수 있는 장비<span className="ml-1 font-normal text-ink-2">(1개 이상)</span>
+                    </FieldLabel>
+                    <div className="flex flex-wrap gap-2" role="group" aria-labelledby="onboarding-equipment">
+                        {EQUIPMENTS.map((value) => (
+                            <ToggleChip key={value} pressed={equipmentAccess.includes(value)} onClick={() => toggleEquipment(value)}>
+                                {equipmentLabel(value)}
+                            </ToggleChip>
                         ))}
                     </div>
                 </div>
 
                 <div>
-                    <label className="text-xs font-semibold text-slate-500">주당 운동 횟수</label>
-                    <div className="mt-2 flex items-center gap-3">
+                    <FieldLabel id="onboarding-days">주당 운동 횟수</FieldLabel>
+                    <div className="flex items-center gap-3" role="group" aria-labelledby="onboarding-days">
                         <button
                             type="button"
+                            className={STEPPER_CLS}
+                            aria-label="하루 줄이기"
+                            disabled={trainingDaysPerWeek <= 1}
                             onClick={() => setTrainingDaysPerWeek((d) => Math.max(1, d - 1))}
-                            className="h-10 w-10 rounded-full border border-slate-200 text-xl font-bold text-slate-600 hover:bg-slate-50"
                         >
-                            −
+                            <Minus className="size-5" aria-hidden />
                         </button>
-                        <span className="w-8 text-center text-xl font-extrabold text-slate-900">{trainingDaysPerWeek}</span>
+                        <span className="min-w-16 text-center text-title font-bold tabular-nums text-ink" aria-live="polite">
+                            주 {trainingDaysPerWeek}일
+                        </span>
                         <button
                             type="button"
+                            className={STEPPER_CLS}
+                            aria-label="하루 늘리기"
+                            disabled={trainingDaysPerWeek >= 7}
                             onClick={() => setTrainingDaysPerWeek((d) => Math.min(7, d + 1))}
-                            className="h-10 w-10 rounded-full border border-slate-200 text-xl font-bold text-slate-600 hover:bg-slate-50"
                         >
-                            +
+                            <Plus className="size-5" aria-hidden />
                         </button>
-                        <span className="text-sm text-slate-400">일/주</span>
                     </div>
                 </div>
             </div>
 
-            <button
-                type="button"
-                onClick={handleSave}
-                disabled={!canProceed}
-                className="mt-2 w-full rounded-2xl bg-emerald-600 py-3.5 text-base font-bold text-white transition-colors hover:bg-emerald-700 disabled:opacity-40"
-            >
-                {saving ? "저장 중..." : "다음"}
-            </button>
+            <Button variant="primary" size="lg" block loading={saving} disabled={!canProceed} onClick={handleSave}>
+                {saving ? "저장하고 있어요" : "다음"}
+            </Button>
         </div>
     )
 }

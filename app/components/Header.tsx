@@ -1,9 +1,10 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
+import { User } from "lucide-react"
 import { useAuthStore } from "@/store/authStore"
-import Image from "next/image" // Next.js의 Image 컴포넌트 사용 권장
 import AiStatusIndicator from "@/components/AiStatusIndicator"
 
 function shouldHideHeader(pathname: string): boolean {
@@ -25,31 +26,25 @@ export default function Header() {
     if (shouldHideHeader(pathname)) return null
 
     return (
-        <header className="px-6 pt-6 pb-4 bg-white rounded-b-3xl shadow-sm border-b border-slate-100 flex justify-between items-center z-50 relative">
-            <Link
-                href="/"
-                className="text-2xl font-black text-emerald-600 tracking-tighter hover:opacity-80 transition-opacity"
-            >
-                FIT-CORE
+        <header className="relative z-50 flex min-h-14 items-center justify-between border-b border-hairline bg-ground px-4">
+            <Link href="/" className="flex min-h-11 items-center gap-1.5 text-title-sm font-bold text-ink" aria-label="fit-core 홈">
+                <span aria-hidden className="size-3 rounded-full border-[3px] border-ink" />
+                fit-core
             </Link>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
                 <AiStatusIndicator />
-                {/* 로그인 상태에 따른 조건부 렌더링 */}
                 <Link
                     href={user ? "/my" : "/login"}
-                    className="w-10 h-10 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center overflow-hidden hover:bg-slate-200 shadow-sm transition-colors"
+                    aria-label={user ? "마이 페이지" : "로그인"}
+                    className="flex size-11 items-center justify-center overflow-hidden rounded-full hover:bg-surface"
                 >
                     {user?.profileImage ? (
-                        <Image
-                            src={user.profileImage}
-                            alt="프로필 이미지"
-                            width={40}
-                            height={40}
-                            className="object-cover w-full h-full"
-                        />
+                        <Image src={user.profileImage} alt="" width={32} height={32} className="size-8 rounded-full object-cover" />
                     ) : (
-                        <span className="text-slate-500">👤</span>
+                        <span className="flex size-8 items-center justify-center rounded-full bg-surface text-ink-2">
+                            <User className="size-4" aria-hidden />
+                        </span>
                     )}
                 </Link>
             </div>

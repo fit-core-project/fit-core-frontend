@@ -1,13 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Save, Utensils } from "lucide-react"
+import { Save } from "lucide-react"
 import { toast } from "sonner"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
 import type { NutritionTarget } from "@/types/project"
-
-const INPUT_CLS =
-    "w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+import { Button, Section, Skeleton, Surface, TextField } from "@/components/ui"
 
 interface NutritionTargetForm {
     kcalGoal: string
@@ -59,20 +57,27 @@ function toNum(value: string): number | null {
     return value !== "" ? parseFloat(value) : null
 }
 
-function numberInputProps(label: string, value: string, onChange: (value: string) => void, placeholder: string, step = "any") {
+function numberField(
+    label: string,
+    value: string,
+    onChange: (value: string) => void,
+    placeholder: string,
+    suffix: string,
+    step = "any",
+    inputMode: "decimal" | "numeric" = "decimal",
+) {
     return (
-        <label className="block space-y-1">
-            <span className="text-xs font-semibold text-slate-500">{label}</span>
-            <input
-                type="number"
-                step={step}
-                min={0}
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                placeholder={placeholder}
-                className={INPUT_CLS}
-            />
-        </label>
+        <TextField
+            label={label}
+            type="number"
+            inputMode={inputMode}
+            step={step}
+            min={0}
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder={placeholder}
+            suffix={suffix}
+        />
     )
 }
 
@@ -85,7 +90,7 @@ export default function NutritionTargetSection({ onSaved }: NutritionTargetSecti
         nutritionTargetApiClient
             .getTarget()
             .then((target) => setForm(toForm(target)))
-            .catch(() => toast.error("영양 목표를 불러오지 못했습니다."))
+            .catch(() => toast.error("영양 목표를 불러오지 못했어요. 잠시 후 다시 열어 주세요."))
             .finally(() => setLoading(false))
     }, [])
 
@@ -102,15 +107,15 @@ export default function NutritionTargetSection({ onSaved }: NutritionTargetSecti
         const fatMax = toNum(form.fatGMax)
 
         if (proteinMin != null && proteinMax != null && proteinMin > proteinMax) {
-            toast.error("단백질 최솟값이 최댓값보다 클 수 없습니다.")
+            toast.error("단백질 최솟값이 최댓값보다 커요. 값을 고쳐 주세요.")
             return
         }
         if (carbsMin != null && carbsMax != null && carbsMin > carbsMax) {
-            toast.error("탄수화물 최솟값이 최댓값보다 클 수 없습니다.")
+            toast.error("탄수화물 최솟값이 최댓값보다 커요. 값을 고쳐 주세요.")
             return
         }
         if (fatMin != null && fatMax != null && fatMin > fatMax) {
-            toast.error("지방 최솟값이 최댓값보다 클 수 없습니다.")
+            toast.error("지방 최솟값이 최댓값보다 커요. 값을 고쳐 주세요.")
             return
         }
 
@@ -132,9 +137,9 @@ export default function NutritionTargetSection({ onSaved }: NutritionTargetSecti
             const saved = await nutritionTargetApiClient.saveTarget(request)
             setForm(toForm(saved))
             onSaved?.(saved)
-            toast.success("영양 목표가 저장되었습니다.")
+            toast.success("영양 목표를 저장했어요.")
         } catch {
-            toast.error("영양 목표 저장 중 오류가 발생했습니다.")
+            toast.error("영양 목표를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.")
         } finally {
             setSaving(false)
         }
@@ -142,67 +147,46 @@ export default function NutritionTargetSection({ onSaved }: NutritionTargetSecti
 
     if (loading) {
         return (
-            <section className="mb-5 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div className="mb-3 h-5 w-24 animate-pulse rounded bg-slate-200" />
-                <div className="h-20 animate-pulse rounded-2xl bg-slate-100" />
-            </section>
+            <Section title="영양 목표" className="mb-5" aria-busy="true">
+                <Surface className="flex flex-col gap-3">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                </Surface>
+            </Section>
         )
     }
 
+    const range = (title: string, minField: keyof NutritionTargetForm, maxField: keyof NutritionTargetForm) => (
+        <fieldset className="flex flex-col gap-1.5">
+            <legend className="mb-1.5 text-body-sm font-medium text-ink">{title}</legend>
+            <div className="grid grid-cols-2 gap-2">
+                {numberField("최소", form[minField], (value) => updateField(minField, value), "최솟값", "g")}
+                {numberField("최대", form[maxField], (value) => updateField(maxField, value), "최댓값", "g")}
+            </div>
+        </fieldset>
+    )
+
     return (
-        <section className="mb-5 rounded-2xl border border-amber-100 bg-amber-50/50 p-5 shadow-sm">
-            <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <Utensils className="h-5 w-5 text-amber-600" />
-                        <h2 className="text-base font-extrabold text-slate-800">영양 목표</h2>
-                    </div>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                        하루 목표 칼로리와 탄수화물, 단백질, 지방 기준을 관리합니다.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
-                >
-                    <Save className="h-4 w-4" />
-                    {saving ? "저장 중..." : "저장"}
-                </button>
-            </div>
+        <Section title="영양 목표" className="mb-5">
+            <Surface className="flex flex-col gap-4">
+                <p className="text-body-sm text-ink-2">하루 칼로리와 탄수화물·단백질·지방 기준을 정해요. 비워 둔 항목은 비교하지 않아요.</p>
 
-            <div className="space-y-3">
-                {numberInputProps("일일 칼로리 목표 (kcal)", form.kcalGoal, (value) => updateField("kcalGoal", value), "예: 2000")}
+                {numberField("하루 칼로리 목표", form.kcalGoal, (value) => updateField("kcalGoal", value), "예: 2000", "kcal")}
+                {range("탄수화물", "carbsGMin", "carbsGMax")}
+                {range("단백질", "proteinGMin", "proteinGMax")}
+                {range("지방", "fatGMin", "fatGMax")}
 
-                <div>
-                    <p className="mb-1 text-xs font-semibold text-slate-500">탄수화물 목표 (g)</p>
-                    <div className="grid grid-cols-2 gap-2">
-                        {numberInputProps("최소", form.carbsGMin, (value) => updateField("carbsGMin", value), "최솟값")}
-                        {numberInputProps("최대", form.carbsGMax, (value) => updateField("carbsGMax", value), "최댓값")}
-                    </div>
+                <div className="flex flex-col gap-4 border-t border-hairline pt-4">
+                    {numberField("당류 최대", form.sugarMax, (value) => updateField("sugarMax", value), "예: 50", "g")}
+                    {numberField("식이섬유 최소", form.fiberMin, (value) => updateField("fiberMin", value), "예: 25", "g")}
+                    {numberField("나트륨 최대", form.sodiumMax, (value) => updateField("sodiumMax", value), "예: 2000", "mg", "1", "numeric")}
                 </div>
 
-                <div>
-                    <p className="mb-1 text-xs font-semibold text-slate-500">단백질 목표 (g)</p>
-                    <div className="grid grid-cols-2 gap-2">
-                        {numberInputProps("최소", form.proteinGMin, (value) => updateField("proteinGMin", value), "최솟값")}
-                        {numberInputProps("최대", form.proteinGMax, (value) => updateField("proteinGMax", value), "최댓값")}
-                    </div>
-                </div>
-
-                <div>
-                    <p className="mb-1 text-xs font-semibold text-slate-500">지방 목표 (g)</p>
-                    <div className="grid grid-cols-2 gap-2">
-                        {numberInputProps("최소", form.fatGMin, (value) => updateField("fatGMin", value), "최솟값")}
-                        {numberInputProps("최대", form.fatGMax, (value) => updateField("fatGMax", value), "최댓값")}
-                    </div>
-                </div>
-
-                {numberInputProps("당류 최대 (g)", form.sugarMax, (value) => updateField("sugarMax", value), "예: 50")}
-                {numberInputProps("식이섬유 최소 (g)", form.fiberMin, (value) => updateField("fiberMin", value), "예: 25")}
-                {numberInputProps("나트륨 최대 (mg)", form.sodiumMax, (value) => updateField("sodiumMax", value), "예: 2000", "1")}
-            </div>
-        </section>
+                <Button variant="primary" size="lg" block loading={saving} icon={<Save className="size-4" aria-hidden />} onClick={handleSave}>
+                    목표 저장
+                </Button>
+            </Surface>
+        </Section>
     )
 }

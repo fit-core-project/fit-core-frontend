@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import Header from "@/app/components/Header"
 import AppShell from "@/app/components/AppShell"
@@ -9,9 +8,6 @@ import MainLayout from "@/app/components/MainLayout"
 import Providers from "@/components/Providers"
 import MSWProvider from "@/app/components/MSWProvider"
 import { Toaster } from "sonner"
-
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
 
 export const metadata: Metadata = { title: "Fit Core" }
 
@@ -33,9 +29,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 
     return (
         <html lang="ko" className="h-[100dvh]">
-            <body className={`${geistSans.variable} ${geistMono.variable} h-[100dvh] bg-slate-950 antialiased`}>
+            <body className="h-[100dvh] bg-surface antialiased">
                 <MainLayout>
-                    <section className="relative flex h-full w-full max-w-[480px] shrink-0 flex-col overflow-hidden bg-slate-50 shadow-2xl">
+                    <section className="relative flex h-full w-full max-w-[480px] shrink-0 flex-col overflow-hidden bg-ground min-[481px]:border-x min-[481px]:border-hairline">
                         {isMockMode ? <MSWProvider>{content}</MSWProvider> : content}
                     </section>
                 </MainLayout>

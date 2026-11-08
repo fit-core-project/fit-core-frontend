@@ -6,6 +6,7 @@ import dietApiClient from "@/lib/api/diet/dietApiClient"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
 import type { DietDailyAggregationResponse, NutritionTarget } from "@/types/project"
 import NutritionTab from "@/app/my/nutrition/NutritionTab"
+import { Surface } from "@/components/ui"
 
 function getKstToday(): string {
     return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -24,9 +25,15 @@ function formatSelectedDateLabel(value: string): string {
 }
 
 function dayColor(row: DietDailyAggregationResponse | undefined, kcalGoal: number | null | undefined): string {
-    if (!row) return "bg-slate-100 text-slate-400"
-    if (!kcalGoal) return "bg-emerald-400 text-white"
-    return row.totalKcal > kcalGoal ? "bg-red-400 text-white" : "bg-emerald-400 text-white"
+    if (!row) return "text-ink hover:bg-surface"
+    if (!kcalGoal) return "bg-ink text-white"
+    return row.totalKcal > kcalGoal ? "bg-danger text-white" : "bg-ink text-white"
+}
+
+function dayStatus(row: DietDailyAggregationResponse | undefined, kcalGoal: number | null | undefined): string {
+    if (!row) return "기록 없음"
+    if (!kcalGoal) return "기록 있음"
+    return row.totalKcal > kcalGoal ? "목표 초과" : "목표 이하"
 }
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"]
@@ -99,29 +106,37 @@ export default function NutritionCalendarSection() {
 
     return (
         <>
-            <div className="rounded-2xl bg-white p-5 shadow-sm mt-4">
-                {/* 헤더 */}
-                <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-slate-800">식단 캘린더</h2>
-                    <div className="flex items-center gap-2">
-                        <button type="button" onClick={prevMonth} className="rounded-full p-1 hover:bg-slate-100">
-                            <ChevronLeft size={16} className="text-slate-500" />
+            <Surface className="flex flex-col gap-3">
+                <div className="flex items-center justify-center">
+                    <div className="flex items-center">
+                        <button
+                            type="button"
+                            onClick={prevMonth}
+                            aria-label="이전 달"
+                            className="inline-flex size-11 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
+                        >
+                            <ChevronLeft className="size-5" aria-hidden />
                         </button>
-                        <span className="text-sm font-semibold text-slate-700">{year}년 {month}월</span>
-                        <button type="button" onClick={nextMonth} className="rounded-full p-1 hover:bg-slate-100">
-                            <ChevronRight size={16} className="text-slate-500" />
+                        <span className="min-w-24 text-center text-body-sm font-bold tabular-nums text-ink" aria-live="polite">
+                            {year}년 {month}월
+                        </span>
+                        <button
+                            type="button"
+                            onClick={nextMonth}
+                            aria-label="다음 달"
+                            className="inline-flex size-11 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
+                        >
+                            <ChevronRight className="size-5" aria-hidden />
                         </button>
                     </div>
                 </div>
 
-                {/* 요일 헤더 */}
-                <div className="mb-1 grid grid-cols-7 text-center">
+                <div className="grid grid-cols-7 text-center" aria-hidden>
                     {DAY_LABELS.map((d) => (
-                        <span key={d} className="text-[10px] font-semibold text-slate-400">{d}</span>
+                        <span key={d} className="text-caption font-medium text-ink-2">{d}</span>
                     ))}
                 </div>
 
-                {/* 날짜 셀 */}
                 <div className="grid grid-cols-7 gap-y-1">
                     {cells.map((day, i) => {
                         if (day === null) return <div key={`empty-${i}`} />
@@ -135,48 +150,45 @@ export default function NutritionCalendarSection() {
                                 key={dateStr}
                                 type="button"
                                 onClick={() => handleDayClick(day)}
-                                className={`mx-auto flex h-8 w-8 flex-col items-center justify-center rounded-full text-xs font-semibold transition-all
-                                    ${row ? color : "text-slate-400 hover:bg-slate-100"}
-                                    ${isSelected ? "ring-2 ring-blue-500 ring-offset-1" : ""}
-                                    ${isToday && !row ? "border border-blue-400 text-blue-500" : ""}
-                                `}
+                                aria-pressed={isSelected}
+                                aria-current={isToday ? "date" : undefined}
+                                aria-label={`${month}월 ${day}일, ${dayStatus(row, target?.kcalGoal)}${isToday ? ", 오늘" : ""}`}
+                                className={`mx-auto flex size-11 items-center justify-center rounded-full text-body-sm tabular-nums transition-colors ${color} ${
+                                    isSelected ? "outline-2 outline-offset-2 outline-ink" : ""
+                                } ${isToday ? "font-bold" : "font-medium"} ${isToday && !row ? "border border-ink" : ""}`}
                             >
                                 {day}
-                                {row && <span className="mt-0.5 h-1 w-1 rounded-full bg-white/70" />}
                             </button>
                         )
                     })}
                 </div>
 
-                {/* 범례 */}
-                <div className="mt-3 flex items-center gap-3 text-[10px] text-slate-400">
-                    <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" />목표 이하</span>
-                    <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-red-400" />목표 초과</span>
-                    <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-100 border border-slate-200" />기록 없음</span>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-ink-2">
+                    {target?.kcalGoal ? (
+                        <>
+                            <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-full bg-ink" aria-hidden />목표 이하</span>
+                            <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-full bg-danger" aria-hidden />목표 초과</span>
+                        </>
+                    ) : (
+                        <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-full bg-ink" aria-hidden />기록 있음</span>
+                    )}
+                    <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-full border border-rail bg-ground" aria-hidden />기록 없음</span>
                 </div>
-                <p className="mt-3 text-xs leading-relaxed text-slate-500">
-                    캘린더에서 날짜를 선택하면 아래에서 해당 날짜의 식단 기록을 확인할 수 있습니다.
-                </p>
-            </div>
+                <p className="text-body-sm text-ink-2">날짜를 누르면 아래에 그날 식단이 열려요.</p>
+            </Surface>
 
-            {/* 선택 날짜 상세 */}
             {selectedDate && (
-                <div ref={detailRef} className="mt-4">
-                    <div className="mb-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3">
-                        <div className="flex items-start justify-between gap-3">
-                            <div>
-                                <p className="text-xs font-black uppercase tracking-wide text-emerald-600">선택 날짜 식단</p>
-                                <h3 className="mt-1 text-base font-extrabold text-slate-800">
-                                    {formatSelectedDateLabel(selectedDate)}
-                                </h3>
-                                <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                                    이 날짜의 식단 기록을 확인하고 필요한 경우 식단을 추가하거나 수정할 수 있습니다.
-                                </p>
-                            </div>
-                        <button type="button" onClick={() => setSelectedDate(null)} className="rounded-full p-1 hover:bg-slate-100">
-                            <X size={16} className="text-slate-400" />
+                <div ref={detailRef} className="mt-4 flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-3 border-b border-hairline pb-2">
+                        <h3 className="text-title-sm font-bold text-ink">{formatSelectedDateLabel(selectedDate)}</h3>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedDate(null)}
+                            aria-label="선택한 날짜 식단 닫기"
+                            className="-mr-2 inline-flex size-11 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
+                        >
+                            <X className="size-5" aria-hidden />
                         </button>
-                        </div>
                     </div>
                     <NutritionTab key={selectedDate} date={selectedDate} onRefresh={fetchRows} />
                 </div>

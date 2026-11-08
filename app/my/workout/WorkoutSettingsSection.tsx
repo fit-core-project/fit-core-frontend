@@ -1,22 +1,20 @@
 "use client"
 
 import React, { useCallback, useEffect, useState } from "react"
-import { Activity, Bandage, ChevronDown, Dumbbell, Save } from "lucide-react"
+import { ChevronDown, Save } from "lucide-react"
 import { toast } from "sonner"
-import { useForm } from "react-hook-form"
 import AnatomyModel from "@/app/components/AnatomyModel"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
 import { useSettingsStore } from "@/store/settingsStore"
 import type { PainArea, StrengthBaseline, UserResponse, UserUpdateRequest } from "@/types/project"
-import { NUMERIC_RANGES, numericRules, toDisplayBound } from "@/utils/numericValidation"
+import { NUMERIC_RANGES, toDisplayBound, validateNumericRange } from "@/utils/numericValidation"
+import { equipmentLabel, experienceLabel, goalLabel, muscleLabel } from "@/utils/displayLabels"
+import { Button, Notice, Skeleton, Tag, TextField, ToggleChip } from "@/components/ui"
 
-const GOAL_OPTIONS = [
-    { label: "근력 강화", value: "strength" },
-    { label: "근비대", value: "hypertrophy" },
-    { label: "체지방 감량", value: "fatLoss" },
-    { label: "바디 리컴포지션", value: "recomposition" },
-    { label: "건강 유지", value: "generalFitness" },
-]
+const GOAL_OPTIONS = ["strength", "hypertrophy", "fatLoss", "recomposition", "generalFitness"].map((value) => ({
+    label: goalLabel(value),
+    value,
+}))
 
 const SPLIT_OPTIONS = [
     { label: "전신", value: "fullBody" },
@@ -26,19 +24,9 @@ const SPLIT_OPTIONS = [
     { label: "직접 설정", value: "custom" },
 ]
 
-const EXP_OPTIONS = [
-    { label: "초급", value: "beginner" },
-    { label: "중급", value: "intermediate" },
-    { label: "상급", value: "advanced" },
-]
+const EXP_OPTIONS = ["beginner", "intermediate", "advanced"].map((value) => ({ label: experienceLabel(value), value }))
 
-const EQUIPMENTS = [
-    { label: "바벨", value: "BARBELL" },
-    { label: "덤벨", value: "DUMBBELL" },
-    { label: "머신", value: "MACHINE" },
-    { label: "케이블", value: "CABLE" },
-    { label: "맨몸", value: "BODYWEIGHT" },
-]
+const EQUIPMENTS = ["BARBELL", "DUMBBELL", "MACHINE", "CABLE", "BODYWEIGHT"]
 
 const BIG_FOUR_BASELINE: StrengthBaseline[] = [
     { exerciseId: "75", exerciseNameSnapshot: "Barbell Overhead Press", workingWeightKg: 0, reps: 5 },
@@ -46,6 +34,17 @@ const BIG_FOUR_BASELINE: StrengthBaseline[] = [
     { exerciseId: "7", exerciseNameSnapshot: "Deadlift", workingWeightKg: 0, reps: 5 },
     { exerciseId: "98", exerciseNameSnapshot: "Back Squat", workingWeightKg: 0, reps: 5 },
 ]
+
+/** A baseline weight of 0 means "not entered" and is allowed; any entered weight must be in range. */
+function baselineIssue(item: StrengthBaseline, unit: "kg" | "lbs"): { weight?: string; reps?: string } {
+    const display = unit === "lbs" ? +(item.workingWeightKg * 2.20462).toFixed(1) : item.workingWeightKg
+    const weightResult = item.workingWeightKg === 0 ? true : validateNumericRange("workingWeightKg", display, unit)
+    const repsResult = validateNumericRange("reps", item.reps)
+    return {
+        weight: weightResult === true ? undefined : String(weightResult),
+        reps: repsResult === true ? undefined : String(repsResult),
+    }
+}
 
 const BIG_FOUR_LABELS: Record<string, string> = {
     "75": "오버헤드프레스",
@@ -64,34 +63,6 @@ const DAYS_OF_WEEK = [
     { label: "일", value: "SUN" },
 ]
 
-const PAIN_AREA_LABELS: Record<string, string> = {
-    quadriceps: "대퇴사두",
-    hamstring: "햄스트링",
-    gluteal: "둔근",
-    trapezius: "승모근",
-    "upper-back": "상부 등",
-    "lower-back": "허리",
-    adductor: "내전근",
-    knees: "무릎",
-    "right-soleus": "오른쪽 가자미근",
-    "left-soleus": "왼쪽 가자미근",
-    calves: "종아리",
-    triceps: "삼두근",
-    "back-deltoids": "후면 삼각근",
-    forearm: "전완근",
-    head: "머리",
-    neck: "목",
-    chest: "가슴",
-    "front-deltoids": "전면 삼각근",
-    biceps: "이두근",
-    abs: "복근",
-    obliques: "옆구리",
-    abductors: "외전근",
-}
-
-const INPUT_CLS =
-    "w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-const SELECT_CLS = `${INPUT_CLS} cursor-pointer appearance-none`
 
 interface WorkoutSettingsForm {
     goalType: UserResponse["goalType"]
@@ -141,11 +112,8 @@ export default function WorkoutSettingsSection() {
     const [saving, setSaving] = useState(false)
     const [isExpanded, setIsExpanded] = useState(true)
     const [domsData, setDomsData] = useState<Record<string, number>>({})
-    const {
-        register,
-        trigger,
-        formState: { errors },
-    } = useForm<Record<string, unknown>>({ mode: "onChange" })
+    const [baselineTouched, setBaselineTouched] = useState<Set<string>>(new Set())
+    const [saveAttempted, setSaveAttempted] = useState(false)
 
     const loadSettings = useCallback(() => {
         setLoading(true)
@@ -156,7 +124,7 @@ export default function WorkoutSettingsSection() {
                 setSettings(next)
                 setDomsData(painAreasToDomsData(next.painAreas))
             })
-            .catch(() => toast.error("운동 설정을 불러오지 못했습니다."))
+            .catch(() => toast.error("운동 설정을 불러오지 못했어요."))
             .finally(() => setLoading(false))
     }, [])
 
@@ -243,8 +211,8 @@ export default function WorkoutSettingsSection() {
 
     const handleSave = async () => {
         if (!settings) return
-        const isValid = await trigger()
-        if (!isValid) return
+        setSaveAttempted(true)
+        if (settings.strengthBaseline.some((item) => baselineIssue(item, weightUnit).weight || baselineIssue(item, weightUnit).reps)) return
 
         setSaving(true)
         const request: UserUpdateRequest = {
@@ -263,9 +231,9 @@ export default function WorkoutSettingsSection() {
             const next = toWorkoutSettings(saved)
             setSettings(next)
             setDomsData(painAreasToDomsData(next.painAreas))
-            toast.success("운동 설정이 저장되었습니다.")
+            toast.success("운동 설정을 저장했어요.")
         } catch {
-            toast.error("운동 설정 저장 중 오류가 발생했습니다.")
+            toast.error("운동 설정을 저장하지 못했어요. 잠시 뒤 다시 저장하세요.")
         } finally {
             setSaving(false)
         }
@@ -273,254 +241,215 @@ export default function WorkoutSettingsSection() {
 
     if (loading) {
         return (
-            <section className="mb-5 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div className="mb-3 h-5 w-24 animate-pulse rounded bg-slate-200" />
-                <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
-            </section>
+            <div className="flex flex-col gap-4" aria-busy="true">
+                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-11 w-full" />
+                <Skeleton className="h-11 w-full" />
+                <Skeleton className="h-24 w-full" />
+            </div>
         )
     }
 
     if (!settings) {
         return (
-            <section className="mb-5 rounded-2xl border border-red-100 bg-red-50 p-5">
-                <p className="text-sm font-bold text-red-700">운동 설정을 불러오지 못했습니다.</p>
-                <button type="button" onClick={loadSettings} className="mt-3 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white">
-                    다시 시도
-                </button>
-            </section>
+            <div className="flex flex-col gap-3">
+                <Notice tone="danger" title="운동 설정을 불러오지 못했어요">
+                    네트워크 연결을 확인하고 다시 불러오세요.
+                </Notice>
+                <Button variant="secondary" className="self-start" onClick={loadSettings}>
+                    다시 불러오기
+                </Button>
+            </div>
         )
     }
 
     return (
-        <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <Activity className="h-5 w-5 text-blue-600" />
-                        <h2 className="text-base font-extrabold text-slate-800">운동 설정</h2>
-                    </div>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                        운동 목표, 경험 수준, 가능 요일과 장비 정보를 관리합니다.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-                >
-                    <Save className="h-4 w-4" />
-                    {saving ? "저장 중..." : "저장"}
-                </button>
+        <section aria-labelledby="workout-settings-title" className="flex flex-col gap-7">
+            <div>
+                <h2 id="workout-settings-title" className="text-title-sm font-bold text-ink">
+                    운동 설정
+                </h2>
+                <p className="mt-0.5 text-body-sm text-ink-2">AI 루틴이 목표, 경력, 요일, 장비, 기준 중량을 참고해요.</p>
             </div>
 
-            <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-3">
-                    {[
-                        { label: "운동 목표", name: "goalType", options: GOAL_OPTIONS },
-                        { label: "분할 방식", name: "splitType", options: SPLIT_OPTIONS },
-                        { label: "운동 경력", name: "experienceLevel", options: EXP_OPTIONS },
-                    ].map((field) => (
-                        <label key={field.name} className="block space-y-1">
-                            <span className="text-xs font-semibold text-slate-500">{field.label}</span>
-                            <span className="relative block">
-                                <select
-                                    value={String(settings[field.name as keyof WorkoutSettingsForm])}
-                                    onChange={(event) => updateSettings({ [field.name]: event.target.value } as Partial<WorkoutSettingsForm>)}
-                                    className={SELECT_CLS}
-                                >
-                                    {field.options.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                            </span>
-                        </label>
+            {[
+                { label: "운동 목표", name: "goalType" as const, options: GOAL_OPTIONS },
+                { label: "분할 방식", name: "splitType" as const, options: SPLIT_OPTIONS },
+                { label: "운동 경력", name: "experienceLevel" as const, options: EXP_OPTIONS },
+            ].map((field) => (
+                <ChipGroup key={field.name} legend={field.label}>
+                    {field.options.map((option) => (
+                        <ToggleChip
+                            key={option.value}
+                            pressed={settings[field.name] === option.value}
+                            onClick={() => updateSettings({ [field.name]: option.value } as Partial<WorkoutSettingsForm>)}
+                        >
+                            {option.label}
+                        </ToggleChip>
                     ))}
+                </ChipGroup>
+            ))}
 
-                    <label className="block space-y-1">
-                        <span className="text-xs font-semibold text-slate-500">주당 운동 횟수</span>
-                        <input
-                            type="number"
-                            min={1}
-                            max={7}
-                            value={String(settings.trainingDaysPerWeek)}
-                            onChange={(event) =>
-                                updateSettings({ trainingDaysPerWeek: Math.max(1, Math.min(7, Number(event.target.value) || 1)) })
-                            }
-                            className={INPUT_CLS}
-                        />
-                    </label>
-                </div>
+            <TextField
+                label="주당 운동 횟수"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={7}
+                suffix="회"
+                hint="1회부터 7회까지 정할 수 있어요."
+                value={String(settings.trainingDaysPerWeek)}
+                onChange={(event) =>
+                    updateSettings({ trainingDaysPerWeek: Math.max(1, Math.min(7, Number(event.target.value) || 1)) })
+                }
+            />
 
-                <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-500">운동 가능 요일</p>
-                    <div className="flex flex-wrap gap-2">
-                        {DAYS_OF_WEEK.map((day) => (
-                            <button
-                                key={day.value}
-                                type="button"
-                                onClick={() => handleDayToggle(day.value)}
-                                className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-bold transition-all ${
-                                    settings.availableDays.includes(day.value)
-                                        ? "border-blue-600 bg-blue-600 text-white shadow-sm"
-                                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
-                                }`}
-                            >
-                                {day.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+            <ChipGroup legend="운동 가능 요일" hint="여러 날을 고를 수 있어요.">
+                {DAYS_OF_WEEK.map((day) => (
+                    <ToggleChip
+                        key={day.value}
+                        pressed={settings.availableDays.includes(day.value)}
+                        onClick={() => handleDayToggle(day.value)}
+                        aria-label={`${day.label}요일`}
+                        className="min-w-11"
+                    >
+                        {day.label}
+                    </ToggleChip>
+                ))}
+            </ChipGroup>
 
-                <div className="space-y-2">
-                    <div className="flex items-center gap-1.5">
-                        <Dumbbell className="h-4 w-4 text-slate-500" />
-                        <p className="text-xs font-semibold text-slate-500">사용 가능한 장비</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {EQUIPMENTS.map((item) => (
-                            <button
-                                key={item.value}
-                                type="button"
-                                onClick={() => handleEquipmentToggle(item.value)}
-                                className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
-                                    settings.equipmentAccess.includes(item.value)
-                                        ? "border-slate-600 bg-slate-800 text-white shadow-sm"
-                                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
-                                }`}
-                            >
-                                {item.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+            <ChipGroup legend="사용 가능한 장비" hint="여러 개를 고를 수 있어요.">
+                {EQUIPMENTS.map((code) => (
+                    <ToggleChip key={code} pressed={settings.equipmentAccess.includes(code)} onClick={() => handleEquipmentToggle(code)}>
+                        {equipmentLabel(code)}
+                    </ToggleChip>
+                ))}
+            </ChipGroup>
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="mb-3 flex items-center gap-2">
-                        <Dumbbell className="h-5 w-5 text-slate-600" />
-                        <h3 className="text-sm font-bold text-slate-800">4대 운동 기준 중량</h3>
-                    </div>
-                    <div className="grid grid-cols-1 gap-3">
-                        {settings.strengthBaseline.map((item, index) => {
-                            const weightField = `strengthBaseline.${index}.workingWeightKg`
-                            const repsField = `strengthBaseline.${index}.reps`
-                            const weightRegister = register(weightField, numericRules("workingWeightKg", weightUnit))
-                            const repsRegister = register(repsField, numericRules("reps"))
-                            const baselineErrors = errors.strengthBaseline as
-                                | Array<{ workingWeightKg?: { message?: unknown }; reps?: { message?: unknown } }>
-                                | undefined
+            <fieldset className="flex flex-col gap-3">
+                <legend className="mb-1 text-body font-bold text-ink">4대 운동 기준 중량</legend>
+                <p className="text-body-sm text-ink-2">평소 작업 세트 기준으로 적어 주세요. 첫 루틴 중량을 정할 때 써요.</p>
+                <ul className="flex flex-col divide-y divide-hairline border-y border-hairline">
+                    {settings.strengthBaseline.map((item) => {
+                        const weightKey = `${item.exerciseId}.weight`
+                        const repsKey = `${item.exerciseId}.reps`
+                        const name = BIG_FOUR_LABELS[item.exerciseId] ?? item.exerciseNameSnapshot
+                        const issue = baselineIssue(item, weightUnit)
+                        const showWeightError = saveAttempted || baselineTouched.has(weightKey)
+                        const showRepsError = saveAttempted || baselineTouched.has(repsKey)
+                        const weightError = showWeightError ? issue.weight : undefined
+                        const repsError = showRepsError ? issue.reps : undefined
+                        const touch = (key: string) => setBaselineTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))
 
-                            return (
-                                <div key={item.exerciseId} className="rounded-xl border border-slate-100 bg-white p-3">
-                                    <p className="mb-2 text-sm font-bold text-slate-700">
-                                        {BIG_FOUR_LABELS[item.exerciseId] ?? item.exerciseNameSnapshot}
-                                    </p>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <label className="block space-y-1">
-                                            <span className="text-xs font-semibold text-slate-500">중량 {weightUnit}</span>
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                max={toDisplayBound(NUMERIC_RANGES.workingWeightKg.max, weightUnit)}
-                                                step={NUMERIC_RANGES.workingWeightKg.step}
-                                                value={
-                                                    weightUnit === "lbs"
-                                                        ? +(item.workingWeightKg * 2.20462).toFixed(1)
-                                                        : item.workingWeightKg
-                                                }
-                                                onChange={(event) => {
-                                                    weightRegister.onChange(event)
-                                                    const raw = event.target.value
-                                                    const inKg = weightUnit === "lbs" ? String(Number(raw) / 2.20462) : raw
-                                                    handleStrengthBaselineChange(item.exerciseId, "workingWeightKg", inKg)
-                                                    void trigger(weightField)
-                                                }}
-                                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                            />
-                                            {Boolean(baselineErrors?.[index]?.workingWeightKg?.message) && (
-                                                <p className="text-xs text-red-600">
-                                                    {String(baselineErrors?.[index]?.workingWeightKg?.message)}
-                                                </p>
-                                            )}
-                                        </label>
-                                        <label className="block space-y-1">
-                                            <span className="text-xs font-semibold text-slate-500">반복</span>
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                max={NUMERIC_RANGES.reps.max}
-                                                step={NUMERIC_RANGES.reps.step}
-                                                value={item.reps}
-                                                onChange={(event) => {
-                                                    repsRegister.onChange(event)
-                                                    handleStrengthBaselineChange(item.exerciseId, "reps", event.target.value)
-                                                    void trigger(repsField)
-                                                }}
-                                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                            />
-                                            {Boolean(baselineErrors?.[index]?.reps?.message) && (
-                                                <p className="text-xs text-red-600">
-                                                    {String(baselineErrors?.[index]?.reps?.message)}
-                                                </p>
-                                            )}
-                                        </label>
-                                    </div>
+                        return (
+                            <li key={item.exerciseId} className="flex flex-col gap-2 py-3">
+                                <p className="text-body font-medium text-ink">{name}</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <TextField
+                                        label={`${name} 중량`}
+                                        type="number"
+                                        inputMode="decimal"
+                                        suffix={weightUnit}
+                                        min={0}
+                                        max={toDisplayBound(NUMERIC_RANGES.workingWeightKg.max, weightUnit)}
+                                        step={NUMERIC_RANGES.workingWeightKg.step}
+                                        value={
+                                            weightUnit === "lbs"
+                                                ? +(item.workingWeightKg * 2.20462).toFixed(1)
+                                                : item.workingWeightKg
+                                        }
+                                        onChange={(event) => {
+                                            const raw = event.target.value
+                                            const inKg = weightUnit === "lbs" ? String(Number(raw) / 2.20462) : raw
+                                            handleStrengthBaselineChange(item.exerciseId, "workingWeightKg", inKg)
+                                            touch(weightKey)
+                                        }}
+                                        error={weightError}
+                                    />
+                                    <TextField
+                                        label={`${name} 반복`}
+                                        type="number"
+                                        inputMode="numeric"
+                                        suffix="회"
+                                        min={1}
+                                        max={NUMERIC_RANGES.reps.max}
+                                        step={NUMERIC_RANGES.reps.step}
+                                        value={item.reps}
+                                        onChange={(event) => {
+                                            handleStrengthBaselineChange(item.exerciseId, "reps", event.target.value)
+                                            touch(repsKey)
+                                        }}
+                                        error={repsError}
+                                    />
                                 </div>
-                            )
-                        })}
-                    </div>
-                </div>
+                            </li>
+                        )
+                    })}
+                </ul>
+            </fieldset>
 
-                <div className="rounded-2xl border border-red-100 bg-red-50/30 p-4">
-                    <div className="mb-3 flex items-center gap-2">
-                        <Bandage className="h-5 w-5 text-red-400" />
-                        <h3 className="text-sm font-bold text-slate-800">부상 및 관리 부위</h3>
-                    </div>
-                    <AnatomyModel data={domsData} onMuscleClick={handleMuscleClick} mode="injury" />
+            <fieldset className="flex flex-col gap-3">
+                <legend className="mb-1 text-body font-bold text-ink">부상·관리 부위</legend>
+                <p className="text-body-sm text-ink-2">그림에서 아픈 부위를 누르면 그 부위에 부담이 큰 운동을 줄여요.</p>
+                <AnatomyModel data={domsData} onMuscleClick={handleMuscleClick} mode="injury" />
 
-                    {settings.painAreas.length > 0 && (
-                        <div className="mt-4 space-y-3">
-                            <div className="flex flex-wrap gap-2">
+                {settings.painAreas.length > 0 && (
+                    <div className="flex flex-col gap-3">
+                        <ul className="flex flex-wrap gap-1.5" aria-label="선택한 관리 부위">
+                            {settings.painAreas.map((item) => (
+                                <li key={item.area}>
+                                    <Tag tone="danger">{muscleLabel(item.area)}</Tag>
+                                </li>
+                            ))}
+                        </ul>
+
+                        <Button
+                            variant="ghost"
+                            className="-mx-2 self-start"
+                            aria-expanded={isExpanded}
+                            aria-controls="pain-area-notes"
+                            onClick={() => setIsExpanded((prev) => !prev)}
+                            icon={
+                                <ChevronDown
+                                    className={`size-4 transition-transform duration-150 motion-reduce:transition-none ${isExpanded ? "rotate-180" : ""}`}
+                                    aria-hidden
+                                />
+                            }
+                        >
+                            {isExpanded ? "부위 메모 접기" : "부위 메모 쓰기"}
+                        </Button>
+
+                        {isExpanded && (
+                            <div id="pain-area-notes" className="flex flex-col gap-3">
                                 {settings.painAreas.map((item) => (
-                                    <span
+                                    <TextField
                                         key={item.area}
-                                        className="rounded-full border border-red-500 bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700"
-                                    >
-                                        {PAIN_AREA_LABELS[item.area] || item.area}
-                                    </span>
+                                        label={`${muscleLabel(item.area)} 메모`}
+                                        optional
+                                        placeholder="예: 무거운 중량에서 찌릿해요"
+                                        value={item.note}
+                                        onChange={(event) => handleNoteChange(item.area, event.target.value)}
+                                    />
                                 ))}
                             </div>
+                        )}
+                    </div>
+                )}
+            </fieldset>
 
-                            <button
-                                type="button"
-                                onClick={() => setIsExpanded((prev) => !prev)}
-                                className="flex w-full items-center justify-between rounded-xl bg-white px-3 py-2 text-xs font-semibold text-slate-600"
-                            >
-                                관리 부위 메모
-                                <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                            </button>
-
-                            {isExpanded && (
-                                <div className="space-y-2">
-                                    {settings.painAreas.map((item) => (
-                                        <input
-                                            key={item.area}
-                                            type="text"
-                                            placeholder={`${PAIN_AREA_LABELS[item.area] || item.area} 부상 설명`}
-                                            value={item.note}
-                                            onChange={(event) => handleNoteChange(item.area, event.target.value)}
-                                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-300"
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
+            <Button variant="primary" size="lg" block loading={saving} icon={<Save className="size-4" aria-hidden />} onClick={handleSave}>
+                {saving ? "저장하는 중" : "운동 설정 저장하기"}
+            </Button>
         </section>
+    )
+}
+
+function ChipGroup({ legend, hint, children }: { legend: string; hint?: string; children: React.ReactNode }) {
+    return (
+        <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 text-body-sm font-medium text-ink">{legend}</legend>
+            {hint && <p className="-mt-1 text-caption text-ink-2">{hint}</p>}
+            <div className="flex flex-wrap gap-2">{children}</div>
+        </fieldset>
     )
 }

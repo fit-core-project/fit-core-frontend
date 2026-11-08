@@ -1,27 +1,18 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import {
-    Activity,
-    Clock,
-    Target,
-    Dumbbell,
-    Send,
-    AlertCircle,
-    ArrowUp,
-    ArrowDown,
-    Shield,
-    RefreshCw,
-    X,
-} from "lucide-react"
+import { ArrowLeft, RefreshCw } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
 import { RoutineFormState, assembleRoutineRequest } from "@/utils/requestAssembler"
 import { getUserPreferences } from "@/services/userDataService"
 import { generateRoutine } from "@/services/aiRoutineService"
 import { GenerateState } from "@/types/state"
 import { clearProgramContext } from "@/utils/programContext"
+import { equipmentLabel, goalLabel, muscleLabel } from "@/utils/displayLabels"
+import { lineForRoutine, type RouteLine } from "@/utils/routeLine"
+import { Button, Notice, Section, Sheet, Skeleton, Surface, TextAreaField, ToggleChip } from "@/components/ui"
 
 type Equipment = "BARBELL" | "DUMBBELL" | "MACHINE" | "CABLE" | "BODYWEIGHT"
 const DEFAULT_AVAILABLE_EQUIPMENT: Equipment[] = ["BARBELL", "DUMBBELL", "MACHINE", "CABLE", "BODYWEIGHT"]
@@ -36,13 +27,9 @@ const LOADING_MESSAGES = [
     "운동 강도와 휴식 구성을 점검하고 있어요.",
 ]
 
-const EQUIPMENTS: { label: string; value: Equipment }[] = [
-    { label: "바벨", value: "BARBELL" },
-    { label: "덤벨", value: "DUMBBELL" },
-    { label: "머신", value: "MACHINE" },
-    { label: "케이블", value: "CABLE" },
-    { label: "맨몸", value: "BODYWEIGHT" },
-]
+const EQUIPMENTS: Equipment[] = ["BARBELL", "DUMBBELL", "MACHINE", "CABLE", "BODYWEIGHT"]
+
+const GOALS: RoutineFormState["goal"][] = ["hypertrophy", "strength", "fatLoss", "recomposition", "generalFitness"]
 
 const PRESET_GROUPS = {
     PUSH: ["chest", "front-deltoids", "triceps"],
@@ -50,6 +37,13 @@ const PRESET_GROUPS = {
     LEGS: ["quadriceps", "hamstring", "gluteal", "calves", "adductor", "abductors"],
     CORE: ["abs", "lower-back", "obliques"],
 }
+
+const PRESETS: { key: keyof typeof PRESET_GROUPS; label: string; line: RouteLine }[] = [
+    { key: "PUSH", label: "밀기", line: "push" },
+    { key: "PULL", label: "당기기", line: "pull" },
+    { key: "LEGS", label: "하체", line: "legs" },
+    { key: "CORE", label: "코어", line: "core" },
+]
 
 const GOAL_MAP: Record<string, RoutineFormState["goal"]> = {
     strength: "strength",
@@ -71,6 +65,8 @@ export default function RoutineGenerator() {
     const [isPrefsLoading, setIsPrefsLoading] = useState(true)
     const [isUsingDefaultEquipment, setIsUsingDefaultEquipment] = useState(false)
     const [loadingMsgIndex, setLoadingMsgIndex] = useState(0)
+    const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
+    const cancelledRef = useRef(false)
 
     const [formData, setFormData] = useState<RoutineFormState>({
         targetMuscles: [],
@@ -84,12 +80,12 @@ export default function RoutineGenerator() {
         readinessLevel: "normal",
     })
 
-    // 🌟 AnatomyModel용 데이터 상태 (선택된 근육은 1점, 아니면 없는 것으로 취급)
+    // AnatomyModel용 데이터 상태 (선택된 근육은 1, 아니면 없는 것으로 취급)
     const [targetModelData, setTargetModelData] = useState<Record<string, number>>({})
 
     const domsSummary = useMemo(() => {
         const count = Object.keys(formData.domsData).length
-        return count > 0 ? `현재 ${count}개 부위에 피로도가 감지되었습니다.` : ""
+        return count > 0 ? `컨디션 체크에서 ${count}개 부위에 피로가 있다고 했어요.` : ""
     }, [formData.domsData])
 
     useEffect(() => {
@@ -205,18 +201,26 @@ export default function RoutineGenerator() {
 
     const handleClose = () => {
         if (status === "loading") {
-            const ok = window.confirm("루틴 생성이 진행 중입니다. 정말 나가시겠습니까?")
-            if (!ok) return
+            setLeaveConfirmOpen(true)
+            return
         }
         router.push("/ai_routine")
     }
 
+    const leaveGenerating = () => {
+        // The request keeps running server-side; this makes its late result a no-op.
+        cancelledRef.current = true
+        router.push("/ai_routine")
+    }
+
     const handleSubmit = async () => {
+        cancelledRef.current = false
         setStatus("loading")
         clearProgramContext()
         try {
             const payload = assembleRoutineRequest(formData)
             const routineDraft = await generateRoutine(payload)
+            if (cancelledRef.current) return
             if (routineDraft.generationStatus === "failed") {
                 setStatus("hardFailed")
                 return
@@ -226,369 +230,250 @@ export default function RoutineGenerator() {
             setStatus(routineDraft.isFallback ? "fallback" : "success")
             router.push("/routine/draft")
         } catch {
+            if (cancelledRef.current) return
             setStatus("retryableFailed")
         }
     }
 
+    const hasTargets = formData.targetMuscles.length > 0
+    const routeLine = lineForRoutine(formData.targetSplitLabel, formData.targetMuscles)
+
     return (
-        <>
-            <div className="flex-1 w-full h-full flex flex-col items-center px-4 py-4 md:px-8 relative">
-                <div className="w-full max-w-3xl flex-1 min-h-0 flex flex-col bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative">
-                    {/* 1. 상단 고정 헤더 */}
-                    <div className="bg-blue-50/50 p-5 border-b border-blue-100 flex items-center justify-between gap-3 shrink-0">
-                        <div className="flex min-w-0 items-center space-x-3">
-                            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-md shadow-blue-200">
-                                <Dumbbell className="w-6 h-6 text-white" />
-                            </div>
-                            <div className="min-w-0">
-                                <h1 className="text-lg font-extrabold text-slate-800">루틴 세부 설정</h1>
-                                <p className="text-xs text-blue-600 font-medium">
-                                    목표와 장비를 선택하면 AI가 최적의 루틴을 설계합니다.
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={handleClose}
-                            aria-label="컨디션 체크로 돌아가기"
-                            className="shrink-0 rounded-xl p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                        >
-                            <X className="h-5 w-5" />
-                        </button>
+        <div className="flex min-h-full w-full flex-col bg-ground">
+            <header className="sticky top-0 z-20 flex items-center gap-1 border-b border-hairline bg-ground px-2 py-1.5">
+                <button
+                    type="button"
+                    onClick={handleClose}
+                    aria-label="컨디션 체크로 돌아가기"
+                    className="inline-flex size-11 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
+                >
+                    <ArrowLeft className="size-5" aria-hidden />
+                </button>
+                <h1 className="min-w-0 flex-1 truncate text-body font-bold text-ink">루틴 세부 설정</h1>
+            </header>
+
+            <div className="flex flex-1 flex-col gap-8 px-4 py-5">
+                {isPrefsLoading ? (
+                    <div aria-busy="true" className="flex flex-col gap-2">
+                        <span className="sr-only">내 운동 설정을 불러오는 중이에요</span>
+                        <Skeleton className="h-4 w-2/3" />
+                        <Skeleton className="h-4 w-1/2" />
                     </div>
+                ) : (
+                    domsSummary && <Notice>{domsSummary} 그 부위는 AI가 운동량을 줄여요.</Notice>
+                )}
 
-                    {/* 2. 폼 영역 */}
-                    <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-10 bg-white">
-                        {isPrefsLoading && (
-                            <div className="flex items-center justify-center py-6 text-slate-400 text-sm font-medium animate-pulse">
-                                사용자 설정을 불러오는 중...
-                            </div>
-                        )}
-                        {!isPrefsLoading && domsSummary && (
-                            <div className="bg-blue-50/50 p-4 rounded-xl flex items-start border border-blue-100 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <AlertCircle className="w-5 h-5 text-blue-500 mr-3 mt-0.5 shrink-0" />
-                                <div>
-                                    <p className="text-sm font-bold text-blue-900">홈 화면에서 연동된 컨디션</p>
-                                    <p className="text-xs text-blue-700 mt-1 leading-relaxed">
-                                        {domsSummary} AI가 이를 반영하여 피로/부상 부위의 볼륨을 조절합니다.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 🌟 타겟 근육 섹션 교체 */}
-                        <section>
-                            <h2 className="flex items-center text-base font-bold text-slate-800 mb-4">
-                                <Activity className="w-5 h-5 mr-2 text-blue-500" />
-                                오늘 운동 부위 선택
-                            </h2>
-
-                            {/* 4분할 퀵 프리셋 버튼 + 리셋 버튼*/}
-                            <div className="grid grid-cols-5 gap-1.5 mb-4">
-                                {/* PUSH */}
-                                <button
-                                    onClick={() => handlePresetClick("PUSH")}
-                                    className="flex flex-col items-center justify-center py-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all group active:scale-95"
-                                >
-                                    <ArrowUp className="w-4 h-4 text-slate-400 group-hover:text-blue-500 mb-1" />
-                                    <span className="text-[10px] font-extrabold text-slate-500 group-hover:text-blue-600">
-                                        PUSH
-                                    </span>
-                                </button>
-
-                                {/* PULL */}
-                                <button
-                                    onClick={() => handlePresetClick("PULL")}
-                                    className="flex flex-col items-center justify-center py-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all group active:scale-95"
-                                >
-                                    <ArrowDown className="w-4 h-4 text-slate-400 group-hover:text-blue-500 mb-1" />
-                                    <span className="text-[10px] font-extrabold text-slate-500 group-hover:text-blue-600">
-                                        PULL
-                                    </span>
-                                </button>
-
-                                {/* LEGS */}
-                                <button
-                                    onClick={() => handlePresetClick("LEGS")}
-                                    className="flex flex-col items-center justify-center py-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all group active:scale-95"
-                                >
-                                    <Activity className="w-4 h-4 text-slate-400 group-hover:text-blue-500 mb-1" />
-                                    <span className="text-[10px] font-extrabold text-slate-500 group-hover:text-blue-600">
-                                        LEGS
-                                    </span>
-                                </button>
-
-                                {/* CORE */}
-                                <button
-                                    onClick={() => handlePresetClick("CORE")}
-                                    className="flex flex-col items-center justify-center py-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all group active:scale-95"
-                                >
-                                    <Shield className="w-4 h-4 text-slate-400 group-hover:text-blue-500 mb-1" />
-                                    <span className="text-[10px] font-extrabold text-slate-500 group-hover:text-blue-600">
-                                        CORE
-                                    </span>
-                                </button>
-
-                                {/* RESET */}
-                                <button
-                                    onClick={handleResetClick}
-                                    className="flex flex-col items-center justify-center py-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:bg-red-50 hover:border-red-200 transition-all group active:scale-95"
-                                >
-                                    <RefreshCw className="w-4 h-4 text-slate-400 group-hover:text-red-500 mb-1" />
-                                    <span className="text-[10px] font-extrabold text-slate-500 group-hover:text-red-600">
-                                        RESET
-                                    </span>
-                                </button>
-                            </div>
-
-                            {/* 인체 모형 */}
-                            <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                                <AnatomyModel
-                                    data={targetModelData}
-                                    onMuscleClick={handleTargetMuscleClick}
-                                    mode="target"
-                                />
-                            </div>
-                        </section>
-
-                        {/* 가용 시간 섹션 */}
-                        <section>
-                            <h2 className="flex items-center text-base font-bold text-slate-800 mb-4">
-                                <Clock className="w-5 h-5 mr-2 text-emerald-500" />
-                                가용 시간: <span className="text-emerald-600 ml-1.5">{formData.timeAvailable}분</span>
-                            </h2>
-                            <div className="px-2">
-                                <input
-                                    type="range"
-                                    min="30"
-                                    max="120"
-                                    step="15"
-                                    value={formData.timeAvailable}
-                                    onChange={(e) =>
-                                        setFormData({ ...formData, timeAvailable: parseInt(e.target.value) })
-                                    }
-                                    className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                                />
-                                <div className="flex justify-between mt-2 text-[10px] font-bold text-slate-300 px-1">
-                                    <span>30분</span>
-                                    <span>120분</span>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* 훈련 목표 섹션 */}
-                        <section>
-                            <h2 className="flex items-center text-base font-bold text-slate-800 mb-4">
-                                <Target className="w-5 h-5 mr-2 text-purple-500" />
-                                훈련 목표
-                            </h2>
-                            <select
-                                value={formData.goal}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, goal: e.target.value as RoutineFormState["goal"] })
-                                }
-                                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-purple-500 transition-all font-bold text-slate-700 text-sm"
+                <Section
+                    title="오늘 운동 부위"
+                    action={
+                        <Button
+                            variant="ghost"
+                            onClick={handleResetClick}
+                            disabled={!hasTargets}
+                            icon={<RefreshCw className="size-4" aria-hidden />}
+                            className="-mr-2"
+                        >
+                            초기화
+                        </Button>
+                    }
+                >
+                    <div role="group" aria-label="분할로 한 번에 고르기" className="grid grid-cols-4 gap-2">
+                        {PRESETS.map((preset) => (
+                            <ToggleChip
+                                key={preset.key}
+                                line={preset.line}
+                                pressed={PRESET_GROUPS[preset.key].every((m) => formData.targetMuscles.includes(m))}
+                                onClick={() => handlePresetClick(preset.key)}
+                                className="px-2"
                             >
-                                <option value="hypertrophy">근비대</option>
-                                <option value="strength">근력 강화</option>
-                                <option value="fatLoss">체지방 감량</option>
-                                <option value="recomposition">바디 리컴포지션</option>
-                                <option value="generalFitness">건강 유지</option>
-                            </select>
-                        </section>
-
-                        {/* 사용 장비 섹션 */}
-                        <section>
-                            <h2 className="flex items-center text-base font-bold text-slate-800 mb-4">
-                                <Dumbbell className="w-5 h-5 mr-2 text-orange-500" />
-                                사용 가능한 장비
-                            </h2>
-                            {isUsingDefaultEquipment && (
-                                <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                                    프로필에 장비 설정이 없어 전체 장비 기준으로 처리됩니다.{" "}
-                                    <Link
-                                        href="/my?tab=workout"
-                                        className="font-medium underline underline-offset-2"
-                                    >
-                                        장비 설정하기
-                                    </Link>
-                                </div>
-                            )}
-                            <div className="flex flex-wrap gap-2">
-                                {EQUIPMENTS.map((item) => (
-                                    <button
-                                        key={item.value}
-                                        onClick={() => toggleArrayItem("equipment", item.value)}
-                                        className={`px-3 py-2 rounded-xl border-2 text-sm font-bold transition-all ${
-                                            formData.equipment?.includes(item.value)
-                                                ? "border-orange-500 bg-orange-50 text-orange-700"
-                                                : "border-slate-100 bg-white text-slate-400 hover:bg-slate-50"
-                                        }`}
-                                    >
-                                        {item.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </section>
-
-                        {/* 추가 요청 섹션 */}
-                        <section className="pb-4">
-                            <h2 className="text-base font-bold text-slate-800 mb-4">AI 코치에게 남길 말 (선택)</h2>
-                            <textarea
-                                value={formData.userNote}
-                                onChange={(e) => setFormData({ ...formData, userNote: e.target.value })}
-                                placeholder="예: 무릎이 안 좋으니 스쿼트는 빼주세요."
-                                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl h-28 resize-none outline-none focus:ring-2 focus:ring-blue-500 text-sm leading-relaxed"
-                            />
-                        </section>
+                                {preset.label}
+                            </ToggleChip>
+                        ))}
                     </div>
 
-                    {/* 3. 하단 고정 버튼 영역 */}
-                    <div className="p-4 bg-white border-t border-slate-100 shrink-0">
-                        {formData.targetMuscles.length === 0 && (
-                            <p className="mb-3 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-2 text-center text-xs font-semibold leading-relaxed text-blue-700">
-                                인체 모델에서 오늘 운동할 부위를 하나 이상 선택해 주세요.
-                            </p>
-                        )}
-                        <p className="text-xs text-slate-400 text-center pb-3 leading-relaxed">
-                            본 서비스에서 제공하는 루틴 및 중량 처방은 AI 기술에 기반한 가이드라인이며, 의학적 진단이나 의료적 조언을 대신할 수 없습니다. 운동 중 통증이나 이상 징후가 발생할 경우 즉시 수행을 중단하십시오.
-                        </p>
-                        <button
-                            onClick={handleSubmit}
-                            disabled={status === "loading" || formData.targetMuscles.length === 0}
-                            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
-                        >
-                            <Send className="w-5 h-5 mr-2" />
-                            나만의 AI 운동 루틴 만들기
-                        </button>
+                    <Surface tone="sunken">
+                        <AnatomyModel data={targetModelData} onMuscleClick={handleTargetMuscleClick} mode="target" />
+                    </Surface>
+
+                    <p className="text-body-sm text-ink-2">
+                        {hasTargets
+                            ? `고른 부위: ${formData.targetMuscles.map(muscleLabel).join(", ")}`
+                            : "인체도에서 부위를 누르거나 분할을 고르세요."}
+                    </p>
+                </Section>
+
+                <Section
+                    title="운동 시간"
+                    action={<span className="text-body font-bold tabular-nums text-ink">{formData.timeAvailable}분</span>}
+                >
+                    <div>
+                        <label htmlFor="time-available" className="sr-only">
+                            운동 시간(분)
+                        </label>
+                        <input
+                            id="time-available"
+                            type="range"
+                            min="30"
+                            max="120"
+                            step="15"
+                            value={formData.timeAvailable}
+                            aria-valuetext={`${formData.timeAvailable}분`}
+                            onChange={(e) => setFormData({ ...formData, timeAvailable: parseInt(e.target.value) })}
+                            className="min-h-11 w-full cursor-pointer accent-ink"
+                        />
+                        <div className="flex justify-between text-caption text-ink-2" aria-hidden>
+                            <span>30분</span>
+                            <span>120분</span>
+                        </div>
                     </div>
-                </div>
+                </Section>
+
+                <Section title="훈련 목표">
+                    <div role="group" aria-label="훈련 목표, 하나만 고르기" className="flex flex-wrap gap-2">
+                        {GOALS.map((goal) => (
+                            <ToggleChip
+                                key={goal}
+                                pressed={formData.goal === goal}
+                                onClick={() => setFormData({ ...formData, goal })}
+                            >
+                                {goalLabel(goal)}
+                            </ToggleChip>
+                        ))}
+                    </div>
+                </Section>
+
+                <Section title="사용할 장비">
+                    {isUsingDefaultEquipment && (
+                        <Notice>
+                            프로필에 장비 설정이 없어 모든 장비를 쓸 수 있다고 보고 만들어요.{" "}
+                            <Link href="/my?tab=workout" className="font-bold underline underline-offset-2">
+                                장비 설정하기
+                            </Link>
+                        </Notice>
+                    )}
+                    <div role="group" aria-label="사용할 장비, 여러 개 고르기" className="flex flex-wrap gap-2">
+                        {EQUIPMENTS.map((value) => (
+                            <ToggleChip
+                                key={value}
+                                pressed={formData.equipment?.includes(value) ?? false}
+                                onClick={() => toggleArrayItem("equipment", value)}
+                            >
+                                {equipmentLabel(value)}
+                            </ToggleChip>
+                        ))}
+                    </div>
+                </Section>
+
+                <TextAreaField
+                    label="AI 코치에게 남길 말"
+                    optional
+                    rows={4}
+                    value={formData.userNote}
+                    onChange={(e) => setFormData({ ...formData, userNote: e.target.value })}
+                    placeholder="예: 무릎이 안 좋으니 스쿼트는 빼 주세요."
+                />
+
+                <p className="text-caption text-ink-2">
+                    루틴과 중량은 AI가 만든 참고용 안내예요. 의학적 진단이나 치료를 대신하지 않아요. 운동 중 통증이나
+                    이상이 느껴지면 바로 멈추세요.
+                </p>
             </div>
 
-            {/* 에러 오버레이 */}
-            {status === "retryableFailed" && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-sm w-11/12 text-center">
-                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6">
-                            <AlertCircle className="w-8 h-8 text-red-500" />
-                        </div>
-                        <h3 className="text-xl font-extrabold text-slate-900 mb-2">연결 오류</h3>
-                        <p className="text-slate-500 font-medium mb-6 leading-relaxed">
-                            서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.
-                        </p>
-                        <button
-                            onClick={handleSubmit}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
-                        >
-                            <RefreshCw className="w-4 h-4" />
-                            재시도
-                        </button>
-                    </div>
-                </div>
-            )}
+            <div className="sticky bottom-0 z-10 mt-auto border-t border-hairline bg-ground px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+                {!hasTargets && <p className="mb-2 text-caption text-ink-2">운동할 부위를 하나 이상 고르세요.</p>}
+                <Button
+                    variant="primary"
+                    size="lg"
+                    block
+                    line={routeLine}
+                    onClick={handleSubmit}
+                    disabled={!hasTargets}
+                    loading={status === "loading"}
+                >
+                    루틴 만들기
+                </Button>
+            </div>
 
-            {/* hardFailed 오버레이 — 운동 조건 변경 안내 */}
-            {status === "hardFailed" && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-sm w-11/12 text-center">
-                        <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mb-6">
-                            <AlertCircle className="w-8 h-8 text-amber-500" />
-                        </div>
-                        <h3 className="text-xl font-extrabold text-slate-900 mb-2">루틴을 만들 수 없어요</h3>
-                        <p className="text-slate-500 font-medium mb-6 leading-relaxed">
-                            선택한 조건에 맞는 운동이 없습니다. 운동 부위나 장비 조건을 변경한 뒤 다시 생성해 주세요.
-                        </p>
-                        <button
-                            onClick={() => setStatus("idle")}
-                            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl transition-colors"
-                        >
-                            조건 변경하기
-                        </button>
-                    </div>
-                </div>
-            )}
+            <Sheet
+                open={status === "retryableFailed"}
+                onClose={() => setStatus("idle")}
+                title="서버에 연결하지 못했어요"
+                description="응답이 늦어지고 있어요. 잠시 뒤 다시 시도하세요."
+                footer={
+                    <Button variant="primary" size="lg" block onClick={handleSubmit} icon={<RefreshCw className="size-4" aria-hidden />}>
+                        다시 시도하기
+                    </Button>
+                }
+            >
+                <p className="text-body-sm text-ink-2">고른 조건은 그대로 남아 있어요.</p>
+            </Sheet>
 
-            {/* 로딩 스켈레톤 — 드래프트 페이지처럼 보이는 전체화면 오버레이 */}
+            <Sheet
+                open={status === "hardFailed"}
+                onClose={() => setStatus("idle")}
+                title="루틴을 만들 수 없어요"
+                description="고른 조건에 맞는 운동이 없어요."
+                footer={
+                    <Button variant="primary" size="lg" block onClick={() => setStatus("idle")}>
+                        조건 바꾸기
+                    </Button>
+                }
+            >
+                <p className="text-body-sm text-ink-2">운동 부위나 장비를 바꾼 뒤 다시 만들어 보세요.</p>
+            </Sheet>
+
+            <Sheet
+                open={leaveConfirmOpen}
+                onClose={() => setLeaveConfirmOpen(false)}
+                title="루틴 만들기를 그만둘까요?"
+                description="지금 나가면 만들던 루틴은 저장되지 않아요."
+                footer={
+                    <div className="flex gap-2">
+                        <Button variant="secondary" size="lg" block onClick={() => setLeaveConfirmOpen(false)}>
+                            계속 기다리기
+                        </Button>
+                        <Button variant="danger" size="lg" block onClick={leaveGenerating}>
+                            나가기
+                        </Button>
+                    </div>
+                }
+            >
+                <p className="text-body-sm text-ink-2">조금만 기다리면 루틴이 완성돼요.</p>
+            </Sheet>
+
+            {/* 로딩: 루틴 확인 화면 모양의 전체 화면 스켈레톤 */}
             {status === "loading" && (
-                <div className="fixed inset-0 z-50 flex justify-center bg-slate-900/20 animate-in fade-in duration-200">
-                    <div className="h-full w-full max-w-[480px] overflow-y-auto bg-slate-50 shadow-2xl">
-                        {/* 가짜 헤더 — 진행 바 + 로딩 메시지 */}
-                        <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
-                            <div className="flex justify-between items-end mb-2 w-full mx-auto">
-                                <div className="flex items-center gap-2">
-                                    <Dumbbell
-                                        className="w-5 h-5 text-orange-500 shrink-0"
-                                        style={{ animation: "spin 3s linear infinite" }}
-                                    />
-                                    <div className="h-4 w-36 bg-slate-200 rounded-full animate-pulse" />
-                                </div>
-                                <div className="h-3.5 w-16 bg-slate-100 rounded-full animate-pulse" />
+                <div className="fixed inset-0 z-50 flex justify-center bg-ink/20">
+                    <div aria-busy="true" className="h-full w-full max-w-[480px] overflow-y-auto bg-ground">
+                        <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-hairline bg-ground px-4 py-4">
+                            <div className="min-w-0">
+                                <p className="text-body font-bold text-ink">루틴을 만들고 있어요</p>
+                                <p role="status" aria-live="polite" className="mt-1 text-body-sm text-ink-2">
+                                    {LOADING_MESSAGES[loadingMsgIndex]}
+                                </p>
                             </div>
-                            <div className="w-full mx-auto h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-blue-300 rounded-full animate-pulse"
-                                    style={{ width: "30%" }}
-                                />
-                            </div>
-                            <p
-                                className="text-xs text-blue-500 font-medium mt-2 text-center animate-pulse"
-                                key={loadingMsgIndex}
-                            >
-                                {LOADING_MESSAGES[loadingMsgIndex]}
-                            </p>
+                            <Button variant="ghost" className="-mr-2 shrink-0" onClick={() => setLeaveConfirmOpen(true)}>
+                                그만두기
+                            </Button>
                         </div>
-
-                        {/* 스켈레톤 운동 블록 카드 3장 */}
-                        <div className="p-4 w-full mx-auto space-y-5 mt-4">
-                            {[72, 56, 64].map((titleWidth, i) => (
-                                <div
-                                    key={i}
-                                    className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden animate-pulse"
-                                >
-                                    {/* 카드 헤더 (다크 배경) */}
-                                    <div className="p-5 bg-slate-800">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-slate-600 shrink-0" />
-                                            <div
-                                                className="h-4 bg-slate-600 rounded-full"
-                                                style={{ width: `${titleWidth}%` }}
-                                            />
-                                        </div>
-                                        <div className="h-3 bg-slate-700 rounded-full mt-3 ml-11 w-4/5" />
+                        <ol className="flex flex-col px-4 py-5" aria-hidden>
+                            {[72, 56, 64, 48].map((titleWidth, i) => (
+                                <li key={i} className="flex gap-3">
+                                    <div className="flex w-4 flex-col items-center">
+                                        <span className="mt-1 size-4 shrink-0 rounded-full border-[3px] border-rail bg-ground" />
+                                        {i < 3 && <span className="w-1 flex-1 bg-rail" />}
                                     </div>
-
-                                    {/* 세트 행 */}
-                                    <div className="p-4 space-y-3">
-                                        {/* 컬럼 헤더 */}
-                                        <div className="grid grid-cols-[1.5rem_1fr_1fr_3.5rem_1.5rem] gap-x-2 px-1">
-                                            {[6, 8, 8, 10, 6].map((w, j) => (
-                                                <div
-                                                    key={j}
-                                                    className="h-2.5 bg-slate-100 rounded-full"
-                                                    style={{ width: `${w * 4}px` }}
-                                                />
-                                            ))}
-                                        </div>
-                                        {/* 세트 3개 */}
-                                        {[0, 1, 2].map((j) => (
-                                            <div
-                                                key={j}
-                                                className="grid grid-cols-[1.5rem_1fr_1fr_3.5rem_1.5rem] gap-x-2 items-center"
-                                            >
-                                                <div className="h-4 w-4 bg-slate-100 rounded-full mx-auto" />
-                                                <div className="h-9 bg-slate-100 rounded-xl" />
-                                                <div className="h-9 bg-slate-100 rounded-xl" />
-                                                <div className="h-9 bg-slate-100 rounded-xl" />
-                                                <div className="h-4 w-4 bg-slate-100 rounded-full mx-auto" />
-                                            </div>
-                                        ))}
+                                    <div className="flex flex-1 flex-col gap-2 pb-6">
+                                        <Skeleton className="h-5" style={{ width: `${titleWidth}%` }} />
+                                        <Skeleton className="h-4 w-1/3" />
+                                        <Skeleton className="h-11 w-full" />
                                     </div>
-                                </div>
+                                </li>
                             ))}
-                        </div>
+                        </ol>
                     </div>
                 </div>
             )}
-        </>
+        </div>
     )
 }

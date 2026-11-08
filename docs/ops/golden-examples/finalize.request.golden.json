@@ -5,7 +5,7 @@
       {
         "order": 1,
         "exerciseId": "barbell_bench_press",
-        "exerciseName": "Barbell Bench Press",
+        "exerciseName": "바벨 벤치프레스",
         "movementPattern": "horizontalPush",
         "primaryMuscles": ["chest", "triceps", "front-deltoids"],
         "equipmentType": "BARBELL",
@@ -14,7 +14,7 @@
         "substitutionCandidates": [
           {
             "exerciseId": "dumbbell_flat_press",
-            "exerciseName": "Dumbbell Flat Press",
+            "exerciseName": "덤벨 체스트프레스",
             "reason": "바벨이 불편하거나 벤치 점유 시 수평 밀기 의도를 유지할 수 있다."
           }
         ],
@@ -41,7 +41,7 @@
   },
   "acceptedWithoutEdits": false,
   "userEditSummary": [
-    "Barbell Bench Press 목표 중량을 72.5kg에서 70kg로 수정",
-    "Barbell Bench Press 3세트를 삭제"
+    "바벨 벤치프레스 목표 중량을 72.5kg에서 70kg로 수정",
+    "바벨 벤치프레스 3세트를 삭제"
   ]
 }

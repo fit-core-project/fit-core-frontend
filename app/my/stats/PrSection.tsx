@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Trophy } from "lucide-react"
 import workoutApiClient from "@/lib/api/workout/workoutApiClient"
 import { PrResponse } from "@/types/project"
 import { useSettingsStore } from "@/store/settingsStore"
+import { EmptyState, Section, Skeleton, Surface } from "@/components/ui"
 
 function toDisplay(kg: number, unit: "kg" | "lbs") {
     if (unit === "lbs") return Math.round(kg * 2.20462)
@@ -24,48 +24,40 @@ export default function PrSection() {
             .finally(() => setLoading(false))
     }, [])
 
-    if (loading) {
-        return (
-            <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
-                <div className="mb-4 h-5 w-32 animate-pulse rounded bg-slate-200" />
-                {[...Array(3)].map((_, i) => (
-                    <div key={i} className="mb-3 h-10 animate-pulse rounded bg-slate-100" />
-                ))}
-            </div>
-        )
-    }
-
     return (
-        <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-                <Trophy size={16} className="text-amber-500" />
-                <h3 className="text-sm font-bold text-slate-800">종목별 개인 최고 기록 (추정 1RM)</h3>
-            </div>
-
-            {prs.length === 0 ? (
-                <p className="text-center text-sm text-slate-400">아직 기록된 운동 세트가 없습니다.</p>
-            ) : (
-                <div className="space-y-2">
-                    {prs.map((pr) => (
-                        <div
-                            key={pr.exerciseId}
-                            className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"
-                        >
-                            <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold text-slate-800">
-                                    {pr.exerciseNameSnapshot}
-                                </p>
-                                <p className="text-xs text-slate-400">
-                                    {toDisplay(pr.weightKg, weightUnit)}{weightUnit} × {pr.reps}rep · {pr.achievedDate}
-                                </p>
-                            </div>
-                            <span className="ml-3 shrink-0 text-base font-bold text-blue-600">
-                                {toDisplay(pr.estimated1RM, weightUnit)}{weightUnit}
-                            </span>
-                        </div>
+        <Section title="종목별 최고 기록">
+            <p className="-mt-2 text-body-sm text-ink-2">세트 기록으로 추정한 1RM이에요.</p>
+            {loading ? (
+                <Surface className="flex flex-col gap-3" aria-busy="true">
+                    {[...Array(3)].map((_, i) => (
+                        <Skeleton key={i} className="h-11 w-full" />
                     ))}
-                </div>
+                </Surface>
+            ) : prs.length === 0 ? (
+                <Surface>
+                    <EmptyState title="아직 최고 기록이 없어요" body="운동 세트를 기록하면 종목별 추정 1RM이 계산돼요." />
+                </Surface>
+            ) : (
+                <Surface padded={false}>
+                    <ul className="divide-y divide-hairline">
+                        {prs.map((pr) => (
+                            <li key={pr.exerciseId} className="flex min-h-16 items-center justify-between gap-3 px-4 py-3">
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-body font-medium text-ink">{pr.exerciseNameSnapshot}</p>
+                                    <p className="text-body-sm tabular-nums text-ink-2">
+                                        {toDisplay(pr.weightKg, weightUnit)}
+                                        {weightUnit} × {pr.reps}회 · {pr.achievedDate}
+                                    </p>
+                                </div>
+                                <span className="shrink-0 text-title-sm font-bold tabular-nums text-ink">
+                                    {toDisplay(pr.estimated1RM, weightUnit)}
+                                    <span className="ml-0.5 text-body-sm font-medium text-ink-2">{weightUnit}</span>
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </Surface>
             )}
-        </div>
+        </Section>
     )
 }

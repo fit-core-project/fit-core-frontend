@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { Check, Timer, Play, Pause, Flame, Trophy, SkipForward, X } from "lucide-react"
+import { Check, ChevronDown, Pause, Play, X } from "lucide-react"
 import { RoutineDraft } from "@/types/routine"
 import workoutApiClient, { WorkoutSaveRequest } from "@/lib/api/workout/workoutApiClient"
 import { getKstToday } from "@/utils/date"
@@ -10,6 +10,16 @@ import { WorkoutState } from "@/types/state"
 import { toast } from "sonner"
 import type { ProgramPlayerContext } from "@/types/program"
 import { clearProgramContext, readValidProgramContext } from "@/utils/programContext"
+import { lineForRoutine, ROUTE_LINE_COLOR_VAR } from "@/utils/routeLine"
+import { Button, LineBadge, Notice, Route, Sheet, Skeleton, type StationData } from "@/components/ui"
+
+const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}:${s.toString().padStart(2, "0")}`
+}
+
+const weightText = (kg: number | null) => (kg !== null ? `${kg}` : "맨몸")
 
 export default function WorkoutPlayer() {
     const router = useRouter()
@@ -18,41 +28,41 @@ export default function WorkoutPlayer() {
     const [routineFinalId, setRoutineFinalId] = useState<string | null>(null)
     const [programContext, setProgramContext] = useState<ProgramPlayerContext | null>(null)
     const [checkedSets, setCheckedSets] = useState<Set<string>>(new Set())
+    const [splitLabelCode, setSplitLabelCode] = useState<string | null>(null)
 
     const [isTimerActive, setIsTimerActive] = useState(false)
     const [isPaused, setIsPaused] = useState(false)
     const [timeLeft, setTimeLeft] = useState(0)
-    const [focusedKey, setFocusedKey] = useState<string | null>(null)
+    const [exitOpen, setExitOpen] = useState(false)
 
     const [workoutStatus, setWorkoutStatus] = useState<WorkoutState>("idle")
     const pendingPayload = useRef<WorkoutSaveRequest | null>(null)
     const pendingProgramContext = useRef<ProgramPlayerContext | null>(null)
     const workoutStartTime = useRef<number>(0)
 
-    // ── Timer refs ──────────────────────────────────────────────────────────────
-    const endTimeRef = useRef<number>(0) // 절대 종료 시각 (ms)
-    const pausedAtRef = useRef<number>(0) // 일시정지 시작 시각 (ms)
-    const nextKeyRef = useRef<string | null>(null)
-    const setRowRefs = useRef<Map<string, HTMLElement>>(new Map())
+    // Absolute end time survives background tabs; pausedAt shifts it on resume.
+    const endTimeRef = useRef<number>(0)
+    const pausedAtRef = useRef<number>(0)
+    const currentStationRef = useRef<HTMLDivElement | null>(null)
 
-    // 1. Load routine + routineFinalId from localStorage
     useEffect(() => {
         workoutStartTime.current = Date.now()
         const savedRoutine = localStorage.getItem("fitcore_active_routine")
         const savedFinalId = localStorage.getItem("fitcore_routine_final_id")
         const savedProgramContext = readValidProgramContext(savedFinalId)
+        setSplitLabelCode(localStorage.getItem("fitcore_split_label"))
         if (savedRoutine) {
             let parsedRoutine: RoutineDraft
             try {
                 parsedRoutine = JSON.parse(savedRoutine) as RoutineDraft
             } catch {
-                toast.error("루틴 데이터가 손상되었습니다.")
+                toast.error("루틴 데이터가 손상되었어요.")
                 router.push("/ai_routine")
                 return
             }
             setRoutine(parsedRoutine)
             setWorkoutStatus("inProgress")
-            // 진행 상태 복원: routineId가 현재 루틴과 일치할 때만 적용
+            // Restore progress only when it belongs to this routine.
             const savedProgress = localStorage.getItem("fitcore_player_progress")
             if (savedProgress) {
                 try {
@@ -64,7 +74,7 @@ export default function WorkoutPlayer() {
                 } catch { /* malformed, ignore */ }
             }
         } else {
-            toast.error("활성화된 루틴이 없습니다.")
+            toast.error("진행 중인 루틴이 없어요.")
             router.push("/ai_routine")
         }
         if (savedFinalId) setRoutineFinalId(savedFinalId)
@@ -76,76 +86,47 @@ export default function WorkoutPlayer() {
         const previousHtmlOverflow = document.documentElement.style.overflow
         document.body.style.overflow = "hidden"
         document.documentElement.style.overflow = "hidden"
-
         return () => {
             document.body.style.overflow = previousBodyOverflow
             document.documentElement.style.overflow = previousHtmlOverflow
         }
     }, [])
 
-    // ── 타이머 종료의 단일 진입점 ───────────────────────────────────────────────
-    // tick→0, skip, visibilitychange 세 경로 모두 여기로 수렴
+    const scrollToCurrent = useCallback(() => {
+        setTimeout(() => currentStationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50)
+    }, [])
+
+    // Single exit point for rest: tick reaching zero, skip, and visibility recalculation.
     const finishRest = useCallback(() => {
         setIsTimerActive(false)
         setIsPaused(false)
         setTimeLeft(0)
-        const key = nextKeyRef.current
-        if (key) {
-            setFocusedKey(key)
-            // 다음 세트로 자동 스크롤
-            setTimeout(() => {
-                setRowRefs.current.get(key)?.scrollIntoView({ behavior: "smooth", block: "center" })
-            }, 50)
-        }
-    }, [])
+        scrollToCurrent()
+    }, [scrollToCurrent])
 
-    // 2. Timestamp 기반 카운트다운 (500ms 간격으로 tick)
     useEffect(() => {
         if (!isTimerActive || isPaused) return
-
         const tick = () => {
             const remaining = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000))
             setTimeLeft(remaining)
             if (remaining === 0) finishRest()
         }
-
         const id = setInterval(tick, 500)
         return () => clearInterval(id)
     }, [isTimerActive, isPaused, finishRest])
 
-    // 3. visibilitychange: 백그라운드 복귀 시 즉시 재보정
     useEffect(() => {
         const onVisibilityChange = () => {
             if (document.visibilityState !== "visible") return
-            if (!isTimerActive || isPaused) return // 일시정지 중엔 재보정 하지 않음
-
+            if (!isTimerActive || isPaused) return
             const remaining = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000))
-            if (remaining === 0) {
-                finishRest()
-            } else {
-                setTimeLeft(remaining)
-            }
+            if (remaining === 0) finishRest()
+            else setTimeLeft(remaining)
         }
-
         document.addEventListener("visibilitychange", onVisibilityChange)
         return () => document.removeEventListener("visibilitychange", onVisibilityChange)
     }, [isTimerActive, isPaused, finishRest])
 
-    const scrollSetAboveTimer = useCallback((key: string | null) => {
-        if (!key) return
-        setTimeout(() => {
-            const row = setRowRefs.current.get(key)
-            if (!row) return
-            row.scrollIntoView({ behavior: "smooth", block: "center" })
-        }, 50)
-    }, [])
-
-    useEffect(() => {
-        if (!isTimerActive) return
-        scrollSetAboveTimer(nextKeyRef.current)
-    }, [isTimerActive, scrollSetAboveTimer])
-
-    // 진행 상태(checkedSets) 영속화 — checkedSets 변경 시마다 저장
     useEffect(() => {
         if (!routine || workoutStatus !== "inProgress") return
         const routineId = routineFinalId ?? routine.routineDraftId
@@ -153,51 +134,59 @@ export default function WorkoutPlayer() {
         localStorage.setItem("fitcore_player_progress", JSON.stringify({ routineId, checkedSets: [...checkedSets] }))
     }, [checkedSets, routine, routineFinalId, workoutStatus])
 
+    const line = useMemo(
+        () => lineForRoutine(splitLabelCode, routine?.routineBlocks.flatMap((block) => block.primaryMuscles ?? []) ?? []),
+        [splitLabelCode, routine],
+    )
+
     if (workoutStatus === "idle" || !routine) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                <span className="animate-pulse font-bold text-slate-500">루틴을 불러오는 중...</span>
-            </div>
+            <main className="absolute inset-0 flex flex-col gap-3 bg-ground p-4" aria-busy="true">
+                <span className="sr-only">루틴을 불러오는 중…</span>
+                <Skeleton className="h-6 w-1/2" />
+                <Skeleton className="h-2 w-full" />
+                <Skeleton className="mt-6 h-24 w-full" />
+                <Skeleton className="h-10 w-3/4" />
+            </main>
         )
     }
 
-    const totalSets = routine.routineBlocks.reduce((acc, block) => acc + block.prescription.length, 0)
+    const blocks = routine.routineBlocks
+    const totalSets = blocks.reduce((acc, block) => acc + block.prescription.length, 0)
     const allSetsComplete = totalSets > 0 && checkedSets.size === totalSets
     const progressPercent = totalSets === 0 ? 0 : Math.round((checkedSets.size / totalSets) * 100)
-    // workoutStatus 타입 좁힘이 각 조기 리턴 블록 안에서 interference하지 않도록 미리 추출
     const isSaving = workoutStatus === "saving"
 
-    // 순서 기반 다음 세트 키 계산 (수동 체크 순서가 뒤섞인 경우 이미 체크된 세트일 수 있음)
-    const computeNextKey = (blockIndex: number, setArrayIndex: number): string | null => {
-        const block = routine.routineBlocks[blockIndex]
-        if (setArrayIndex + 1 < block.prescription.length) return `${blockIndex}-${setArrayIndex + 1}`
-        if (blockIndex + 1 < routine.routineBlocks.length) return `${blockIndex + 1}-0`
-        return null
+    // The current station is the first block with an unchecked set; its first unchecked set is next.
+    const currentBlockIndex = blocks.findIndex((block, bi) => block.prescription.some((_, si) => !checkedSets.has(`${bi}-${si}`)))
+    const currentSetIndex =
+        currentBlockIndex < 0 ? -1 : blocks[currentBlockIndex].prescription.findIndex((_, si) => !checkedSets.has(`${currentBlockIndex}-${si}`))
+    const currentSet = currentBlockIndex < 0 ? null : blocks[currentBlockIndex].prescription[currentSetIndex]
+
+    const toggleSet = (blockIndex: number, setArrayIndex: number, restSec: number) => {
+        const key = `${blockIndex}-${setArrayIndex}`
+        const next = new Set(checkedSets)
+        if (next.has(key)) {
+            next.delete(key)
+            setCheckedSets(next)
+            return
+        }
+        next.add(key)
+        setCheckedSets(next)
+        if (next.size === totalSets) {
+            setIsTimerActive(false)
+            return
+        }
+        endTimeRef.current = Date.now() + restSec * 1000
+        setTimeLeft(restSec)
+        setIsPaused(false)
+        setIsTimerActive(true)
+        scrollToCurrent()
     }
 
-    const handleCheckSet = (blockIndex: number, setArrayIndex: number, restSec: number) => {
-        const key = `${blockIndex}-${setArrayIndex}`
-        const newChecked = new Set(checkedSets)
-
-        if (newChecked.has(key)) {
-            newChecked.delete(key)
-            setCheckedSets(newChecked)
-        } else {
-            newChecked.add(key)
-            setCheckedSets(newChecked)
-
-            if (newChecked.size === totalSets) {
-                setIsTimerActive(false)
-            } else {
-                nextKeyRef.current = computeNextKey(blockIndex, setArrayIndex)
-                endTimeRef.current = Date.now() + restSec * 1000
-                setTimeLeft(restSec)
-                setIsPaused(false)
-                setFocusedKey(null)
-                setIsTimerActive(true)
-                scrollSetAboveTimer(nextKeyRef.current)
-            }
-        }
+    const completeCurrentSet = () => {
+        if (!currentSet) return
+        toggleSet(currentBlockIndex, currentSetIndex, currentSet.targetRestSec)
     }
 
     const handlePause = () => {
@@ -206,29 +195,11 @@ export default function WorkoutPlayer() {
     }
 
     const handleResume = () => {
-        // 일시정지된 시간만큼 종료 시각을 앞으로 미룸
         endTimeRef.current += Date.now() - pausedAtRef.current
         setIsPaused(false)
     }
 
-    const handleSkip = () => finishRest()
-
-    const handleExit = () => {
-        if (window.confirm("운동을 중단하고 나갈까요? 진행 상황은 저장되어 나중에 이어서 할 수 있어요.")) {
-            router.push("/my")
-        }
-    }
-
-    const formatTime = (seconds: number) => {
-        const m = Math.floor(seconds / 60)
-        const s = seconds % 60
-        return `${m}:${s.toString().padStart(2, "0")}`
-    }
-
-    const displayedRestTime = isTimerActive ? timeLeft : 0
-
     const handleFinishRPE = async (rpeScore: number) => {
-        if (!routine) return
         setWorkoutStatus("saving")
 
         const workoutDate = getKstToday()
@@ -242,7 +213,7 @@ export default function WorkoutPlayer() {
             .map(([bodyPart, v]) => ({ bodyPart, level: DOMS_LEVEL_MAP[v] }))
         const unavailableEquipment: string[] = JSON.parse(localStorage.getItem("fitcore_unavailable_equipment") || "[]")
 
-        const sets = routine.routineBlocks.flatMap((block, blockIndex) =>
+        const sets = blocks.flatMap((block, blockIndex) =>
             block.prescription.map((set, index) => ({
                 exerciseOrder: blockIndex + 1,
                 exerciseId: block.exerciseId,
@@ -259,14 +230,12 @@ export default function WorkoutPlayer() {
             }))
         )
 
-        const targetSplitLabel = localStorage.getItem("fitcore_split_label")
-        const routineTitle = routine.summaryTitle || targetSplitLabel || "오늘의 루틴"
+        const routineTitle = routine.summaryTitle || splitLabelCode || "오늘의 루틴"
 
         const validProgramContext = readValidProgramContext(routineFinalId)
         setProgramContext(validProgramContext)
-
         if (programContext && !validProgramContext) {
-            toast.error("프로그램 정보가 현재 루틴과 맞지 않아 일반 운동으로 저장합니다.")
+            toast.error("프로그램 정보가 현재 루틴과 맞지 않아 일반 운동으로 저장해요.")
         }
 
         const finalWorkoutData: WorkoutSaveRequest = {
@@ -274,10 +243,7 @@ export default function WorkoutPlayer() {
             splitLabel: routineTitle,
             sourceRoutineFinalId: validProgramContext?.routineFinalId ?? routineFinalId,
             ...(validProgramContext
-                ? {
-                    programId: validProgramContext.programId,
-                    programItemId: validProgramContext.programItemId,
-                }
+                ? { programId: validProgramContext.programId, programItemId: validProgramContext.programItemId }
                 : {}),
             timeAvailableMin: routine.totalEstimatedTime,
             durationMin,
@@ -293,23 +259,24 @@ export default function WorkoutPlayer() {
         await trySave(finalWorkoutData, validProgramContext)
     }
 
-    const trySave = async (
-        payload: WorkoutSaveRequest,
-        contextSnapshot: ProgramPlayerContext | null = pendingProgramContext.current
-    ) => {
+    const clearWorkoutStorage = () => {
+        localStorage.removeItem("fitcore_active_routine")
+        localStorage.removeItem("fitcore_doms_data")
+        localStorage.removeItem("fitcore_pain_areas")
+        localStorage.removeItem("fitcore_routine_final_id")
+        clearProgramContext()
+        localStorage.removeItem("fitcore_split_label")
+        localStorage.removeItem("fitcore_unavailable_equipment")
+        localStorage.removeItem("fitcore_failed_workout_save")
+        localStorage.removeItem("fitcore_player_progress")
+    }
+
+    const trySave = async (payload: WorkoutSaveRequest, contextSnapshot: ProgramPlayerContext | null = pendingProgramContext.current) => {
         setWorkoutStatus("saving")
         try {
             await workoutApiClient.save(payload)
             const redirectToProgram = contextSnapshot?.programId
-            localStorage.removeItem("fitcore_active_routine")
-            localStorage.removeItem("fitcore_doms_data")
-            localStorage.removeItem("fitcore_pain_areas")
-            localStorage.removeItem("fitcore_routine_final_id")
-            clearProgramContext()
-            localStorage.removeItem("fitcore_split_label")
-            localStorage.removeItem("fitcore_unavailable_equipment")
-            localStorage.removeItem("fitcore_failed_workout_save")
-            localStorage.removeItem("fitcore_player_progress")
+            clearWorkoutStorage()
             pendingProgramContext.current = null
             setProgramContext(null)
             setWorkoutStatus("saved")
@@ -326,278 +293,250 @@ export default function WorkoutPlayer() {
     }
 
     const handleDiscardWorkout = () => {
-        localStorage.removeItem("fitcore_active_routine")
-        localStorage.removeItem("fitcore_doms_data")
-        localStorage.removeItem("fitcore_pain_areas")
-        localStorage.removeItem("fitcore_routine_final_id")
-        clearProgramContext()
-        localStorage.removeItem("fitcore_split_label")
-        localStorage.removeItem("fitcore_unavailable_equipment")
-        localStorage.removeItem("fitcore_failed_workout_save")
-        localStorage.removeItem("fitcore_player_progress")
+        clearWorkoutStorage()
         router.push("/workout")
     }
 
-    // ── VIEW 2b: 저장 실패 ───────────────────────────────────────────────────
     if (workoutStatus === "saveFailed") {
         return (
-            <main className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6">
-                <div className="text-5xl mb-6">⚠️</div>
-                <h1 className="text-2xl font-extrabold mb-3 text-red-400">기록 저장 실패</h1>
-                <p className="text-slate-400 text-center mb-2 leading-relaxed">
-                    네트워크 문제로 기록 저장에 실패했습니다.
-                </p>
-                <p className="text-slate-500 text-sm text-center mb-10">
-                    기록을 남기려면 저장을 다시 시도해 주세요. 나가면 현재 운동 기록은 저장되지 않습니다.
-                </p>
-                <div className="w-full max-w-md space-y-3">
-                    <button
-                        onClick={handleRetry}
-                        disabled={isSaving}
-                        className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:text-blue-400 text-white font-bold rounded-2xl transition-colors"
-                    >
-                        {isSaving ? "저장 중..." : "저장 다시 시도"}
-                    </button>
-                    <button
-                        onClick={handleDiscardWorkout}
-                        disabled={isSaving}
-                        className="w-full py-4 bg-slate-800 hover:bg-red-950 disabled:opacity-50 text-slate-300 hover:text-red-100 font-bold rounded-2xl transition-colors"
-                    >
+            <main className="absolute inset-0 flex flex-col justify-center gap-6 bg-ground p-6">
+                <div>
+                    <h1 className="text-headline font-bold text-ink">기록을 저장하지 못했어요</h1>
+                    <p className="mt-2 text-body text-ink-2">네트워크 문제로 저장이 실패했어요. 다시 시도하면 지금 기록이 그대로 저장돼요.</p>
+                </div>
+                <Notice tone="danger">저장하지 않고 나가면 이번 운동 기록은 남지 않아요.</Notice>
+                <div className="flex flex-col gap-2">
+                    <Button variant="primary" size="lg" block line={line} loading={isSaving} onClick={handleRetry}>
+                        다시 저장
+                    </Button>
+                    <Button variant="ghost" size="lg" block disabled={isSaving} onClick={handleDiscardWorkout}>
                         저장하지 않고 나가기
-                    </button>
+                    </Button>
                 </div>
             </main>
         )
     }
 
-    // ── VIEW 2: 운동 완료 (RPE 수집) ─────────────────────────────────────────
     if (allSetsComplete) {
+        const options = [
+            { score: 1, label: "쉬웠어요", hint: "다음엔 볼륨을 늘려요" },
+            { score: 2, label: "적당했어요", hint: "지금 강도를 유지해요" },
+            { score: 3, label: "힘들었어요", hint: "다음엔 볼륨을 줄여요" },
+        ]
         return (
-            <main className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 animate-fade-in-up">
-                <Trophy className="w-24 h-24 text-yellow-400 mb-6" />
-                <h1 className="text-4xl font-extrabold mb-2">오운완!</h1>
-                <p className="text-slate-400 mb-12">오늘의 AI 루틴을 완벽하게 끝냈습니다.</p>
-
-                <div className="bg-slate-800 p-8 rounded-3xl w-full max-w-md shadow-2xl border border-slate-700">
-                    <h2 className="text-xl font-bold mb-6 text-center">오늘 루틴 강도는 어땠나요?</h2>
-                    <div className="space-y-4">
-                        <button
-                            onClick={() => handleFinishRPE(1)}
-                            disabled={isSaving}
-                            className="w-full flex items-center justify-between p-4 bg-slate-700 hover:bg-slate-600 rounded-2xl transition-colors"
-                        >
-                            <span className="text-3xl">😊</span>
-                            <span className="font-bold text-lg">너무 쉬웠어요</span>
-                            <span className="text-slate-400 text-sm">볼륨 증가 필요</span>
-                        </button>
-                        <button
-                            onClick={() => handleFinishRPE(2)}
-                            disabled={isSaving}
-                            className="w-full flex items-center justify-between p-4 bg-slate-700 hover:bg-blue-600 rounded-2xl transition-colors ring-2 ring-blue-500"
-                        >
-                            <span className="text-3xl">😐</span>
-                            <span className="font-bold text-lg">딱 적당했어요</span>
-                            <span className="text-slate-400 text-sm">현재 강도 유지</span>
-                        </button>
-                        <button
-                            onClick={() => handleFinishRPE(3)}
-                            disabled={isSaving}
-                            className="w-full flex items-center justify-between p-4 bg-slate-700 hover:bg-red-600 rounded-2xl transition-colors"
-                        >
-                            <span className="text-3xl">🥵</span>
-                            <span className="font-bold text-lg">죽을 것 같아요</span>
-                            <span className="text-slate-400 text-sm">볼륨 감소 필요</span>
-                        </button>
+            <main className="absolute inset-0 flex flex-col bg-ground">
+                <div className="flex flex-1 flex-col justify-center gap-6 p-6">
+                    <div>
+                        <LineBadge line={line} />
+                        <h1 className="mt-3 text-headline font-bold text-ink">종점 도착</h1>
+                        <p className="mt-1 text-body text-ink-2 tabular-nums">
+                            {blocks.length}개 운동 · {totalSets}세트를 모두 마쳤어요.
+                        </p>
                     </div>
+                    <fieldset className="flex flex-col gap-2" disabled={isSaving}>
+                        <legend className="mb-2 text-title-sm font-bold text-ink">오늘 강도는 어땠나요?</legend>
+                        {options.map((option) => (
+                            <button
+                                key={option.score}
+                                type="button"
+                                onClick={() => handleFinishRPE(option.score)}
+                                className="flex min-h-14 items-center justify-between rounded-control border border-rail bg-ground px-4 text-left transition-colors duration-150 hover:border-ink-3 hover:bg-surface disabled:opacity-40"
+                            >
+                                <span className="text-body font-bold text-ink">{option.label}</span>
+                                <span className="text-body-sm text-ink-2">{option.hint}</span>
+                            </button>
+                        ))}
+                    </fieldset>
                     {isSaving && (
-                        <p className="text-center text-blue-400 mt-6 animate-pulse">DB에 일지를 기록 중입니다...</p>
+                        <p role="status" className="text-body-sm text-ink-2">
+                            기록을 저장하는 중…
+                        </p>
                     )}
                 </div>
             </main>
         )
     }
 
-    // ── VIEW 1: 운동 진행 화면 ────────────────────────────────────────────────
-    return (
-        <main className="absolute inset-0 bg-slate-50 flex flex-col overflow-hidden">
-            {/* 상단 고정: 제목 + 진행 바 */}
-            <div className="shrink-0 z-40 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
-                <div className="flex items-center mb-2 max-w-2xl mx-auto w-full gap-3">
-                    <button
-                        onClick={handleExit}
-                        className="shrink-0 p-1 text-slate-400 hover:text-slate-700 transition-colors"
-                        aria-label="운동 중단"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                    <h1 className="font-extrabold text-xl text-slate-900 flex items-center min-w-0 flex-1">
-                        <Flame className="w-5 h-5 text-orange-500 mr-2 shrink-0" />
-                        <span className="truncate">{routine.summaryTitle || "오늘의 루틴"}</span>
-                    </h1>
-                    <div className="text-sm font-bold text-blue-600 shrink-0">
-                        {checkedSets.size} <span className="text-gray-400 font-normal">/ {totalSets} 세트</span>
-                    </div>
+    const restRunning = isTimerActive
+    const lastTenSeconds = restRunning && !isPaused && timeLeft <= 10
+
+    const stations: StationData[] = blocks.map((block, bi) => {
+        const doneCount = block.prescription.filter((_, si) => checkedSets.has(`${bi}-${si}`)).length
+        const status = bi < currentBlockIndex ? "done" : bi === currentBlockIndex ? "current" : "upcoming"
+        const weights = block.prescription.map((set) => set.targetWeightKg).filter((kg): kg is number => kg !== null)
+        const weightRange =
+            weights.length === 0 ? "맨몸" : Math.min(...weights) === Math.max(...weights) ? `${weights[0]}kg` : `${Math.min(...weights)}–${Math.max(...weights)}kg`
+
+        if (status !== "current") {
+            return {
+                key: block.clientBlockId ?? `${block.exerciseId}-${bi}`,
+                title: block.exerciseName,
+                status,
+                meta: status === "done" ? `${doneCount}세트 완료` : `${block.prescription.length}세트 · ${weightRange} · ${block.prescription[0]?.targetReps ?? 0}회`,
+            }
+        }
+
+        const set = block.prescription[currentSetIndex]
+        return {
+            key: block.clientBlockId ?? `${block.exerciseId}-${bi}`,
+            title: block.exerciseName,
+            status,
+            content: (
+                <div ref={currentStationRef} className="flex scroll-mt-4 flex-col gap-4">
+                    <p className="text-title-sm font-bold tabular-nums text-ink">
+                        {restRunning ? "다음 " : ""}세트 {currentSetIndex + 1}
+                        <span className="font-normal text-ink-2"> / {block.prescription.length}</span>
+                    </p>
+                    {restRunning ? (
+                        <div aria-live="polite">
+                            <p className="text-body-sm text-ink-2">{isPaused ? "휴식 일시정지" : "휴식"}</p>
+                            <p
+                                role="timer"
+                                aria-label="남은 휴식 시간"
+                                className={`text-display font-bold tabular-nums ${lastTenSeconds ? "text-danger" : isPaused ? "text-ink-2" : "text-ink"}`}
+                            >
+                                {formatTime(timeLeft)}
+                            </p>
+                            <p className="mt-2 flex items-baseline gap-1.5 tabular-nums text-ink">
+                                <span className="text-body-sm text-ink-2">다음</span>
+                                <span className="text-title font-bold">
+                                    {weightText(set.targetWeightKg)}
+                                    {set.targetWeightKg !== null ? "kg" : ""} × {set.targetReps}회
+                                </span>
+                            </p>
+                        </div>
+                    ) : (
+                        <div>
+                            <p className="flex items-baseline gap-1.5 tabular-nums text-ink">
+                                <span className="text-display font-bold">{weightText(set.targetWeightKg)}</span>
+                                {set.targetWeightKg !== null && <span className="text-title-sm text-ink-2">kg</span>}
+                                <span className="text-display font-bold">× {set.targetReps}</span>
+                                <span className="text-title-sm text-ink-2">회</span>
+                            </p>
+                            <p className="mt-1 text-body-sm text-ink-2 tabular-nums">
+                                여유 {set.targetRir}회 남기기 · 끝나면 휴식 {formatTime(set.targetRestSec)}
+                            </p>
+                        </div>
+                    )}
+                    <ol aria-label="세트" className="flex flex-wrap gap-2">
+                        {block.prescription.map((s, si) => {
+                            const done = checkedSets.has(`${bi}-${si}`)
+                            const isNext = si === currentSetIndex
+                            return (
+                                <li key={si}>
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleSet(bi, si, s.targetRestSec)}
+                                        aria-pressed={done}
+                                        aria-label={`${si + 1}세트 ${weightText(s.targetWeightKg)}${s.targetWeightKg !== null ? "kg" : ""} ${s.targetReps}회 ${done ? "완료 취소" : "완료"}`}
+                                        className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-full border-[3px] px-3 text-body-sm font-bold tabular-nums transition-colors duration-150"
+                                        style={{
+                                            borderColor: done || isNext ? ROUTE_LINE_COLOR_VAR[line] : "var(--color-rail)",
+                                            background: done ? ROUTE_LINE_COLOR_VAR[line] : "var(--color-ground)",
+                                            color: done ? "#fff" : "var(--color-ink)",
+                                        }}
+                                    >
+                                        {done && <Check className="size-4" aria-hidden />}
+                                        {si + 1}
+                                    </button>
+                                </li>
+                            )
+                        })}
+                    </ol>
+                    {block.exerciseRationale && (
+                        <details className="group text-body-sm text-ink-2">
+                            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1 font-medium text-ink [&::-webkit-details-marker]:hidden">
+                                이 운동을 고른 이유
+                                <ChevronDown className="size-4 text-ink-2 transition-transform duration-150 group-open:rotate-180" aria-hidden />
+                            </summary>
+                            <p className="mt-1">{block.exerciseRationale}</p>
+                        </details>
+                    )}
                 </div>
-                <div className="max-w-2xl mx-auto w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+            ),
+        }
+    })
+
+
+    return (
+        <main className="absolute inset-0 flex flex-col overflow-hidden bg-ground">
+            <header className="shrink-0 border-b border-hairline px-4 pb-3 pt-3">
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setExitOpen(true)}
+                        aria-label="운동 중단"
+                        className="-ml-2 inline-flex size-11 shrink-0 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
+                    >
+                        <X className="size-5" aria-hidden />
+                    </button>
+                    <LineBadge line={line} />
+                    <h1 className="min-w-0 flex-1 truncate text-body font-bold text-ink">{routine.summaryTitle || "오늘의 루틴"}</h1>
+                    <span className="shrink-0 text-body-sm text-ink-2 tabular-nums">
+                        <span className="font-bold text-ink">{checkedSets.size}</span> / {totalSets} 세트
+                    </span>
+                </div>
+                <div
+                    className="mt-3 h-1 overflow-hidden rounded-full bg-hairline"
+                    role="progressbar"
+                    aria-label="전체 진행률"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={progressPercent}
+                >
                     <div
-                        className="h-full bg-blue-500 transition-all duration-500 ease-out rounded-full"
-                        style={{ width: `${progressPercent}%` }}
+                        className="h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
+                        style={{ width: `${progressPercent}%`, background: ROUTE_LINE_COLOR_VAR[line] }}
                     />
                 </div>
+            </header>
+
+            <div className="flex-1 overflow-y-auto px-4 py-5">
+                <Route label={`${routine.summaryTitle || "오늘의 루틴"} 진행 노선`} line={line} mode="progress" stations={stations} />
             </div>
 
-            {/* 운동 블록 리스트 */}
-            <div className="flex-1 overflow-y-auto p-4 pb-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
-                {routine.routineBlocks.map((block, blockIndex) => (
-                    <div
-                        key={block.exerciseId}
-                        className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden"
-                    >
-                        <div className="p-5 border-b border-gray-50 bg-slate-900 text-white">
-                            <h2 className="text-xl font-bold flex items-center min-w-0">
-                                <span className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-sm mr-3 shrink-0">
-                                    {blockIndex + 1}
-                                </span>
-                                <span className="truncate">{block.exerciseName}</span>
-                            </h2>
-                            {block.exerciseRationale && (
-                                <p className="text-slate-400 text-sm mt-2 ml-11 leading-relaxed">
-                                    💡 {block.exerciseRationale}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="p-2">
-                            {block.prescription.map((set, setArrayIndex) => {
-                                const key = `${blockIndex}-${setArrayIndex}`
-                                const isChecked = checkedSets.has(key)
-                                const isFocused = focusedKey === key
-                                return (
-                                    <div
-                                        key={setArrayIndex}
-                                        ref={(el) => {
-                                            if (el) setRowRefs.current.set(key, el)
-                                            else setRowRefs.current.delete(key)
-                                        }}
-                                        className={`flex items-center justify-between px-3 py-3 my-1 rounded-2xl transition-all ${
-                                            isChecked
-                                                ? "bg-blue-50/50 opacity-60"
-                                                : isFocused
-                                                  ? "bg-blue-50 ring-2 ring-blue-400 ring-offset-1 animate-pulse"
-                                                  : "hover:bg-gray-50"
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-x-2">
-                                            <div
-                                                className={`font-bold w-10 text-center text-sm ${isChecked ? "text-blue-400" : isFocused ? "text-blue-600" : "text-slate-400"}`}
-                                            >
-                                                {set.setIndex} Set
-                                            </div>
-                                            <div className="font-extrabold text-base w-16 text-slate-800">
-                                                {set.targetWeightKg !== null ? `${set.targetWeightKg}kg` : "맨몸"}
-                                            </div>
-                                            <div className="font-bold text-sm text-slate-600 w-12">
-                                                {set.targetReps}회
-                                            </div>
-                                        </div>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => handleCheckSet(blockIndex, setArrayIndex, set.targetRestSec)}
-                                            aria-label={
-                                                isChecked ? `${set.setIndex}세트 완료 취소` : `${set.setIndex}세트 완료 처리`
-                                            }
-                                            title={isChecked ? `${set.setIndex}세트 완료 취소` : `${set.setIndex}세트 완료 처리`}
-                                            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 ${
-                                                isChecked
-                                                    ? "bg-blue-500 text-white shadow-inner"
-                                                    : isFocused
-                                                      ? "bg-blue-500 text-white border-2 border-blue-500 shadow-md shadow-blue-200"
-                                                      : "bg-gray-100 text-gray-400 border-2 border-gray-200 hover:border-blue-300"
-                                            }`}
-                                        >
-                                            {isChecked ? (
-                                                <Check className="w-6 h-6 stroke-[3]" />
-                                            ) : (
-                                                <Check className="w-5 h-5 stroke-[3]" />
-                                            )}
-                                        </button>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* 하단 고정: 휴식 타이머 패널 */}
-            <div className="shrink-0 bg-slate-900 text-white px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] rounded-t-3xl shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.3)] z-50">
-                <div className="max-w-md mx-auto w-full space-y-4">
-                    {/* 타이머 표시 */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                            <div className="w-14 h-14 bg-slate-800 rounded-full flex items-center justify-center mr-4 shrink-0">
-                                <Timer
-                                    className={`w-7 h-7 ${
-                                        isTimerActive && displayedRestTime <= 10 && !isPaused
-                                            ? "text-red-400 animate-pulse"
-                                            : "text-blue-400"
-                                    }`}
-                                />
-                            </div>
-                            <div>
-                                <p className="text-slate-400 text-sm font-bold mb-0.5">
-                                    {isPaused ? "일시정지" : "휴식 시간"}
-                                </p>
-                                <div
-                                    className={`text-4xl font-mono font-extrabold tracking-tighter ${
-                                        !isTimerActive
-                                            ? "text-slate-500"
-                                            : isPaused
-                                              ? "text-slate-400"
-                                              : displayedRestTime <= 10
-                                                ? "text-red-400"
-                                                : "text-white"
-                                    }`}
-                                >
-                                    {formatTime(displayedRestTime)}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 건너뛰기 */}
-                        <button
-                            onClick={handleSkip}
-                            disabled={!isTimerActive}
-                            className="bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 text-white px-4 py-3 rounded-2xl font-bold flex items-center gap-1.5 transition-colors text-sm"
+            <footer className="shrink-0 border-t border-hairline bg-ground px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+                {restRunning ? (
+                    <div className="grid grid-cols-[auto_1fr] gap-2">
+                        <Button
+                            variant="secondary"
+                            size="lg"
+                            onClick={isPaused ? handleResume : handlePause}
+                            icon={isPaused ? <Play className="size-5" aria-hidden /> : <Pause className="size-5" aria-hidden />}
                         >
-                            <SkipForward className="w-4 h-4" />
-                            건너뛰기
-                        </button>
+                            {isPaused ? "재개" : "일시정지"}
+                        </Button>
+                        <Button variant="primary" size="lg" block line={line} onClick={finishRest}>
+                            휴식 끝내기
+                        </Button>
                     </div>
+                ) : (
+                    <Button variant="primary" size="lg" block line={line} onClick={completeCurrentSet} disabled={!currentSet}>
+                        {currentSet ? `세트 ${currentSetIndex + 1} 완료` : "완료"}
+                    </Button>
+                )}
+            </footer>
 
-                    {/* 일시정지 / 재개 버튼 */}
-                    <button
-                        onClick={isPaused ? handleResume : handlePause}
-                        disabled={!isTimerActive}
-                        className={`w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors disabled:bg-slate-800 disabled:text-slate-600 ${
-                            isPaused
-                                ? "bg-blue-600 hover:bg-blue-500 text-white"
-                                : "bg-slate-800 hover:bg-slate-700 text-slate-300"
-                        }`}
-                    >
-                        {isPaused ? (
-                            <>
-                                <Play className="w-4 h-4" /> 재개
-                            </>
-                        ) : (
-                            <>
-                                <Pause className="w-4 h-4" /> 일시정지
-                            </>
-                        )}
-                    </button>
-                </div>
-            </div>
+            <Sheet
+                open={exitOpen}
+                onClose={() => setExitOpen(false)}
+                title="운동을 멈출까요?"
+                description="지금까지 완료한 세트는 이 기기에 남아서 나중에 이어서 할 수 있어요."
+                footer={
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button variant="secondary" size="lg" onClick={() => setExitOpen(false)}>
+                            계속하기
+                        </Button>
+                        <Button variant="primary" size="lg" onClick={() => router.push("/my")}>
+                            나가기
+                        </Button>
+                    </div>
+                }
+            >
+                <p className="text-body-sm text-ink-2 tabular-nums">
+                    {checkedSets.size} / {totalSets} 세트 완료
+                </p>
+            </Sheet>
         </main>
     )
 }

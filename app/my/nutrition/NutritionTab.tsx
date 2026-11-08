@@ -6,6 +6,8 @@ import dietApiClient from "@/lib/api/diet/dietApiClient"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
 import type { DietLogResponse, DietSummaryResponse, NutritionTarget } from "@/types/project"
 import ManualEntryModal from "@/app/my/nutrition/ManualEntryModal"
+import { mealLabel } from "@/utils/displayLabels"
+import { Button, EmptyState, Notice, Skeleton, Surface, Tag } from "@/components/ui"
 
 function getKstToday(): string {
     return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -18,24 +20,19 @@ const MEAL_ORDER: Record<string, number> = {
     snack: 3,
 }
 
-const MEAL_LABEL: Record<string, string> = {
-    breakfast: "아침",
-    lunch: "점심",
-    dinner: "저녁",
-    snack: "간식",
+function SourceTag({ source }: { source?: string | null }) {
+    if (source === "db") return <Tag>식품 DB</Tag>
+    if (source === "manual") return <Tag>직접 입력</Tag>
+    return <Tag>AI 추정</Tag>
 }
 
-function SourceBadge({ source }: { source?: string | null }) {
-    if (source === "db")
-        return <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">DB</span>
-    if (source === "manual")
-        return <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-500">직접입력</span>
-    return <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600">AI추정</span>
-}
-
-function getMealLabel(mealType: string | null | undefined): string {
-    if (!mealType) return "기타"
-    return MEAL_LABEL[mealType] ?? mealType
+/** Same meter as the home diet card: ink fill, danger once over the limit. */
+function Meter({ value, warn, label }: { value: number; warn: boolean; label: string }) {
+    return (
+        <div className="h-1.5 overflow-hidden rounded-full bg-hairline" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value)}>
+            <div className={`h-full rounded-full ${warn ? "bg-danger" : "bg-ink"}`} style={{ width: `${value}%` }} />
+        </div>
+    )
 }
 
 function getMealOrder(mealType: string | null | undefined): number {
@@ -60,7 +57,7 @@ function groupByMeal(items: DietLogResponse[]) {
         .sort(([a], [b]) => getMealOrder(a === "__null__" ? null : a) - getMealOrder(b === "__null__" ? null : b))
         .map(([key, logs]) => ({
             key,
-            label: getMealLabel(key === "__null__" ? null : key),
+            label: mealLabel(key === "__null__" ? null : key),
             items: [...logs].sort((a, b) => {
                 if (!a.loggedAt && !b.loggedAt) return 0
                 if (!a.loggedAt) return 1
@@ -70,16 +67,9 @@ function groupByMeal(items: DietLogResponse[]) {
         }))
 }
 
-// ---------- 색상 헬퍼 ----------
-
 function kcalBarPct(current: number, goal: number | null | undefined): number {
     if (!goal) return 0
     return Math.min((current / goal) * 100, 100)
-}
-
-function kcalBarColor(current: number, goal: number | null | undefined): string {
-    if (!goal) return "bg-slate-300"
-    return current > goal ? "bg-red-400" : "bg-emerald-400"
 }
 
 type MacroStatus = "normal" | "under" | "over" | "neutral"
@@ -94,13 +84,6 @@ function macroStatus(
     if (max != null && current > max && !isProtein) return "over"
     if (min != null && current < min) return "under"
     return "normal"
-}
-
-function macroBarColor(status: MacroStatus): string {
-    if (status === "normal") return "bg-emerald-400"
-    if (status === "under") return "bg-amber-400"
-    if (status === "over") return "bg-red-400"
-    return "bg-slate-300"
 }
 
 function macroBarPct(current: number, min: number | null | undefined, max: number | null | undefined): number {
@@ -122,9 +105,11 @@ interface NutritionTabProps {
     targetRefreshKey?: number
     dataRefreshKey?: number
     hideSummary?: boolean
+    /** Renders the section heading with the add action in the same row. */
+    title?: string
 }
 
-export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0, dataRefreshKey = 0, hideSummary = false }: NutritionTabProps = {}) {
+export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0, dataRefreshKey = 0, hideSummary = false, title }: NutritionTabProps = {}) {
     const today = getKstToday()
     const resolvedDate = useMemo(() => date ?? today, [date, today])
     const isToday = resolvedDate === today
@@ -170,7 +155,6 @@ export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0, da
     const totalFatG = Number(summary?.totalFatG ?? 0)
 
     const kcalPct = kcalBarPct(totalKcal, target?.kcalGoal)
-    const kcalColor = kcalBarColor(totalKcal, target?.kcalGoal)
     const hasKcalGoal = !!target?.kcalGoal
 
     const proteinStatus = macroStatus(totalProteinG, target?.proteinGMin, target?.proteinGMax, true)
@@ -183,27 +167,19 @@ export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0, da
 
     if (loading) {
         return (
-            <div className="space-y-4">
-                <div className="rounded-2xl bg-white p-5 shadow-sm">
-                    <div className="mb-3 h-9 w-28 animate-pulse rounded bg-slate-200" />
-                    <div className="mb-1 mt-3 h-3 w-full animate-pulse rounded-full bg-slate-100" />
-                    <div className="mb-5 h-3 w-48 animate-pulse rounded bg-slate-100" />
-                    <div className="grid grid-cols-3 gap-4">
-                        {[0, 1, 2].map((i) => (
-                            <div key={i} className="flex flex-col items-center gap-1">
-                                <div className="h-3 w-12 animate-pulse rounded bg-slate-200" />
-                                <div className="h-5 w-10 animate-pulse rounded bg-slate-100" />
-                            </div>
-                        ))}
-                    </div>
-                </div>
+            <div className="flex flex-col gap-3" aria-busy="true">
+                {!hideSummary && (
+                    <Surface className="flex flex-col gap-3">
+                        <Skeleton className="h-8 w-32" />
+                        <Skeleton className="h-1.5 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                    </Surface>
+                )}
                 {[0, 1].map((i) => (
-                    <div key={i} className="rounded-2xl bg-white p-5 shadow-sm">
-                        <div className="mb-3 h-4 w-14 animate-pulse rounded bg-slate-200" />
-                        {[0, 1].map((j) => (
-                            <div key={j} className="mb-2 h-12 animate-pulse rounded bg-slate-100" />
-                        ))}
-                    </div>
+                    <Surface key={i} className="flex flex-col gap-2">
+                        <Skeleton className="h-5 w-14" />
+                        <Skeleton className="h-12 w-full" />
+                    </Surface>
                 ))}
             </div>
         )
@@ -211,212 +187,141 @@ export default function NutritionTab({ date, onRefresh, targetRefreshKey = 0, da
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center gap-4 py-16 text-slate-400">
-                <Utensils size={36} strokeWidth={1.5} />
-                <p className="text-sm">데이터를 불러오지 못했습니다.</p>
-                <button
-                    type="button"
-                    onClick={fetchData}
-                    className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white"
-                >
-                    다시 시도
-                </button>
-            </div>
+            <Notice tone="danger" title="식단 기록을 불러오지 못했어요" className="flex flex-col gap-2">
+                <span>연결을 확인하고 다시 불러와 주세요.</span>
+                <Button variant="secondary" onClick={fetchData} className="self-start">
+                    다시 불러오기
+                </Button>
+            </Notice>
         )
     }
 
     const groups = summary ? groupByMeal(summary.items) : []
     const isEmpty = !summary || summary.items.length === 0
 
+    const macros = [
+        { label: "탄수화물", value: totalCarbsG, min: target?.carbsGMin, max: target?.carbsGMax, status: carbsStatus, pct: carbsPct },
+        { label: "단백질", value: totalProteinG, min: target?.proteinGMin, max: target?.proteinGMax, status: proteinStatus, pct: proteinPct },
+        { label: "지방", value: totalFatG, min: target?.fatGMin, max: target?.fatGMax, status: fatStatus, pct: fatPct },
+    ]
+
+    const addButton = (
+        <Button variant="secondary" icon={<Plus className="size-4" aria-hidden />} onClick={() => setShowModal(true)}>
+            식단 추가
+        </Button>
+    )
+
     return (
         <>
-        {showModal && (
-            <ManualEntryModal
-                onClose={() => setShowModal(false)}
-                onSaved={handleSaved}
-                defaultDate={resolvedDate}
-            />
-        )}
-        {editItem && (
-            <ManualEntryModal
-                editItem={editItem}
-                onClose={() => setEditItem(null)}
-                onSaved={handleSaved}
-            />
-        )}
-        <div className="space-y-4">
-            {/* 상단 액션 버튼 */}
-            <div className="flex justify-end">
-                <button
-                    type="button"
-                    onClick={() => setShowModal(true)}
-                    className="flex items-center gap-1 rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white"
-                >
-                    <Plus size={13} />
-                    식단 추가
-                </button>
+            {showModal && <ManualEntryModal onClose={() => setShowModal(false)} onSaved={handleSaved} defaultDate={resolvedDate} />}
+            {editItem && <ManualEntryModal editItem={editItem} onClose={() => setEditItem(null)} onSaved={handleSaved} />}
+            <div className="flex flex-col gap-3">
+                {title && (
+                    <div className="flex items-center justify-between gap-3">
+                        <h2 className="text-title-sm font-bold text-ink">{title}</h2>
+                        {!isEmpty && (
+                            <Button variant="ghost" className="-mr-2" icon={<Plus className="size-4" aria-hidden />} onClick={() => setShowModal(true)}>
+                                추가
+                            </Button>
+                        )}
+                    </div>
+                )}
+                {!hideSummary && (
+                    <Surface className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-2">
+                            <p className="flex items-baseline gap-1.5">
+                                <span className="text-headline font-bold tabular-nums text-ink">{totalKcal.toLocaleString()}</span>
+                                <span className="text-body-sm tabular-nums text-ink-2">
+                                    {hasKcalGoal ? `/ ${target!.kcalGoal!.toLocaleString()} kcal` : "kcal"}
+                                </span>
+                            </p>
+                            {hasKcalGoal ? (
+                                <Meter label="목표 대비 칼로리" value={kcalPct} warn={totalKcal > target!.kcalGoal!} />
+                            ) : (
+                                <p className="text-caption text-ink-2">목표 칼로리를 정하면 목표 대비 섭취량을 볼 수 있어요.</p>
+                            )}
+                        </div>
+                        <div className="grid grid-cols-3 gap-3 border-t border-hairline pt-3">
+                            {macros.map((macro) => {
+                                const goal = macroGoalText(macro.min, macro.max)
+                                return (
+                                    <div key={macro.label} className="flex flex-col gap-1">
+                                        <span className="text-caption text-ink-2">{macro.label}</span>
+                                        <span className="text-title-sm font-bold tabular-nums text-ink">
+                                            {macro.value}
+                                            <span className="ml-0.5 text-caption font-normal text-ink-2">g</span>
+                                        </span>
+                                        {goal && (
+                                            <>
+                                                <Meter label={`${macro.label} 목표 대비`} value={macro.pct} warn={macro.status === "over"} />
+                                                <span className="text-caption tabular-nums text-ink-2">{goal}</span>
+                                            </>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </Surface>
+                )}
+
+                {isEmpty ? (
+                    <Surface>
+                        <EmptyState
+                            className="py-4"
+                            icon={<Utensils aria-hidden />}
+                            title={isToday ? "오늘 식단 기록이 없어요" : `${resolvedDate} 기록이 없어요`}
+                            body="먹은 음식을 추가하면 끼니별로 모아서 보여 줘요."
+                            action={addButton}
+                        />
+                    </Surface>
+                ) : (
+                    <>
+                        {!title && <div className="flex justify-end">{addButton}</div>}
+                        {groups.map((group) => (
+                            <Surface key={group.key} padded={false}>
+                                <h3 className="px-4 pb-1 pt-3 text-body-sm font-bold text-ink">{group.label}</h3>
+                                <ul className="divide-y divide-hairline">
+                                    {group.items.map((item) => {
+                                        const amount = formatAmount(item)
+                                        const micros = [
+                                            item.sugarG != null && `당류 ${item.sugarG}g`,
+                                            item.fiberG != null && `식이섬유 ${item.fiberG}g`,
+                                            item.sodiumMg != null && `나트륨 ${item.sodiumMg}mg`,
+                                        ].filter(Boolean)
+                                        return (
+                                            <li key={item.id}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEditItem(item)}
+                                                    aria-label={`${item.foodName} 기록 수정`}
+                                                    className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-surface"
+                                                >
+                                                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                                        <span className="flex flex-wrap items-center gap-1.5">
+                                                            <span className="truncate text-body-sm font-bold text-ink">{item.foodName}</span>
+                                                            <SourceTag source={item.source} />
+                                                        </span>
+                                                        <span className="text-caption tabular-nums text-ink-2">
+                                                            {amount && `${amount} · `}탄 {item.carbsG ?? 0}g · 단 {item.proteinG ?? 0}g · 지 {item.fatG ?? 0}g
+                                                        </span>
+                                                        {micros.length > 0 && (
+                                                            <span className="text-caption tabular-nums text-ink-2">{micros.join(" · ")}</span>
+                                                        )}
+                                                    </span>
+                                                    <span className="shrink-0 text-body font-bold tabular-nums text-ink">
+                                                        {item.kcal}
+                                                        <span className="ml-0.5 text-caption font-normal text-ink-2">kcal</span>
+                                                    </span>
+                                                </button>
+                                            </li>
+                                        )
+                                    })}
+                                </ul>
+                            </Surface>
+                        ))}
+                    </>
+                )}
             </div>
-            {/* 매크로 요약 */}
-            {!hideSummary && <div className="rounded-2xl bg-white p-5 shadow-sm">
-                <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-extrabold text-slate-800">{summary?.totalKcal ?? 0}</span>
-                    <span className="text-sm font-semibold text-slate-400">kcal</span>
-                    {hasKcalGoal && (
-                        <span className="ml-1 text-xs text-slate-400">/ 목표 {target!.kcalGoal!.toLocaleString()}</span>
-                    )}
-                </div>
-
-                {/* kcal 진행 바 */}
-                <div className="mb-1 mt-3 h-3 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div
-                        className={`h-full rounded-full transition-all duration-500 ${kcalColor}`}
-                        style={{ width: hasKcalGoal ? `${kcalPct}%` : "0%" }}
-                    />
-                </div>
-                <p className="mb-5 text-[11px] text-slate-400">
-                    {hasKcalGoal
-                        ? `${totalKcal.toLocaleString()} / ${target!.kcalGoal!.toLocaleString()} kcal`
-                        : "목표를 설정하면 진행률이 표시됩니다"}
-                </p>
-
-                {/* 탄/단/지 */}
-                <div className="grid grid-cols-3 gap-4">
-                    {/* 탄수화물 */}
-                    <div className="flex flex-col items-center">
-                        <span className="mb-1 text-xs font-bold text-slate-400">탄수화물</span>
-                        <span className="text-sm font-extrabold text-slate-700">
-                            {totalCarbsG}
-                            <span className="ml-0.5 text-[10px] font-normal text-slate-400">g</span>
-                        </span>
-                        {macroGoalText(target?.carbsGMin, target?.carbsGMax) && (
-                            <span className="mt-0.5 text-[10px] text-slate-400">
-                                {macroGoalText(target?.carbsGMin, target?.carbsGMax)}
-                            </span>
-                        )}
-                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                            <div
-                                className={`h-full rounded-full transition-all duration-500 ${macroBarColor(carbsStatus)}`}
-                                style={{ width: `${carbsPct}%` }}
-                            />
-                        </div>
-                    </div>
-
-                    {/* 단백질 */}
-                    <div className="flex flex-col items-center border-l border-r border-slate-100">
-                        <span className="mb-1 text-xs font-bold text-slate-400">단백질</span>
-                        <span className="text-sm font-extrabold text-slate-700">
-                            {totalProteinG}
-                            <span className="ml-0.5 text-[10px] font-normal text-slate-400">g</span>
-                        </span>
-                        {macroGoalText(target?.proteinGMin, target?.proteinGMax) && (
-                            <span className="mt-0.5 text-[10px] text-slate-400">
-                                {macroGoalText(target?.proteinGMin, target?.proteinGMax)}
-                            </span>
-                        )}
-                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                            <div
-                                className={`h-full rounded-full transition-all duration-500 ${macroBarColor(proteinStatus)}`}
-                                style={{ width: `${proteinPct}%` }}
-                            />
-                        </div>
-                    </div>
-
-                    {/* 지방 */}
-                    <div className="flex flex-col items-center">
-                        <span className="mb-1 text-xs font-bold text-slate-400">지방</span>
-                        <span className="text-sm font-extrabold text-slate-700">
-                            {totalFatG}
-                            <span className="ml-0.5 text-[10px] font-normal text-slate-400">g</span>
-                        </span>
-                        {macroGoalText(target?.fatGMin, target?.fatGMax) && (
-                            <span className="mt-0.5 text-[10px] text-slate-400">
-                                {macroGoalText(target?.fatGMin, target?.fatGMax)}
-                            </span>
-                        )}
-                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                            <div
-                                className={`h-full rounded-full transition-all duration-500 ${macroBarColor(fatStatus)}`}
-                                style={{ width: `${fatPct}%` }}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>}
-
-            {isEmpty ? (
-                <div className="flex flex-col items-center justify-center gap-4 rounded-2xl bg-white py-12 shadow-sm">
-                    <Utensils size={32} strokeWidth={1.5} className="text-slate-300" />
-                    <p className="text-sm text-slate-400">{isToday ? "오늘 기록이 없어요" : `${resolvedDate} 기록이 없어요`}</p>
-                    {isToday && (
-                        <button
-                            type="button"
-                            onClick={() => setShowModal(true)}
-                            className="flex items-center gap-1.5 rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white"
-                        >
-                            <Plus size={14} />
-                            식단 추가
-                        </button>
-                    )}
-                </div>
-            ) : (
-                <>
-                    {groups.map((group) => (
-                        <div key={group.key} className="rounded-2xl bg-white p-5 shadow-sm">
-                            <h3 className="mb-3 text-sm font-bold text-slate-800">{group.label}</h3>
-                            <div className="space-y-2">
-                                {group.items.map((item) => {
-                                    const amount = formatAmount(item)
-                                    return (
-                                        <div
-                                            key={item.id}
-                                            className="flex cursor-pointer items-center justify-between rounded-xl bg-slate-50 px-4 py-3 active:bg-slate-100"
-                                            onClick={() => setEditItem(item)}
-                                        >
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                    <p className="truncate text-sm font-semibold text-slate-800">
-                                                        {item.foodName}
-                                                    </p>
-                                                    <SourceBadge source={item.source} />
-                                                </div>
-                                                <p className="text-xs text-slate-400">
-                                                    {amount && `${amount} · `}탄 {item.carbsG ?? 0}g · 단{" "}
-                                                    {item.proteinG ?? 0}g · 지 {item.fatG ?? 0}g
-                                                </p>
-                                                {(item.sugarG != null || item.fiberG != null || item.sodiumMg != null) && (
-                                                    <p className="text-xs text-slate-400">
-                                                        {[
-                                                            item.sugarG != null && `당 ${item.sugarG}g`,
-                                                            item.fiberG != null && `섬유 ${item.fiberG}g`,
-                                                            item.sodiumMg != null && `나트 ${item.sodiumMg}mg`,
-                                                        ].filter(Boolean).join(" · ")}
-                                                    </p>
-                                                )}
-                                            </div>
-                                            <span className="ml-3 shrink-0 text-sm font-bold text-slate-600">
-                                                {item.kcal}
-                                                <span className="ml-0.5 text-[10px] font-normal text-slate-400">
-                                                    kcal
-                                                </span>
-                                            </span>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        </div>
-                    ))}
-
-                    <button
-                        type="button"
-                        onClick={() => setShowModal(true)}
-                        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-4 text-sm font-semibold text-slate-500 transition-colors hover:border-blue-400 hover:text-blue-500"
-                    >
-                        <Plus size={16} />
-                        식단 추가
-                    </button>
-                </>
-            )}
-        </div>
         </>
     )
 }

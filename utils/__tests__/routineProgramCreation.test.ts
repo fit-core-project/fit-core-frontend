@@ -74,7 +74,7 @@ describe("routine program creation helpers", () => {
     it("builds routine card display from payload", () => {
         expect(getRoutineProgramDisplay(routine())).toEqual({
             title: "Pull A",
-            splitLabel: "pull",
+            splitLabel: "당기기",
             exerciseCount: 4,
             exercisePreview: ["랫풀다운", "바벨로우", "시티드로우"],
             savedDateLabel: "2026.07.04 저장",

@@ -3,13 +3,28 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { AxiosError } from "axios"
-import { Archive, CheckCircle2, ChevronLeft, Circle, Pencil, Play, RotateCcw, Timer, Trash2 } from "lucide-react"
+import { Archive, CheckCircle2, ChevronLeft, Pencil, Play, RotateCcw, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import programApiClient from "@/lib/api/program/programApiClient"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
-import type { ProgramDetailResponse, ProgramItemResponse, ProgramItemState } from "@/types/program"
+import type { ProgramDetailResponse, ProgramItemState, ProgramStatus } from "@/types/program"
 import type { RoutineDraft } from "@/types/routine"
 import { buildProgramPlayerContext, clearProgramContextIfProgram, setProgramContext } from "@/utils/programContext"
+import { splitLabel } from "@/utils/displayLabels"
+import { lineForRoutine } from "@/utils/routeLine"
+import {
+    Button,
+    EmptyState,
+    LineBadge,
+    Route,
+    Section,
+    Sheet,
+    Skeleton,
+    Surface,
+    Tag,
+    TextField,
+    type StationStatus,
+} from "@/components/ui"
 
 const STATE_LABEL: Record<ProgramItemState, string> = {
     DONE: "완료",
@@ -17,17 +32,19 @@ const STATE_LABEL: Record<ProgramItemState, string> = {
     UPCOMING: "예정",
 }
 
-function stateClasses(state: ProgramItemState): string {
-    if (state === "DONE") return "bg-emerald-50 text-emerald-700"
-    if (state === "CURRENT") return "bg-blue-50 text-blue-700"
-    return "bg-slate-100 text-slate-500"
+const STATUS_LABEL: Record<ProgramStatus, string> = {
+    ACTIVE: "진행 중",
+    COMPLETED: "완료",
+    ARCHIVED: "보관됨",
 }
 
-function itemIcon(item: ProgramItemResponse) {
-    if (item.state === "DONE") return <CheckCircle2 className="h-5 w-5" />
-    if (item.state === "CURRENT") return <Timer className="h-5 w-5" />
-    return <Circle className="h-5 w-5" />
+const STATION_STATUS: Record<ProgramItemState, StationStatus> = {
+    DONE: "done",
+    CURRENT: "current",
+    UPCOMING: "upcoming",
 }
+
+type ConfirmKind = "archive" | "delete"
 
 export default function ProgramDetailPage() {
     const params = useParams<{ programId: string }>()
@@ -43,6 +60,7 @@ export default function ProgramDetailPage() {
     const [nameDraft, setNameDraft] = useState("")
     const [savingName, setSavingName] = useState(false)
     const [deleting, setDeleting] = useState(false)
+    const [confirm, setConfirm] = useState<ConfirmKind | null>(null)
 
     useEffect(() => {
         if (!programId) return
@@ -53,7 +71,7 @@ export default function ProgramDetailPage() {
                 setNameDraft(data.name)
             })
             .catch(() => {
-                toast.error("프로그램을 불러오지 못했습니다.")
+                toast.error("프로그램을 불러오지 못했어요.")
                 router.push("/workout/programs")
             })
             .finally(() => setLoading(false))
@@ -88,7 +106,7 @@ export default function ProgramDetailPage() {
             ))
             router.push("/ai_routine/player")
         } catch {
-            toast.error("다음 루틴을 시작하지 못했습니다.")
+            toast.error("다음 루틴을 시작하지 못했어요. 잠시 후 다시 시도하세요.")
         } finally {
             setStarting(false)
         }
@@ -96,16 +114,15 @@ export default function ProgramDetailPage() {
 
     const archiveProgram = async () => {
         if (!program || archiving) return
-        const ok = window.confirm("이 프로그램을 보관할까요? 저장 루틴과 운동 기록은 삭제되지 않습니다.")
-        if (!ok) return
+        setConfirm(null)
         setArchiving(true)
         try {
             await programApiClient.archiveProgram(program.programId)
             clearProgramContextIfProgram(program.programId)
-            toast.success("프로그램을 보관했습니다.")
+            toast.success("프로그램을 보관했어요.")
             router.push("/workout/programs")
         } catch {
-            toast.error("프로그램을 보관하지 못했습니다.")
+            toast.error("프로그램을 보관하지 못했어요.")
         } finally {
             setArchiving(false)
         }
@@ -115,7 +132,7 @@ export default function ProgramDetailPage() {
         if (!program || savingName) return
         const nextName = nameDraft.trim()
         if (!nextName) {
-            toast.error("프로그램 이름을 입력해 주세요.")
+            toast.error("프로그램 이름을 입력하세요.")
             return
         }
         setSavingName(true)
@@ -124,9 +141,9 @@ export default function ProgramDetailPage() {
             setProgram(updated)
             setNameDraft(updated.name)
             setEditingName(false)
-            toast.success("프로그램 이름을 수정했습니다.")
+            toast.success("프로그램 이름을 바꿨어요.")
         } catch {
-            toast.error("프로그램 이름을 수정하지 못했습니다.")
+            toast.error("프로그램 이름을 바꾸지 못했어요.")
         } finally {
             setSavingName(false)
         }
@@ -134,16 +151,15 @@ export default function ProgramDetailPage() {
 
     const deleteProgramPermanently = async () => {
         if (!program || deleting) return
-        const ok = window.confirm("이 보관된 프로그램을 영구 삭제할까요? 저장 루틴과 운동 기록은 삭제되지 않습니다.")
-        if (!ok) return
+        setConfirm(null)
         setDeleting(true)
         try {
             await programApiClient.deleteProgramPermanently(program.programId)
             clearProgramContextIfProgram(program.programId)
-            toast.success("프로그램을 영구 삭제했습니다.")
+            toast.success("프로그램을 영구 삭제했어요.")
             router.push("/workout/programs")
         } catch {
-            toast.error("프로그램을 영구 삭제하지 못했습니다. 보관된 프로그램만 삭제할 수 있어요.")
+            toast.error("프로그램을 영구 삭제하지 못했어요. 보관된 프로그램만 삭제할 수 있어요.")
         } finally {
             setDeleting(false)
         }
@@ -155,12 +171,12 @@ export default function ProgramDetailPage() {
         try {
             const activated = await programApiClient.activateProgram(program.programId)
             setProgram(activated)
-            toast.success("프로그램을 다시 활성화했습니다.")
+            toast.success("프로그램을 다시 활성화했어요.")
         } catch (error) {
             if (error instanceof AxiosError && error.response?.status === 409) {
-                toast.error("이미 진행 중인 프로그램이 있습니다. 먼저 기존 프로그램을 보관한 뒤 다시 활성화해 주세요.")
+                toast.error("이미 진행 중인 프로그램이 있어요. 기존 프로그램을 보관한 뒤 다시 활성화하세요.")
             } else {
-                toast.error("프로그램을 다시 활성화하지 못했습니다.")
+                toast.error("프로그램을 다시 활성화하지 못했어요.")
             }
         } finally {
             setActivating(false)
@@ -169,10 +185,10 @@ export default function ProgramDetailPage() {
 
     if (loading) {
         return (
-            <main className="mx-auto flex w-full max-w-[480px] flex-col gap-4 p-4">
-                <div className="h-28 animate-pulse rounded-3xl bg-white shadow-sm" />
-                <div className="h-20 animate-pulse rounded-3xl bg-white shadow-sm" />
-                <div className="h-64 animate-pulse rounded-3xl bg-white shadow-sm" />
+            <main className="mx-auto flex w-full max-w-[480px] flex-col gap-4 bg-ground px-4 pt-5" aria-busy="true">
+                <Skeleton className="h-8 w-2/3" />
+                <Skeleton className="h-40 rounded-panel" />
+                <Skeleton className="h-64 rounded-panel" />
             </main>
         )
     }
@@ -182,181 +198,191 @@ export default function ProgramDetailPage() {
     const isActive = program.status === "ACTIVE"
     const isCompleted = program.status === "COMPLETED"
     const isArchived = program.status === "ARCHIVED"
+    const next = program.nextItem
+    const nextLine = next ? lineForRoutine(next.targetSplitLabel) : "mixed"
+
+    const stations = program.items.map((item) => ({
+        key: item.programItemId,
+        line: lineForRoutine(item.targetSplitLabel),
+        status: STATION_STATUS[item.state],
+        title: item.title,
+        meta: [
+            `${item.position}번째`,
+            splitLabel(item.targetSplitLabel),
+            item.estimatedTime ? `${item.estimatedTime}분` : null,
+        ].filter(Boolean).join(" · "),
+        trailing: <Tag className="shrink-0">{STATE_LABEL[item.state]}</Tag>,
+    }))
 
     return (
-        <main className="mx-auto flex w-full max-w-[480px] flex-col gap-5 p-4 pb-10">
-            <header className="px-1">
-                <button
-                    type="button"
+        <main className="mx-auto flex w-full max-w-[480px] flex-col gap-6 bg-ground px-4 pb-10 pt-3">
+            <header>
+                <Button
+                    variant="ghost"
+                    className="-ml-3"
                     onClick={() => router.push("/workout/programs")}
-                    className="mb-3 inline-flex items-center gap-1 text-sm font-bold text-slate-500"
+                    icon={<ChevronLeft className="size-4" aria-hidden />}
                 >
-                    <ChevronLeft className="h-4 w-4" />
                     프로그램 목록
-                </button>
-                <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        {editingName ? (
-                            <div className="space-y-2">
-                                <input
-                                    value={nameDraft}
-                                    onChange={(event) => setNameDraft(event.target.value)}
-                                    className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-lg font-extrabold text-slate-900 outline-none focus:border-blue-400"
-                                    aria-label="프로그램 이름"
-                                />
-                                <div className="flex gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={updateProgramName}
-                                        disabled={savingName || !nameDraft.trim()}
-                                        className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-extrabold text-white disabled:bg-slate-200 disabled:text-slate-400"
-                                    >
-                                        {savingName ? "저장 중..." : "저장"}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setNameDraft(program.name)
-                                            setEditingName(false)
-                                        }}
-                                        className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-extrabold text-slate-600"
-                                    >
-                                        취소
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex items-start gap-2">
-                                <h1 className="break-words text-2xl font-extrabold text-slate-900">{program.name}</h1>
-                                <button
-                                    type="button"
-                                    onClick={() => setEditingName(true)}
-                                    className="mt-1 shrink-0 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                                    aria-label="프로그램 이름 수정"
-                                    title="이름 수정"
-                                >
-                                    <Pencil className="h-4 w-4" />
-                                </button>
-                            </div>
-                        )}
-                        <p className="mt-1 text-sm font-semibold text-slate-500">
+                </Button>
+                {editingName ? (
+                    <div className="mt-1 flex flex-col gap-2">
+                        <TextField
+                            label="프로그램 이름"
+                            value={nameDraft}
+                            onChange={(event) => setNameDraft(event.target.value)}
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                            <Button
+                                variant="secondary"
+                                onClick={() => {
+                                    setNameDraft(program.name)
+                                    setEditingName(false)
+                                }}
+                            >
+                                취소
+                            </Button>
+                            <Button
+                                variant="primary"
+                                onClick={updateProgramName}
+                                disabled={!nameDraft.trim()}
+                                loading={savingName}
+                            >
+                                {savingName ? "저장 중" : "이름 저장"}
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="mt-1">
+                        <Tag>{STATUS_LABEL[program.status]}</Tag>
+                        <div className="mt-1.5 flex items-start gap-1">
+                            <h1 className="min-w-0 break-words text-title font-bold text-ink">{program.name}</h1>
+                            <button
+                                type="button"
+                                onClick={() => setEditingName(true)}
+                                className="-mt-1.5 inline-flex size-11 shrink-0 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
+                                aria-label="프로그램 이름 바꾸기"
+                            >
+                                <Pencil className="size-4" aria-hidden />
+                            </button>
+                        </div>
+                        <p className="mt-0.5 text-body-sm text-ink-2 tabular-nums">
                             현재 {program.currentPosition}/{program.totalItems}
                         </p>
                     </div>
-                    <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
-                        {isActive ? "진행 중" : isCompleted ? "완료" : "보관됨"}
-                    </span>
-                </div>
+                )}
             </header>
 
-            <section className="rounded-3xl bg-white p-5 shadow-sm">
-                {isActive && program.nextItem ? (
-                    <>
-                        <p className="text-xs font-black uppercase tracking-wide text-blue-500">Next</p>
-                        <h2 className="mt-1 text-xl font-extrabold text-slate-900">
-                            다음은 {program.nextItem.title} 차례
-                        </h2>
-                        <p className="mt-2 text-sm font-semibold text-slate-500">
-                            {program.nextItem.targetSplitLabel || "custom"}
-                            {program.nextItem.estimatedTime ? ` · ${program.nextItem.estimatedTime}분` : ""}
-                        </p>
-                        <button
-                            type="button"
-                            onClick={startNextRoutine}
-                            disabled={starting}
-                            className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-                        >
-                            <Play className="h-4 w-4" fill="white" />
-                            {starting ? "준비 중..." : "운동 시작"}
-                        </button>
-                    </>
-                ) : isCompleted ? (
-                    <div className="text-center">
-                        <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
-                        <h2 className="text-xl font-extrabold text-slate-900">프로그램 완료</h2>
-                        <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                            모든 순서를 완료했습니다.
+            {isActive && next ? (
+                <Surface tone="sunken" className="flex flex-col gap-4">
+                    <div>
+                        <p className="text-body-sm text-ink-2">다음 회차</p>
+                        <div className="mt-1.5">
+                            <LineBadge line={nextLine} label={next.targetSplitLabel ? splitLabel(next.targetSplitLabel) : undefined} />
+                        </div>
+                        <h2 className="mt-1.5 break-words text-headline font-bold text-ink">{next.title}</h2>
+                        <p className="mt-1 text-body-sm text-ink-2 tabular-nums">
+                            {next.position}번째 역
+                            {next.estimatedTime ? ` · 약 ${next.estimatedTime}분` : ""}
                         </p>
                     </div>
-                ) : (
-                    <div className="text-center">
-                        <Archive className="mx-auto mb-4 h-12 w-12 text-slate-400" />
-                        <h2 className="text-xl font-extrabold text-slate-900">보관된 프로그램</h2>
-                        <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                            보관된 프로그램은 시작할 수 없습니다.
-                        </p>
-                        <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                            진행 중인 프로그램으로 되돌립니다.
-                        </p>
-                        <button
-                            type="button"
-                            onClick={activateProgram}
-                            disabled={activating}
-                            className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-                        >
-                            <RotateCcw className="h-4 w-4" />
-                            {activating ? "활성화 중..." : "다시 활성화"}
-                        </button>
-                    </div>
-                )}
-            </section>
+                    <Button
+                        variant="primary"
+                        size="lg"
+                        block
+                        line={nextLine}
+                        onClick={startNextRoutine}
+                        loading={starting}
+                        icon={<Play className="size-4" aria-hidden />}
+                    >
+                        {starting ? "준비 중" : "출발하기"}
+                    </Button>
+                </Surface>
+            ) : isCompleted ? (
+                <Surface tone="sunken">
+                    <EmptyState
+                        icon={<CheckCircle2 aria-hidden />}
+                        title="종점에 도착했어요"
+                        body="프로그램의 모든 회차를 마쳤어요."
+                    />
+                </Surface>
+            ) : isArchived ? (
+                <Surface tone="sunken">
+                    <EmptyState
+                        icon={<Archive aria-hidden />}
+                        title="보관된 프로그램이에요"
+                        body="보관된 프로그램은 시작할 수 없어요. 다시 활성화하면 진행 중으로 돌아가요."
+                        action={
+                            <Button
+                                variant="primary"
+                                onClick={activateProgram}
+                                loading={activating}
+                                icon={<RotateCcw className="size-4" aria-hidden />}
+                            >
+                                {activating ? "활성화 중" : "다시 활성화"}
+                            </Button>
+                        }
+                    />
+                </Surface>
+            ) : null}
 
-            <section className="rounded-3xl bg-white p-5 shadow-sm">
-                <h2 className="mb-4 text-base font-extrabold text-slate-800">전체 순서</h2>
-                <ol className="space-y-3">
-                    {program.items.map((item) => (
-                        <li
-                            key={item.programItemId}
-                            className={`flex items-center gap-3 rounded-2xl px-3 py-3 ${
-                                item.state === "CURRENT" ? "bg-blue-50" : "bg-slate-50"
-                            }`}
-                        >
-                            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                                item.state === "DONE" ? "bg-emerald-100 text-emerald-700" :
-                                    item.state === "CURRENT" ? "bg-blue-600 text-white" : "bg-white text-slate-400"
-                            }`}>
-                                {itemIcon(item)}
-                            </span>
-                            <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm font-extrabold text-slate-900">
-                                    {item.position}. {item.title}
-                                </span>
-                                <span className="mt-0.5 block text-xs font-semibold text-slate-400">
-                                    {item.targetSplitLabel || "custom"}
-                                    {item.estimatedTime ? ` · ${item.estimatedTime}분` : ""}
-                                </span>
-                            </span>
-                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${stateClasses(item.state)}`}>
-                                {STATE_LABEL[item.state]}
-                            </span>
-                        </li>
-                    ))}
-                </ol>
-            </section>
+            <Section title="전체 노선">
+                <Route stations={stations} mode="progress" label={`${program.name} 노선`} />
+            </Section>
 
             {!isArchived && (
-                <button
-                    type="button"
-                    onClick={archiveProgram}
-                    disabled={archiving}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                <Button
+                    variant="secondary"
+                    block
+                    onClick={() => setConfirm("archive")}
+                    loading={archiving}
+                    icon={<Archive className="size-4" aria-hidden />}
                 >
-                    <Archive className="h-4 w-4" />
-                    {archiving ? "보관 중..." : "프로그램 보관"}
-                </button>
+                    {archiving ? "보관 중" : "프로그램 보관하기"}
+                </Button>
             )}
 
             {isArchived && (
-                <button
-                    type="button"
-                    onClick={deleteProgramPermanently}
-                    disabled={deleting}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+                <Button
+                    variant="ghost"
+                    block
+                    className="text-danger-ink"
+                    onClick={() => setConfirm("delete")}
+                    loading={deleting}
+                    icon={<Trash2 className="size-4" aria-hidden />}
                 >
-                    <Trash2 className="h-4 w-4" />
-                    {deleting ? "삭제 중..." : "영구 삭제"}
-                </button>
+                    {deleting ? "삭제 중" : "영구 삭제"}
+                </Button>
             )}
+
+            <Sheet
+                open={confirm !== null}
+                onClose={() => setConfirm(null)}
+                title={confirm === "delete" ? "프로그램을 영구 삭제할까요?" : "프로그램을 보관할까요?"}
+                description={program.name}
+                footer={
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button variant="secondary" onClick={() => setConfirm(null)}>
+                            취소
+                        </Button>
+                        {confirm === "delete" ? (
+                            <Button variant="danger" onClick={deleteProgramPermanently}>
+                                영구 삭제하기
+                            </Button>
+                        ) : (
+                            <Button variant="primary" onClick={archiveProgram}>
+                                보관하기
+                            </Button>
+                        )}
+                    </div>
+                }
+            >
+                <p className="text-body-sm text-ink-2">
+                    {confirm === "delete"
+                        ? "되돌릴 수 없어요. 저장 루틴과 운동 기록은 그대로 남아요."
+                        : "저장 루틴과 운동 기록은 그대로 남아요. 보관한 뒤에도 다시 활성화할 수 있어요."}
+                </p>
+            </Sheet>
         </main>
     )
 }

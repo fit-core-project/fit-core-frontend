@@ -11,8 +11,15 @@ interface MetricConfig {
     key: "weight" | "muscle" | "fatPct"
     label: string
     unit: string
-    color: string
 }
+
+// Same hex values as the @theme tokens in app/globals.css (recharts needs literal colors).
+const INK = "#14213d"
+const INK_2 = "#5b6478"
+const HAIRLINE = "#e3e7ee"
+const RAIL = "#c9d1de"
+
+const TICK = { fontSize: 12, fill: INK_2 }
 
 const formatDate = (value?: string) => {
     if (!value) return ""
@@ -33,9 +40,9 @@ const getDomain = (values: number[]): [number, number] => {
 
 export default function BodyCompositionChart({ data, weightUnit }: BodyCompositionChartProps) {
     const metrics: MetricConfig[] = [
-        { key: "weight", label: "체중", unit: weightUnit, color: "#2563eb" },
-        { key: "muscle", label: "골격근량", unit: weightUnit, color: "#16a34a" },
-        { key: "fatPct", label: "체지방률", unit: "%", color: "#e11d48" },
+        { key: "weight", label: "체중", unit: weightUnit },
+        { key: "muscle", label: "골격근량", unit: weightUnit },
+        { key: "fatPct", label: "체지방률", unit: "%" },
     ]
 
     const toDisplay = (kg: number | undefined): number | undefined => {
@@ -62,14 +69,14 @@ export default function BodyCompositionChart({ data, weightUnit }: BodyCompositi
 
     if (chartData.length === 0) {
         return (
-            <div className="flex h-32 items-center justify-center rounded-xl bg-slate-50 text-sm font-medium text-slate-400">
-                체성분 기록이 없습니다.
-            </div>
+            <p className="flex h-32 items-center justify-center rounded-panel bg-surface px-4 text-center text-body-sm text-ink-2">
+                이 기간에는 체성분 기록이 없어요. 표시 기간을 늘려 보세요.
+            </p>
         )
     }
 
     return (
-        <div className="space-y-2.5">
+        <div className="flex flex-col divide-y divide-hairline">
             {metrics.map((metric) => {
                 const values = chartData
                     .map((item) => item[metric.key])
@@ -78,79 +85,62 @@ export default function BodyCompositionChart({ data, weightUnit }: BodyCompositi
                 const latest = values[values.length - 1]
                 const delta = first !== undefined && latest !== undefined ? latest - first : 0
                 const isPositive = delta > 0
-                const isNegative = delta < 0
 
                 return (
-                    <div key={metric.key} className="rounded-xl border border-slate-100 bg-slate-50/70 px-2.5 py-2">
-                        <div className="mb-1 flex items-baseline justify-between gap-3">
-                            <div>
-                                <h3 className="text-xs font-extrabold text-slate-800">{metric.label}</h3>
-                                <p className="text-[10px] font-medium text-slate-400">{metric.unit} 기준 변화</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-sm font-extrabold text-slate-900">
+                    <div key={metric.key} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
+                        <div className="flex items-baseline justify-between gap-3">
+                            <h3 className="text-body-sm font-bold text-ink">{metric.label}</h3>
+                            <p className="text-right tabular-nums">
+                                <span className="text-body font-bold text-ink">
                                     {latest?.toFixed(1) ?? "-"}
-                                    <span className="ml-0.5 text-[10px]">{metric.unit}</span>
-                                </p>
-                                <p
-                                    className={`text-[11px] font-bold ${
-                                        isPositive
-                                            ? "text-emerald-600"
-                                            : isNegative
-                                              ? "text-rose-600"
-                                              : "text-slate-400"
-                                    }`}
-                                >
-                                    {delta === 0
-                                        ? "변화 없음"
-                                        : `${isPositive ? "+" : ""}${delta.toFixed(1)}${metric.unit}`}
-                                </p>
-                            </div>
+                                    <span className="ml-0.5 text-caption font-medium text-ink-2">{metric.unit}</span>
+                                </span>
+                                <span className="ml-2 text-caption text-ink-2">
+                                    {delta === 0 ? "변화 없음" : `기간 중 ${isPositive ? "+" : ""}${delta.toFixed(1)}${metric.unit}`}
+                                </span>
+                            </p>
                         </div>
 
-                        <div className="h-20 w-full">
+                        <div className="h-24 w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={chartData} margin={{ top: 4, right: 6, bottom: 0, left: -22 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                                <LineChart data={chartData} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
+                                    <CartesianGrid vertical={false} stroke={HAIRLINE} />
                                     <XAxis
                                         dataKey="date"
-                                        fontSize={9}
+                                        tick={TICK}
                                         tickLine={false}
-                                        axisLine={false}
+                                        axisLine={{ stroke: HAIRLINE }}
                                         interval="preserveStartEnd"
                                         dy={4}
                                     />
                                     <YAxis
-                                        fontSize={9}
+                                        tick={TICK}
                                         domain={getDomain(values)}
                                         tickLine={false}
                                         axisLine={false}
-                                        width={34}
+                                        width={44}
                                         tickFormatter={(value) => Number(value).toFixed(1)}
                                     />
-                                    {first !== undefined && (
-                                        <ReferenceLine y={first} stroke="#cbd5e1" strokeDasharray="4 4" />
-                                    )}
+                                    {first !== undefined && <ReferenceLine y={first} stroke={RAIL} strokeDasharray="4 4" />}
                                     <Tooltip
-                                        formatter={(value) => [
-                                            `${Number(value).toFixed(1)}${metric.unit}`,
-                                            metric.label,
-                                        ]}
+                                        formatter={(value) => [`${Number(value).toFixed(1)}${metric.unit}`, metric.label]}
                                         labelFormatter={(_, payload) => payload?.[0]?.payload?.rawDate ?? ""}
+                                        cursor={{ stroke: HAIRLINE }}
                                         contentStyle={{
-                                            borderRadius: "12px",
-                                            border: "none",
-                                            boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                                            borderRadius: "6px",
+                                            border: `1px solid ${HAIRLINE}`,
+                                            boxShadow: "none",
                                             fontSize: "12px",
+                                            color: INK,
                                         }}
                                     />
                                     <Line
                                         type="monotone"
                                         dataKey={metric.key}
-                                        stroke={metric.color}
-                                        strokeWidth={2.5}
-                                        dot={{ r: 2.5, strokeWidth: 1.5, fill: "#fff" }}
-                                        activeDot={{ r: 4 }}
+                                        stroke={INK}
+                                        strokeWidth={2}
+                                        dot={{ r: 3, strokeWidth: 2, fill: "#fff", stroke: INK }}
+                                        activeDot={{ r: 5, fill: INK, stroke: "#fff", strokeWidth: 2 }}
                                         isAnimationActive={false}
                                     />
                                 </LineChart>

@@ -3,39 +3,21 @@
 import { startTransition, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Apple, Flame, Plus } from "lucide-react"
+import { Plus, Sparkles } from "lucide-react"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
 import type { DietSummaryResponse, NutritionTarget } from "@/types/project"
+import { Button, Notice, Section, Sheet, Skeleton, Surface } from "@/components/ui"
 
-function kcalBarPct(current: number, goal: number | null | undefined): number {
-    if (!goal) return 0
-    return Math.min((current / goal) * 100, 100)
-}
+const pct = (current: number, limit: number | null | undefined) => (!limit ? 0 : Math.min((current / limit) * 100, 100))
 
-function kcalBarColor(current: number, goal: number | null | undefined): string {
-    if (!goal) return "bg-slate-300"
-    return current > goal ? "bg-red-400" : "bg-emerald-400"
-}
-
-function upperBarColor(current: number, max: number | null | undefined): string {
-    if (max == null) return "bg-slate-300"
-    return current > max ? "bg-red-400" : "bg-emerald-400"
-}
-
-function upperBarPct(current: number, max: number | null | undefined): number {
-    if (!max) return 0
-    return Math.min((current / max) * 100, 100)
-}
-
-function fiberBarColor(current: number, min: number | null | undefined): string {
-    if (min == null) return "bg-slate-300"
-    return current < min ? "bg-amber-400" : "bg-emerald-400"
-}
-
-function fiberBarPct(current: number, min: number | null | undefined): number {
-    if (!min) return 0
-    return Math.min((current / min) * 100, 100)
+/** A thin meter; over its limit (or under a minimum) it turns to the danger colour. */
+function Meter({ value, warn, label }: { value: number; warn: boolean; label: string }) {
+    return (
+        <div className="h-1.5 overflow-hidden rounded-full bg-hairline" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value)}>
+            <div className={`h-full rounded-full ${warn ? "bg-danger" : "bg-ink"}`} style={{ width: `${value}%` }} />
+        </div>
+    )
 }
 
 export default function DietSummaryCard({
@@ -54,7 +36,7 @@ export default function DietSummaryCard({
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
     const [target, setTarget] = useState<NutritionTarget | null>(null)
-    const [showDietOptions, setShowDietOptions] = useState(false)
+    const [optionsOpen, setOptionsOpen] = useState(false)
 
     useEffect(() => {
         startTransition(() => {
@@ -70,281 +52,137 @@ export default function DietSummaryCard({
         nutritionTargetApiClient.getTarget().then((t) => startTransition(() => setTarget(t)))
     }, [refreshKey])
 
-    const handleClick = () => router.push("/nutrition")
-
     const totalKcal = summary?.totalKcal ?? 0
-    const totalCarbsG = summary?.totalCarbsG ?? 0
-    const totalProteinG = summary?.totalProteinG ?? 0
-    const totalFatG = summary?.totalFatG ?? 0
+    const kcalGoal = target?.kcalGoal ?? null
+    const hasItems = !!summary && summary.items.length > 0
+    const sugar = Number(summary?.totalSugarG ?? 0)
+    const fiber = Number(summary?.totalFiberG ?? 0)
+    const sodium = summary?.totalSodiumMg ?? 0
 
-    const hasKcalGoal = !!target?.kcalGoal
-    const barPct = kcalBarPct(totalKcal, target?.kcalGoal)
-    const barColor = kcalBarColor(totalKcal, target?.kcalGoal)
+    const startAiLog = () => (onAiLog ? onAiLog() : router.push("/ai_quicklog"))
 
-    return (
-        <section>
-            <div className="flex justify-between items-center mb-3 px-1">
-                <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-extrabold text-slate-900">오늘의 영양</h2>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100">
-                        <Apple className="h-3.5 w-3.5" />
-                        Diet
+    const recordButtons = (
+        <div className="grid grid-cols-2 gap-2">
+            <Button
+                variant="secondary"
+                icon={<Plus className="size-4" aria-hidden />}
+                onClick={() => {
+                    setOptionsOpen(false)
+                    onManualAdd?.()
+                }}
+            >
+                직접 기록
+            </Button>
+            <Button
+                variant="primary"
+                icon={<Sparkles className="size-4" aria-hidden />}
+                onClick={() => {
+                    setOptionsOpen(false)
+                    startAiLog()
+                }}
+            >
+                말로 기록
+            </Button>
+        </div>
+    )
+
+    const goalHint = !kcalGoal && (
+        <p className="text-caption text-ink-2">
+            목표 칼로리를 정하면 목표 대비 섭취량을 볼 수 있어요.{" "}
+            <Link href="/my?tab=nutrition" className="font-bold text-ink underline underline-offset-2">
+                목표 정하기
+            </Link>
+        </p>
+    )
+
+    const renderBody = () => {
+        if (loading) {
+            return (
+                <Surface className="flex flex-col gap-3" aria-busy="true">
+                    <Skeleton className="h-7 w-32" />
+                    <Skeleton className="h-1.5 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                </Surface>
+            )
+        }
+        if (error) return <Notice tone="danger">오늘 식단을 불러오지 못했어요.</Notice>
+        if (!hasItems) {
+            return (
+                <Surface className="flex flex-col gap-3">
+                    <div>
+                        <p className="text-body font-bold text-ink">오늘 식단 기록이 없어요</p>
+                        <p className="mt-0.5 text-body-sm text-ink-2">‘점심에 제육볶음 한 그릇’처럼 말로 적어도 돼요.</p>
+                    </div>
+                    {onManualAdd ? recordButtons : <Button variant="secondary" onClick={() => router.push("/nutrition")}>식단 보기</Button>}
+                    {goalHint}
+                </Surface>
+            )
+        }
+        return (
+            <Surface className="flex flex-col gap-4">
+                <button type="button" onClick={() => router.push("/nutrition")} className="flex flex-col gap-2 text-left">
+                    <span className="flex items-baseline gap-1.5">
+                        <span className="text-headline font-bold tabular-nums text-ink">{totalKcal.toLocaleString()}</span>
+                        <span className="text-body-sm text-ink-2 tabular-nums">{kcalGoal ? `/ ${kcalGoal.toLocaleString()} kcal` : "kcal"}</span>
                     </span>
-                </div>
-                {!loading && summary && summary.items.length > 0 && (
-                    <button
-                        type="button"
-                        onClick={() => setShowDietOptions(true)}
-                        className="inline-flex min-h-9 items-center gap-1 rounded-2xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-[0_8px_18px_rgba(5,150,105,0.20)] transition-colors hover:bg-emerald-700"
-                    >
-                        <Plus className="h-3.5 w-3.5" />
-                        식단 기록
-                    </button>
-                )}
-            </div>
+                    {kcalGoal && <Meter label="목표 대비 칼로리" value={pct(totalKcal, kcalGoal)} warn={totalKcal > kcalGoal} />}
+                    <span className="grid grid-cols-3 gap-2 pt-1">
+                        {[
+                            ["탄수화물", summary!.totalCarbsG ?? 0],
+                            ["단백질", summary!.totalProteinG ?? 0],
+                            ["지방", summary!.totalFatG ?? 0],
+                        ].map(([label, value]) => (
+                            <span key={label} className="flex flex-col">
+                                <span className="text-caption text-ink-2">{label}</span>
+                                <span className="text-title-sm font-bold tabular-nums text-ink">
+                                    {value}
+                                    <span className="ml-0.5 text-caption font-normal text-ink-2">g</span>
+                                </span>
+                            </span>
+                        ))}
+                    </span>
+                </button>
 
-            {loading && (
-                <div className="rounded-[28px] border border-emerald-100/80 bg-white p-5 shadow-[0_14px_36px_rgba(5,150,105,0.08)]">
-                    <div className="w-full h-3 bg-slate-100 rounded-full mb-6 animate-pulse" />
-                    <div className="grid grid-cols-3 gap-4">
-                        {[0, 1, 2].map((i) => (
-                            <div key={i} className="flex flex-col items-center gap-1">
-                                <div className="h-3 w-12 animate-pulse rounded bg-slate-200" />
-                                <div className="h-5 w-10 animate-pulse rounded bg-slate-100" />
+                {showDetails && (
+                    <div className="grid grid-cols-3 gap-3 border-t border-hairline pt-3">
+                        {[
+                            { label: "당류", value: sugar, unit: "g", limit: target?.sugarMax, hint: target?.sugarMax != null ? `~${target.sugarMax}g` : null, warn: target?.sugarMax != null && sugar > target.sugarMax, pctValue: pct(sugar, target?.sugarMax) },
+                            { label: "식이섬유", value: fiber, unit: "g", limit: target?.fiberMin, hint: target?.fiberMin != null ? `${target.fiberMin}g~` : null, warn: target?.fiberMin != null && fiber < target.fiberMin, pctValue: pct(fiber, target?.fiberMin) },
+                            { label: "나트륨", value: sodium, unit: "mg", limit: target?.sodiumMax, hint: target?.sodiumMax != null ? `~${target.sodiumMax}mg` : null, warn: target?.sodiumMax != null && sodium > target.sodiumMax, pctValue: pct(sodium, target?.sodiumMax) },
+                        ].map((item) => (
+                            <div key={item.label} className="flex flex-col gap-1">
+                                <span className="text-caption text-ink-2">{item.label}</span>
+                                <span className="text-body font-bold tabular-nums text-ink">
+                                    {item.value}
+                                    <span className="ml-0.5 text-caption font-normal text-ink-2">{item.unit}</span>
+                                </span>
+                                {item.limit != null && <Meter label={`${item.label} 기준 대비`} value={item.pctValue} warn={item.warn} />}
+                                {item.hint && <span className="text-caption text-ink-2 tabular-nums">{item.hint}</span>}
                             </div>
                         ))}
+                        <p className="col-span-3 text-caption text-ink-2">당류·식이섬유·나트륨은 식품 DB와 맞춘 항목만 합산해요.</p>
                     </div>
-                </div>
-            )}
+                )}
+                {goalHint}
+            </Surface>
+        )
+    }
 
-            {error && (
-                <div className="rounded-[28px] border border-emerald-100/80 bg-white p-5 py-6 text-center shadow-[0_14px_36px_rgba(5,150,105,0.08)]">
-                    <p className="text-sm text-slate-400">데이터를 불러오지 못했습니다.</p>
-                </div>
-            )}
-
-            {!loading &&
-                !error &&
-                (!summary || summary.items.length === 0) &&
-                (onManualAdd ? (
-                    <div className="overflow-hidden rounded-[28px] border border-emerald-100/80 bg-white shadow-[0_14px_36px_rgba(5,150,105,0.08)]">
-                        <div className="h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-lime-300" />
-                        <div className="bg-gradient-to-br from-emerald-50/80 via-white to-white p-5">
-                            <p className="text-sm font-bold text-slate-800">오늘 식단 기록이 없어요.</p>
-                            <p className="mt-1 text-sm text-slate-500">식단을 기록해 영양 목표를 확인해 보세요.</p>
-                            <div className="mt-4 grid grid-cols-2 gap-2.5">
-                                <button
-                                    type="button"
-                                    onClick={onManualAdd}
-                                    className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-2xl border border-emerald-100 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-emerald-50"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    직접 식단 기록
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={onAiLog}
-                                    className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white shadow-[0_10px_22px_rgba(5,150,105,0.22)] transition-colors hover:bg-emerald-700"
-                                >
-                                    <Apple className="h-4 w-4" />
-                                    AI로 식단 기록
-                                </button>
-                            </div>
-                            {!hasKcalGoal && (
-                                <div className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
-                                    <span>목표 칼로리를 설정하면 식단 기록을 더 의미 있게 추적할 수 있어요. </span>
-                                    <Link
-                                        href="/my?tab=nutrition"
-                                        className="font-medium text-emerald-600 hover:text-emerald-700"
-                                    >
-                                        영양 목표 설정 →
-                                    </Link>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <button
-                        type="button"
-                        className="w-full cursor-pointer rounded-[28px] border border-emerald-100/80 bg-white p-5 py-6 text-center shadow-[0_14px_36px_rgba(5,150,105,0.08)] transition-all hover:shadow-[0_18px_42px_rgba(5,150,105,0.12)]"
-                        onClick={handleClick}
-                    >
-                        <p className="text-sm text-slate-400">오늘 기록 없어요</p>
-                    </button>
-                ))}
-
-            {!loading && !error && summary && summary.items.length > 0 && (
-                <button
-                    type="button"
-                    className="w-full cursor-pointer overflow-hidden rounded-[28px] border border-emerald-100/80 bg-white text-left shadow-[0_14px_36px_rgba(5,150,105,0.08)] transition-all hover:shadow-[0_18px_42px_rgba(5,150,105,0.12)]"
-                    onClick={handleClick}
-                >
-                    <div className="h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-lime-300" />
-                    <div className="bg-gradient-to-br from-emerald-50/80 via-white to-white p-5">
-                        <div className="mb-5 rounded-3xl border border-emerald-100 bg-white/80 p-4">
-                            <div className="mb-2 flex items-end justify-between gap-3">
-                                <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-emerald-700">
-                                    <Flame className="h-4 w-4 text-orange-400" />
-                                    오늘 kcal
-                                </span>
-                                <span className="flex shrink-0 items-baseline">
-                                    <span className="text-[24px] font-extrabold text-slate-950">
-                                        {totalKcal.toLocaleString()}
-                                    </span>
-                                    {hasKcalGoal && (
-                                        <span className="text-[15px] font-bold text-slate-400">
-                                            /{target!.kcalGoal!.toLocaleString()}
-                                        </span>
-                                    )}
-                                    <span className="ml-0.5 text-[13px] font-bold text-slate-400">kcal</span>
-                                </span>
-                            </div>
-                            <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-                                <div
-                                    className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                                    style={{ width: hasKcalGoal ? `${barPct}%` : "0%" }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* 탄/단/지 요약 */}
-                        <div className="grid grid-cols-3 gap-2">
-                            <div className="flex flex-col items-center">
-                                <span className="text-xs font-bold text-slate-400 mb-0.5">탄수화물</span>
-                                <span className="text-[21px] font-extrabold text-slate-700">
-                                    {totalCarbsG}
-                                    <span className="text-[13px] text-slate-400 ml-0.5">g</span>
-                                </span>
-                            </div>
-                            <div className="flex flex-col items-center border-l border-r border-slate-100">
-                                <span className="text-xs font-bold text-emerald-500 mb-0.5">단백질</span>
-                                <span className="text-[21px] font-extrabold text-slate-700">
-                                    {totalProteinG}
-                                    <span className="text-[13px] text-slate-400 ml-0.5">g</span>
-                                </span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                                <span className="text-xs font-bold text-slate-400 mb-0.5">지방</span>
-                                <span className="text-[21px] font-extrabold text-slate-700">
-                                    {totalFatG}
-                                    <span className="text-[13px] text-slate-400 ml-0.5">g</span>
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* 추가 영양소 소섹션 */}
-                        {showDetails && (
-                            <div className="mt-4 border-t border-slate-100 pt-3">
-                                <div className="flex justify-around">
-                                    <div className="flex flex-col items-center w-1/3 px-2">
-                                        <span className="text-[10px] text-slate-400">당류</span>
-                                        <span className="text-[15px] font-semibold text-slate-700">
-                                            {Number(summary?.totalSugarG ?? 0)}
-                                            <span className="text-[13px] font-normal text-slate-400 ml-0.5">g</span>
-                                        </span>
-                                        {target?.sugarMax != null && (
-                                            <span className="text-[10px] text-slate-400">~{target.sugarMax}g</span>
-                                        )}
-                                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                                            <div
-                                                className={`h-full rounded-full transition-all duration-500 ${upperBarColor(Number(summary?.totalSugarG ?? 0), target?.sugarMax)}`}
-                                                style={{
-                                                    width: `${upperBarPct(Number(summary?.totalSugarG ?? 0), target?.sugarMax)}%`,
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col items-center w-1/3 px-2">
-                                        <span className="text-[10px] text-slate-400">식이섬유</span>
-                                        <span className="text-[15px] font-semibold text-slate-700">
-                                            {Number(summary?.totalFiberG ?? 0)}
-                                            <span className="text-[13px] font-normal text-slate-400 ml-0.5">g</span>
-                                        </span>
-                                        {target?.fiberMin != null && (
-                                            <span className="text-[10px] text-slate-400">{target.fiberMin}g~</span>
-                                        )}
-                                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                                            <div
-                                                className={`h-full rounded-full transition-all duration-500 ${fiberBarColor(Number(summary?.totalFiberG ?? 0), target?.fiberMin)}`}
-                                                style={{
-                                                    width: `${fiberBarPct(Number(summary?.totalFiberG ?? 0), target?.fiberMin)}%`,
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col items-center w-1/3 px-2">
-                                        <span className="text-[10px] text-slate-400">나트륨</span>
-                                        <span className="text-[15px] font-semibold text-slate-700">
-                                            {summary?.totalSodiumMg ?? 0}
-                                            <span className="text-[13px] font-normal text-slate-400 ml-0.5">mg</span>
-                                        </span>
-                                        {target?.sodiumMax != null && (
-                                            <span className="text-[10px] text-slate-400">~{target.sodiumMax}mg</span>
-                                        )}
-                                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                                            <div
-                                                className={`h-full rounded-full transition-all duration-500 ${upperBarColor(summary?.totalSodiumMg ?? 0, target?.sodiumMax)}`}
-                                                style={{
-                                                    width: `${upperBarPct(summary?.totalSodiumMg ?? 0, target?.sodiumMax)}%`,
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                                <p className="mt-2 text-[10px] text-slate-300 text-center">
-                                    당류·식이섬유·나트륨은 DB 매칭 항목만 집계
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </button>
-            )}
-            {!hasKcalGoal && !loading && !error && summary && summary.items.length > 0 && (
-                <div className="mt-2 px-1 text-xs text-slate-500">
-                    <span>목표 칼로리를 설정하면 섭취량을 목표와 비교할 수 있어요. </span>
-                    <Link href="/my?tab=nutrition" className="font-medium text-amber-700 hover:text-amber-800">
-                        목표 칼로리 설정하기 →
-                    </Link>
-                </div>
-            )}
-            {showDietOptions && (
-                <div
-                    className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
-                    onClick={() => setShowDietOptions(false)}
-                >
-                    <div
-                        className="w-full max-w-[480px] rounded-t-3xl bg-white p-6 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <p className="mb-4 text-center text-base font-bold text-slate-800">식단 기록 방법 선택</p>
-                        <div className="grid grid-cols-2 gap-3">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowDietOptions(false)
-                                    onManualAdd?.()
-                                }}
-                                className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
-                            >
-                                <Plus className="h-4 w-4" />
-                                직접 식단 기록
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowDietOptions(false)
-                                    if (onAiLog) onAiLog()
-                                    else router.push("/ai_quicklog")
-                                }}
-                                className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700"
-                            >
-                                <Apple className="h-4 w-4" />
-                                AI로 식단 기록
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </section>
+    return (
+        <Section
+            title="오늘의 영양"
+            action={
+                !loading && hasItems ? (
+                    <Button variant="ghost" icon={<Plus className="size-4" aria-hidden />} onClick={() => setOptionsOpen(true)}>
+                        기록
+                    </Button>
+                ) : undefined
+            }
+        >
+            {renderBody()}
+            <Sheet open={optionsOpen} onClose={() => setOptionsOpen(false)} title="식단 기록" description="먹은 음식을 직접 고르거나 말로 적을 수 있어요.">
+                {recordButtons}
+            </Sheet>
+        </Section>
     )
 }

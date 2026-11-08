@@ -1,5 +1,5 @@
-import React from "react"
-import Model, { IExerciseData, Muscle } from "react-body-highlighter"
+import Model, { MuscleType, type IExerciseData, type Muscle } from "react-body-highlighter"
+import { lineForRoutine, ROUTE_LINE_COLOR_VAR, type RouteLine } from "@/utils/routeLine"
 
 interface AnatomyModelProps {
     data: Record<string, number>
@@ -8,188 +8,106 @@ interface AnatomyModelProps {
     lockedMuscles?: readonly string[]
 }
 
-const COLORS = {
-    level1: "#FFD600",
-    level2: "#FF6600",
-    locked: "#ef4444",
+/*
+ * One palette, used for both the fill and the legend. react-body-highlighter colors each muscle with
+ * highlightedColors[frequency - 1], so every muscle goes into exactly one entry whose frequency is the
+ * index of its color. No overlay layers or blend modes: what the legend shows is what gets painted.
+ */
+const BODY_COLOR = "var(--color-rail)"
+
+/** Condition check: soreness steps are ink tones; a locked pain area is the single danger color. */
+const DOMS_PALETTE = {
+    normal: BODY_COLOR,
+    stiff: "var(--color-ink-2)",
+    sore: "var(--color-ink)",
+    locked: "var(--color-danger)",
+} as const
+
+/** Generator: each selected muscle takes its split line color; muscles outside the four lines use ink. */
+const TARGET_LINES: readonly RouteLine[] = ["push", "pull", "legs", "core", "mixed"]
+const TARGET_COLORS = TARGET_LINES.map((line) => ROUTE_LINE_COLOR_VAR[line])
+
+/** The library throws on slugs it does not draw (e.g. side-deltoids), so only drawable muscles are painted. */
+const DRAWABLE = new Set<string>(Object.values(MuscleType))
+
+function entry(name: string, muscles: string[], frequency: number): IExerciseData[] {
+    const drawable = muscles.filter((muscle) => DRAWABLE.has(muscle)) as Muscle[]
+    return drawable.length > 0 ? [{ name, muscles: drawable, frequency }] : []
+}
+
+function buildPaint(mode: AnatomyModelProps["mode"], data: Record<string, number>, lockedMuscles: readonly string[]) {
+    const locked = new Set(lockedMuscles)
+    const active = Object.keys(data).filter((key) => data[key] > 0 && !locked.has(key))
+
+    if (mode === "doms") {
+        return {
+            colors: [DOMS_PALETTE.stiff, DOMS_PALETTE.sore, DOMS_PALETTE.locked],
+            exercises: [
+                ...entry("stiff", active.filter((key) => data[key] === 1), 1),
+                ...entry("sore", active.filter((key) => data[key] >= 2), 2),
+                ...entry("locked", [...locked], 3),
+            ],
+        }
+    }
+
+    if (mode === "injury") {
+        return {
+            colors: [DOMS_PALETTE.locked],
+            exercises: entry("injury", [...active, ...locked], 1),
+        }
+    }
+
+    return {
+        colors: [...TARGET_COLORS, DOMS_PALETTE.locked],
+        exercises: [
+            ...TARGET_LINES.flatMap((line, index) =>
+                entry(line, active.filter((key) => lineForRoutine(null, [key]) === line), index + 1),
+            ),
+            ...entry("locked", [...locked], TARGET_LINES.length + 1),
+        ],
+    }
+}
+
+function LegendItem({ color, label }: { color: string; label: string }) {
+    return (
+        <li className="flex items-center gap-1.5">
+            <span aria-hidden className="size-3 rounded-full" style={{ background: color }} />
+            <span className="text-caption text-ink-2">{label}</span>
+        </li>
+    )
 }
 
 export default function AnatomyModel({ data, onMuscleClick, mode, lockedMuscles = [] }: AnatomyModelProps) {
-    const muscles2 = Object.keys(data).filter((k) => data[k] === 2) as Muscle[]
-    const muscles1 = Object.keys(data).filter((k) => data[k] === 1) as Muscle[]
-    const targetMuscles = Object.keys(data).filter((k) => data[k] > 0) as Muscle[]
-    const lockedMuscleList = [...lockedMuscles] as Muscle[]
+    const { colors, exercises } = buildPaint(mode, data, lockedMuscles)
 
-    // 🌟 타겟 모드 (루틴 생성기)
-    if (mode === "target" || mode === "injury") {
-        const targetData: IExerciseData[] = [{ name: "Target", muscles: targetMuscles }]
-        return (
-            <div className="flex flex-col items-center w-full select-none">
-                {/* 간격을 gap-4로 줄이고, 항상 가로(flex-row)로 배치되게 고정 */}
-                <div className="flex flex-row items-center justify-center gap-4 md:gap-8 w-full">
-                    {/* 모형 컨테이너 (w-36~w-44로 반응형 제어) */}
-                    <div className="flex flex-col items-center w-36 md:w-44">
-                        <span className="text-[10px] font-bold text-slate-400 mb-3 tracking-widest">FRONT</span>
-                        <div className="w-full relative">
-                            <Model
-                                type="anterior"
-                                data={targetData}
-                                style={{ width: "100%" }}
-                                onClick={(e) => onMuscleClick(e.muscle)}
-                                highlightedColors={[mode === "injury" ? "#FF0000" : "#3b82f6"]}
-                            />
-                        </div>
-                    </div>
-                    <div className="flex flex-col items-center w-36 md:w-44">
-                        <span className="text-[10px] font-bold text-slate-400 mb-3 tracking-widest">BACK</span>
-                        <div className="w-full relative">
-                            <Model
-                                type="posterior"
-                                data={targetData}
-                                style={{ width: "100%" }}
-                                onClick={(e) => onMuscleClick(e.muscle)}
-                                highlightedColors={[mode === "injury" ? "#FF0000" : "#3b82f6"]}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
-    // 🌟 DOMS 모드 (컨디션 체크)
     return (
-        <div className="flex flex-col items-center w-full select-none">
-            <div className="flex flex-row items-center justify-center gap-4 md:gap-8 w-full">
-                {/* 전면 */}
-                <div className="flex flex-col items-center w-36 md:w-44">
-                    <span className="text-[10px] font-bold text-slate-400 mb-3 tracking-widest text-center w-full block">
-                        FRONT
-                    </span>
-                    {/* SVG 겹치기 래퍼: 이제 높이를 지정하지 않아도 Layer 1이 공간을 잡아줍니다. */}
-                    <div className="w-full relative">
-                        <div className="w-full relative z-0 opacity-100">
-                            <Model
-                                type="anterior"
-                                data={[]}
-                                style={{ width: "100%" }}
-                                onClick={(e) => onMuscleClick(e.muscle)}
-                            />
-                        </div>
-                        {muscles1.length > 0 && (
-                            <div className="absolute top-0 left-0 w-full h-full z-10 pointer-events-none mix-blend-multiply">
-                                <Model
-                                    type="anterior"
-                                    data={[{ name: "1", muscles: muscles1 }]}
-                                    style={{ width: "100%" }}
-                                    highlightedColors={[COLORS.level1]}
-                                    bodyColor="transparent"
-                                />
-                            </div>
-                        )}
-                        {muscles2.length > 0 && (
-                            <div className="absolute top-0 left-0 w-full h-full z-20 pointer-events-none mix-blend-multiply">
-                                <Model
-                                    type="anterior"
-                                    data={[{ name: "2", muscles: muscles2 }]}
-                                    style={{ width: "100%" }}
-                                    highlightedColors={[COLORS.level2]}
-                                    bodyColor="transparent"
-                                />
-                            </div>
-                        )}
-                        {lockedMuscleList.length > 0 && (
-                            <div
-                                className="absolute top-0 left-0 w-full h-full z-30 pointer-events-none mix-blend-multiply"
-                                aria-disabled="true"
-                            >
-                                <Model
-                                    type="anterior"
-                                    data={[{ name: "Locked", muscles: lockedMuscleList }]}
-                                    style={{ width: "100%" }}
-                                    highlightedColors={[COLORS.locked]}
-                                    bodyColor="transparent"
-                                />
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* 후면 */}
-                <div className="flex flex-col items-center w-36 md:w-44">
-                    <span className="text-[10px] font-bold text-slate-400 mb-3 tracking-widest text-center w-full block">
-                        BACK
-                    </span>
-                    <div className="w-full relative">
-                        <div className="w-full relative z-0 opacity-100">
-                            <Model
-                                type="posterior"
-                                data={[]}
-                                style={{ width: "100%" }}
-                                onClick={(e) => onMuscleClick(e.muscle)}
-                            />
-                        </div>
-                        {muscles1.length > 0 && (
-                            <div className="absolute top-0 left-0 w-full h-full z-10 pointer-events-none mix-blend-multiply">
-                                <Model
-                                    type="posterior"
-                                    data={[{ name: "1", muscles: muscles1 }]}
-                                    style={{ width: "100%" }}
-                                    highlightedColors={[COLORS.level1]}
-                                    bodyColor="transparent"
-                                />
-                            </div>
-                        )}
-                        {muscles2.length > 0 && (
-                            <div className="absolute top-0 left-0 w-full h-full z-20 pointer-events-none mix-blend-multiply">
-                                <Model
-                                    type="posterior"
-                                    data={[{ name: "2", muscles: muscles2 }]}
-                                    style={{ width: "100%" }}
-                                    highlightedColors={[COLORS.level2]}
-                                    bodyColor="transparent"
-                                />
-                            </div>
-                        )}
-                        {lockedMuscleList.length > 0 && (
-                            <div
-                                className="absolute top-0 left-0 w-full h-full z-30 pointer-events-none mix-blend-multiply"
-                                aria-disabled="true"
-                            >
-                                <Model
-                                    type="posterior"
-                                    data={[{ name: "Locked", muscles: lockedMuscleList }]}
-                                    style={{ width: "100%" }}
-                                    highlightedColors={[COLORS.locked]}
-                                    bodyColor="transparent"
-                                />
-                            </div>
-                        )}
-                    </div>
-                </div>
+        <div className="flex w-full select-none flex-col items-center">
+            <div className="flex w-full flex-row items-start justify-center gap-4">
+                {(["anterior", "posterior"] as const).map((type) => (
+                    <figure key={type} className="flex w-36 flex-col items-center gap-2">
+                        <figcaption className="text-caption font-medium text-ink-2">
+                            {type === "anterior" ? "앞" : "뒤"}
+                        </figcaption>
+                        <Model
+                            type={type}
+                            data={exercises}
+                            bodyColor={BODY_COLOR}
+                            highlightedColors={colors}
+                            style={{ width: "100%" }}
+                            onClick={(event) => onMuscleClick(event.muscle)}
+                        />
+                    </figure>
+                ))}
             </div>
 
-            {/* 범례 UI */}
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3 md:gap-5 bg-white px-5 py-3.5 rounded-2xl shadow-sm border border-slate-100 w-fit mx-auto">
-                <div className="flex items-center gap-2">
-                    <span className="w-3.5 h-3.5 rounded-full bg-[#e2e8f0] shadow-inner"></span>
-                    <span className="text-xs font-bold text-slate-600">정상</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span
-                        className="w-3.5 h-3.5 rounded-full shadow-inner"
-                        style={{ backgroundColor: COLORS.level1 }}
-                    ></span>
-                    <span className="text-xs font-bold text-slate-600">뻐근함</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span
-                        className="w-3.5 h-3.5 rounded-full shadow-inner"
-                        style={{ backgroundColor: COLORS.level2 }}
-                    ></span>
-                    <span className="text-xs font-bold text-slate-600">근육통</span>
-                </div>
-            </div>
+            {mode === "doms" && (
+                <ul aria-label="색 범례" className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+                    <LegendItem color={DOMS_PALETTE.normal} label="정상" />
+                    <LegendItem color={DOMS_PALETTE.stiff} label="뻐근함" />
+                    <LegendItem color={DOMS_PALETTE.sore} label="근육통" />
+                    {lockedMuscles.length > 0 && <LegendItem color={DOMS_PALETTE.locked} label="통증(프로필)" />}
+                </ul>
+            )}
         </div>
     )
 }

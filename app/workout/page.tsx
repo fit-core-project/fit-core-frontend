@@ -2,16 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, ListChecks, PenLine, Plus, Target } from "lucide-react"
-import { toast } from "sonner"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import workoutApiClient from "@/lib/api/workout/workoutApiClient"
-import routineApiClient from "@/lib/api/routine/routineApiClient"
-import { clearProgramContext } from "@/utils/programContext"
+import TodayWorkoutCard from "@/app/components/TodayWorkoutCard"
 import type { AttendanceWeekResponse, WorkoutSessionResponse } from "@/types/project"
 import WorkoutList from "@/app/my/workout/WorkoutList"
 import Routine from "@/app/my/routine/Routine"
 import WorkoutDetailModal from "@/app/my/workout/WorkoutDetailModal"
+import { splitTitle } from "@/utils/displayLabels"
+import { lineForRoutine, ROUTE_LINE_COLOR_VAR, type RouteLine } from "@/utils/routeLine"
+import { LineBadge, Section, cx } from "@/components/ui"
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"]
 
@@ -37,14 +37,14 @@ function getWorkoutTitle(workout: WorkoutSessionResponse): string {
         workout.routineName?.trim() ||
         workout.title?.trim() ||
         workout.summaryTitle?.trim() ||
-        workout.splitLabel?.trim() ||
-        workout.targetSplitLabel?.trim() ||
+        splitTitle(workout.splitLabel) ||
+        splitTitle(workout.targetSplitLabel) ||
         "운동 세션"
     )
 }
 
-function getWorkoutVolume(workout: WorkoutSessionResponse): number {
-    return (workout.sets ?? []).reduce((total, set) => total + Math.max(0, set.weightKg ?? 0) * Math.max(0, set.reps ?? 0), 0)
+function lineForWorkout(workout: WorkoutSessionResponse): RouteLine {
+    return lineForRoutine(workout.targetSplitLabel ?? workout.splitLabel)
 }
 
 function getWeekRange(today: string): { start: string; end: string } {
@@ -67,6 +67,11 @@ function formatMD(dateStr: string): string {
     return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
+function formatLongDate(dateStr: string): string {
+    const date = parseYmd(dateStr)
+    return `${date.getMonth() + 1}월 ${date.getDate()}일 ${DAY_LABELS[date.getDay()]}요일`
+}
+
 function buildMonthCells(year: number, month: number): Array<number | null> {
     const firstDayOfWeek = new Date(year, month - 1, 1).getDay()
     const daysInMonth = new Date(year, month, 0).getDate()
@@ -78,29 +83,35 @@ function buildMonthCells(year: number, month: number): Array<number | null> {
     return cells
 }
 
-function ProgressBar({ percent, color = "bg-blue-500" }: { percent: number; color?: string }) {
+function ProgressBar({ percent, label }: { percent: number; label: string }) {
+    const value = Math.round(Math.min(percent, 100))
     return (
         <div className="flex items-center gap-3">
-            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(percent, 100)}%` }} />
+            <div
+                role="progressbar"
+                aria-label={label}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={value}
+                className="h-2 flex-1 overflow-hidden bg-hairline"
+            >
+                <div className="h-full bg-ink" style={{ width: `${value}%` }} />
             </div>
-            <span className="w-10 text-right text-xs font-black text-slate-600">{Math.round(percent)}%</span>
+            <span className="w-10 text-right text-body-sm font-bold text-ink tabular-nums">{value}%</span>
         </div>
     )
 }
 
 export default function WorkoutPage() {
-    const router = useRouter()
     const today = getKstToday()
     const todayDate = parseYmd(today)
     const weekRange = getWeekRange(today)
 
-    const recentWorkoutRef = useRef<HTMLDivElement | null>(null)
+    const recentWorkoutRef = useRef<HTMLElement | null>(null)
 
     const [workouts, setWorkouts] = useState<WorkoutSessionResponse[]>([])
     const [attendance, setAttendance] = useState<AttendanceWeekResponse[]>([])
     const [loading, setLoading] = useState(true)
-    const [isCreatingManualRoutine, setIsCreatingManualRoutine] = useState(false)
     const [monthCursor, setMonthCursor] = useState({ year: todayDate.getFullYear(), month: todayDate.getMonth() + 1 })
     const [selectedDate, setSelectedDate] = useState<string | null>(today)
     const [selectedWorkoutDetail, setSelectedWorkoutDetail] = useState<WorkoutSessionResponse | null>(null)
@@ -129,10 +140,6 @@ export default function WorkoutPage() {
         return map
     }, [workouts])
 
-    const todayWorkouts = workoutsByDate.get(today) ?? []
-    const todayDuration = todayWorkouts.reduce((total, workout) => total + (workout.durationMin ?? 0), 0)
-    const todayVolume = todayWorkouts.reduce((total, workout) => total + getWorkoutVolume(workout), 0)
-    const representativeWorkout = todayWorkouts[0]
 
     const currentAttendance = attendance.find((row) => inRange(today, row.weekStart, row.weekEnd))
     const weeklyActual =
@@ -144,20 +151,6 @@ export default function WorkoutPage() {
     const cells = buildMonthCells(monthCursor.year, monthCursor.month)
     const selectedWorkouts = selectedDate ? workoutsByDate.get(selectedDate) ?? [] : []
 
-    const handleCreateManualRoutine = async () => {
-        if (isCreatingManualRoutine) return
-        setIsCreatingManualRoutine(true)
-        clearProgramContext()
-        try {
-            const draft = await routineApiClient.createManualDraft("새 루틴")
-            localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))
-            router.push("/routine/draft?mode=manual")
-        } catch {
-            toast.error("루틴 생성에 실패했습니다.")
-        } finally {
-            setIsCreatingManualRoutine(false)
-        }
-    }
 
     const moveMonth = (delta: number) => {
         setMonthCursor((current) => {
@@ -168,258 +161,188 @@ export default function WorkoutPage() {
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-[480px] flex-col gap-5 p-4 pb-10">
-            <header className="px-1">
-                <p className="text-xs font-black uppercase tracking-wide text-blue-500">Workout</p>
-                <h1 className="text-2xl font-extrabold text-slate-900">운동</h1>
-            </header>
+        <div className="mx-auto flex w-full max-w-[480px] flex-col gap-7 bg-ground px-4 pb-24 pt-5">
+            <h1 className="text-title font-bold text-ink">운동</h1>
+
+            <TodayWorkoutCard />
+
+            {!loading && (
+                <div className="-mt-3 flex flex-col gap-2" aria-label={`주간 목표 ${formatMD(weekRange.start)} - ${formatMD(weekRange.end)}`}>
+                    {weeklyTarget ? (
+                        <>
+                            <p className="text-body-sm text-ink tabular-nums">
+                                주간 목표 <span className="font-bold">{weeklyTarget}회</span> 중 <span className="font-bold">{weeklyActual}회</span> 운행했어요
+                            </p>
+                            <ProgressBar percent={weeklyPercent ?? 0} label="이번 주 운동 목표 달성률" />
+                        </>
+                    ) : (
+                        <p className="text-body-sm text-ink-2">
+                            주당 횟수를 정하면 이번 주 진행률을 볼 수 있어요.{" "}
+                            <Link href="/my?tab=workout" className="font-bold text-ink underline underline-offset-2">
+                                주간 목표 정하기
+                            </Link>
+                        </p>
+                    )}
+                </div>
+            )}
 
             <Link
                 href="/workout/programs"
-                className="flex items-center gap-3 rounded-3xl border border-blue-100 bg-white p-4 shadow-sm transition-colors hover:bg-blue-50"
+                className="flex min-h-16 items-center gap-3 rounded-panel border border-hairline bg-ground px-4 py-3 hover:bg-surface"
             >
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-                    <ListChecks className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-extrabold text-slate-900">운동 프로그램</span>
-                    <span className="mt-0.5 block text-xs font-semibold text-slate-500">
-                        저장한 루틴을 순서대로 묶어 진행해요.
-                    </span>
-                </span>
-                <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" />
-            </Link>
-
-            <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center gap-2">
-                    <Dumbbell className="h-5 w-5 text-blue-500" />
-                    <h2 className="text-base font-extrabold text-slate-800">오늘 운동</h2>
-                </div>
-
-                {loading ? (
-                    <div className="space-y-3">
-                        <div className="h-5 w-40 animate-pulse rounded bg-slate-200" />
-                        <div className="h-3 w-full animate-pulse rounded bg-slate-100" />
-                        <div className="h-11 w-full animate-pulse rounded-2xl bg-slate-100" />
-                    </div>
-                ) : todayWorkouts.length > 0 ? (
-                    <div>
-                        <p className="text-sm font-bold text-blue-600">오늘 운동 완료</p>
-                        <h3 className="mt-1 text-xl font-extrabold text-slate-900">
-                            {getWorkoutTitle(representativeWorkout)}
-                        </h3>
-                        <div className="mt-3 grid grid-cols-2 gap-3">
-                            <div className="rounded-2xl bg-slate-50 p-3">
-                                <p className="text-[11px] font-bold text-slate-400">운동 시간</p>
-                                <p className="mt-1 text-lg font-black text-slate-800">{todayDuration || "-"}분</p>
-                            </div>
-                            <div className="rounded-2xl bg-slate-50 p-3">
-                                <p className="text-[11px] font-bold text-slate-400">총 볼륨</p>
-                                <p className="mt-1 text-lg font-black text-slate-800">
-                                    {Math.round(todayVolume).toLocaleString()}kg
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setSelectedDate(today)
-                                recentWorkoutRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-                            }}
-                            className="mt-4 min-h-11 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-100"
-                        >
-                            기록 보기
-                        </button>
-                    </div>
-                ) : (
-                    <div>
-                        <p className="text-sm font-bold text-slate-800">아직 오늘 완료한 운동이 없습니다.</p>
-                        <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                            새 루틴을 만들거나 저장된 루틴으로 바로 시작해 보세요.
-                        </p>
-                    </div>
-                )}
-
-                {!loading && (
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                        <button
-                            type="button"
-                            onClick={handleCreateManualRoutine}
-                            disabled={isCreatingManualRoutine}
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-                        >
-                            <PenLine className="h-4 w-4" />
-                            {isCreatingManualRoutine ? "만드는 중..." : "직접 루틴 만들기"}
-                        </button>
-                        <Link
-                            href="/ai_routine"
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl bg-blue-600 px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-700"
-                        >
-                            <Plus className="h-4 w-4" />
-                            AI 운동 루틴 만들기
-                        </Link>
-                    </div>
-                )}
-            </section>
-
-            <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center gap-2">
-                    <Target className="h-5 w-5 text-emerald-500" />
-                    <h2 className="text-base font-extrabold text-slate-800">주간 운동 목표</h2>
-                </div>
-
-                {loading ? (
-                    <div className="space-y-3">
-                        <div className="h-4 w-48 animate-pulse rounded bg-slate-200" />
-                        <div className="h-2.5 w-full animate-pulse rounded-full bg-slate-100" />
-                    </div>
-                ) : weeklyTarget ? (
-                    <div>
-                        <div className="mb-3 flex items-baseline justify-between">
-                            <p className="text-sm font-semibold text-slate-600">
-                                이번 주 {weeklyTarget}회 목표 중 {weeklyActual}회 완료
-                            </p>
-                            <p className="text-xs font-semibold text-slate-400">
-                                {formatMD(weekRange.start)} - {formatMD(weekRange.end)}
-                            </p>
-                        </div>
-                        <ProgressBar percent={weeklyPercent ?? 0} color={weeklyPercent && weeklyPercent >= 100 ? "bg-blue-500" : "bg-emerald-400"} />
-                    </div>
-                ) : (
-                    <div>
-                        <p className="text-sm font-bold text-slate-800">주간 운동 목표가 아직 설정되지 않았습니다.</p>
-                        <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                            목표를 설정하면 이번 주 진행률을 확인할 수 있습니다.
-                        </p>
-                        {weeklyActual > 0 && (
-                            <p className="mt-3 text-xs font-semibold text-slate-400">
-                                이번 주 완료 운동: {weeklyActual}회
-                            </p>
-                        )}
-                        <Link
-                            href="/my?tab=workout"
-                            className="mt-4 inline-flex min-h-11 items-center rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50"
-                        >
-                            운동 설정하기
-                        </Link>
-                    </div>
-                )}
-            </section>
-
-            <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center gap-2">
-                    <Dumbbell className="h-5 w-5 text-violet-500" />
-                    <h2 className="text-base font-extrabold text-slate-800">저장 루틴</h2>
-                </div>
-                <Routine />
-            </section>
-
-            <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                        <CalendarDays className="h-5 w-5 text-blue-500" />
-                        <h2 className="text-base font-extrabold text-slate-800">운동 캘린더</h2>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => moveMonth(-1)} className="rounded-full p-1 hover:bg-slate-100">
-                            <ChevronLeft className="h-4 w-4 text-slate-500" />
-                        </button>
-                        <span className="text-sm font-semibold text-slate-700">
-                            {monthCursor.year}년 {monthCursor.month}월
-                        </span>
-                        <button type="button" onClick={() => moveMonth(1)} className="rounded-full p-1 hover:bg-slate-100">
-                            <ChevronRight className="h-4 w-4 text-slate-500" />
-                        </button>
-                    </div>
-                </div>
-
-                <div className="mb-1 grid grid-cols-7 text-center">
-                    {DAY_LABELS.map((day) => (
-                        <span key={day} className="text-[10px] font-semibold text-slate-400">
-                            {day}
+                <span aria-hidden className="flex shrink-0 items-center">
+                    {(["push", "pull", "legs"] as const).map((line, i) => (
+                        <span key={line} className="flex items-center">
+                            {i > 0 && <span className="h-1 w-2.5" style={{ background: ROUTE_LINE_COLOR_VAR[line] }} />}
+                            <span className="size-3 rounded-full border-[3px] bg-ground" style={{ borderColor: ROUTE_LINE_COLOR_VAR[line] }} />
                         </span>
                     ))}
-                </div>
+                </span>
+                <span className="min-w-0 flex-1">
+                    <span className="block text-body font-bold text-ink">운동 프로그램</span>
+                    <span className="block text-body-sm text-ink-2">저장한 루틴을 이어 타는 환승 노선을 만들어요.</span>
+                </span>
+                <ChevronRight className="size-5 shrink-0 text-ink-3" aria-hidden />
+            </Link>
 
-                <div className="grid grid-cols-7 gap-y-1">
-                    {cells.map((day, index) => {
-                        if (day === null) return <div key={`empty-${index}`} />
-                        const dateStr = `${monthCursor.year}-${String(monthCursor.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-                        const hasWorkout = (workoutsByDate.get(dateStr)?.length ?? 0) > 0
-                        const isSelected = selectedDate === dateStr
-                        const isToday = dateStr === today
+            <Section title="저장 루틴">
+                <Routine />
+            </Section>
 
-                        return (
-                            <button
-                                key={dateStr}
-                                type="button"
-                                onClick={() => setSelectedDate((prev) => (prev === dateStr ? null : dateStr))}
-                                className={`mx-auto flex h-8 w-8 flex-col items-center justify-center rounded-full text-xs font-semibold transition-all ${
-                                    hasWorkout ? "bg-blue-500 text-white" : "text-slate-400 hover:bg-slate-100"
-                                } ${isSelected ? "ring-2 ring-blue-500 ring-offset-1" : ""} ${
-                                    isToday && !hasWorkout ? "border border-blue-400 text-blue-500" : ""
-                                }`}
-                            >
+            <Section
+                title="운동 캘린더"
+                action={
+                    <div className="flex items-center">
+                        <button
+                            type="button"
+                            onClick={() => moveMonth(-1)}
+                            aria-label="이전 달"
+                            className="inline-flex size-11 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
+                        >
+                            <ChevronLeft className="size-5" aria-hidden />
+                        </button>
+                        <span className="min-w-[5.5rem] text-center text-body-sm font-medium text-ink tabular-nums" aria-live="polite">
+                            {monthCursor.year}년 {monthCursor.month}월
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => moveMonth(1)}
+                            aria-label="다음 달"
+                            className="inline-flex size-11 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
+                        >
+                            <ChevronRight className="size-5" aria-hidden />
+                        </button>
+                    </div>
+                }
+            >
+                <div>
+                    <div className="mb-1 grid grid-cols-7 text-center" aria-hidden>
+                        {DAY_LABELS.map((day) => (
+                            <span key={day} className="text-caption text-ink-2">
                                 {day}
-                                {hasWorkout && <span className="mt-0.5 h-1 w-1 rounded-full bg-white/70" />}
-                            </button>
-                        )
-                    })}
-                </div>
+                            </span>
+                        ))}
+                    </div>
 
-                <div className="mt-3 flex items-center gap-3 text-[10px] text-slate-400">
-                    <span className="flex items-center gap-1">
-                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-500" />
-                        운동 완료
-                    </span>
-                    <span className="flex items-center gap-1">
-                        <span className="inline-block h-2.5 w-2.5 rounded-full border border-blue-400" />
-                        오늘
-                    </span>
+                    <div className="grid grid-cols-7 gap-y-1">
+                        {cells.map((day, index) => {
+                            if (day === null) return <div key={`empty-${index}`} />
+                            const dateStr = `${monthCursor.year}-${String(monthCursor.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+                            const dayWorkouts = workoutsByDate.get(dateStr) ?? []
+                            const line = dayWorkouts.length > 0 ? lineForWorkout(dayWorkouts[0]) : null
+                            const isSelected = selectedDate === dateStr
+                            const isToday = dateStr === today
+
+                            return (
+                                <button
+                                    key={dateStr}
+                                    type="button"
+                                    onClick={() => setSelectedDate((prev) => (prev === dateStr ? null : dateStr))}
+                                    aria-pressed={isSelected}
+                                    aria-label={`${monthCursor.month}월 ${day}일${isToday ? " 오늘" : ""}, ${
+                                        dayWorkouts.length > 0 ? `운동 ${dayWorkouts.length}회` : "운동 없음"
+                                    }`}
+                                    className={cx(
+                                        "relative mx-auto flex size-11 flex-col items-center justify-center rounded-full text-body-sm tabular-nums transition-[background-color] duration-150",
+                                        isSelected
+                                            ? "bg-ink font-bold text-white"
+                                            : isToday
+                                              ? "font-bold text-ink ring-2 ring-inset ring-ink hover:bg-surface"
+                                              : line
+                                                ? "font-medium text-ink hover:bg-surface"
+                                                : "text-ink-2 hover:bg-surface",
+                                    )}
+                                >
+                                    {day}
+                                    {line && (
+                                        <span
+                                            aria-hidden
+                                            className="absolute bottom-1.5 size-1.5 rounded-full"
+                                            style={{ background: isSelected ? "var(--color-ground)" : ROUTE_LINE_COLOR_VAR[line] }}
+                                        />
+                                    )}
+                                </button>
+                            )
+                        })}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-ink-2" aria-hidden>
+                        <span className="flex items-center gap-1.5">
+                            <span className="flex gap-0.5">
+                                {(["push", "pull", "legs", "core"] as const).map((l) => (
+                                    <span key={l} className="inline-block size-1.5 rounded-full" style={{ background: ROUTE_LINE_COLOR_VAR[l] }} />
+                                ))}
+                            </span>
+                            운동한 날(분할별 노선 색)
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                            <span className="inline-block size-3 rounded-full border-2 border-ink" />
+                            오늘
+                        </span>
+                    </div>
                 </div>
 
                 {selectedDate && (
-                    <div className="mt-4 rounded-2xl bg-slate-50 p-4">
-                        <p className="mb-3 text-sm font-bold text-slate-700">{selectedDate} 운동 기록</p>
+                    <div className="flex flex-col gap-1 border-t border-hairline pt-3">
+                        <h3 className="text-body-sm font-bold text-ink">{formatLongDate(selectedDate)}</h3>
                         {selectedWorkouts.length > 0 ? (
-                            <div className="space-y-2">
+                            <ul className="flex flex-col divide-y divide-hairline">
                                 {selectedWorkouts.map((workout) => (
-                                    <button
-                                        key={workout.id}
-                                        type="button"
-                                        onClick={() => setSelectedWorkoutDetail(workout)}
-                                        className="w-full rounded-xl bg-white px-3 py-3 text-left transition-colors hover:bg-blue-50"
-                                    >
-                                        <p className="text-sm font-bold text-slate-800">{getWorkoutTitle(workout)}</p>
-                                        <p className="mt-0.5 text-xs text-slate-400">
-                                            {workout.durationMin ? `${workout.durationMin}분 · ` : ""}
-                                            {(workout.sets ?? []).length}세트
-                                        </p>
-                                    </button>
+                                    <li key={workout.id}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedWorkoutDetail(workout)}
+                                            className="flex min-h-14 w-full items-center gap-3 py-2 text-left hover:bg-surface"
+                                        >
+                                            <span className="min-w-0 flex-1">
+                                                <span className="flex min-w-0 items-center gap-2">
+                                                    <LineBadge line={lineForWorkout(workout)} className="shrink-0" />
+                                                    <span className="truncate text-body font-bold text-ink">{getWorkoutTitle(workout)}</span>
+                                                </span>
+                                                <span className="mt-0.5 block text-body-sm text-ink-2 tabular-nums">
+                                                    {workout.durationMin ? `${workout.durationMin}분 · ` : ""}
+                                                    {(workout.sets ?? []).length}세트
+                                                </span>
+                                            </span>
+                                            <ChevronRight className="size-5 shrink-0 text-ink-3" aria-hidden />
+                                        </button>
+                                    </li>
                                 ))}
-                            </div>
+                            </ul>
                         ) : (
-                            <p className="text-sm text-slate-400">이 날짜에는 운동 기록이 없습니다.</p>
+                            <p className="py-2 text-body-sm text-ink-2">이 날은 운동 기록이 없어요.</p>
                         )}
                     </div>
                 )}
 
                 {selectedWorkoutDetail && (
-                    <WorkoutDetailModal
-                        workout={selectedWorkoutDetail}
-                        onClose={() => setSelectedWorkoutDetail(null)}
-                    />
+                    <WorkoutDetailModal workout={selectedWorkoutDetail} onClose={() => setSelectedWorkoutDetail(null)} />
                 )}
-            </section>
+            </Section>
 
-            <section ref={recentWorkoutRef}>
-                <div className="mb-3 px-1">
-                    <h2 className="text-base font-extrabold text-slate-800">최근 운동 기록</h2>
-                </div>
-                <div className="-mx-4">
-                    <WorkoutList />
-                </div>
-            </section>
+            <Section title="최근 운동 기록" ref={recentWorkoutRef} className="scroll-mt-4">
+                <WorkoutList />
+            </Section>
         </div>
     )
 }

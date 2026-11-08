@@ -24,10 +24,17 @@ export default function BottomNav() {
     const searchParams = useSearchParams()
     const router = useRouter()
 
+    const itemClass = (active: boolean) =>
+        `relative flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 text-caption transition-colors duration-150 ${
+            active
+                ? "font-bold text-ink before:absolute before:inset-x-5 before:top-0 before:h-[3px] before:rounded-full before:bg-ink"
+                : "text-ink-2 hover:text-ink"
+        }`
+
     return (
         <nav
             aria-label="주요 메뉴"
-            className="w-full shrink-0 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 backdrop-blur"
+            className="w-full shrink-0 border-t border-hairline bg-ground px-1 pb-[env(safe-area-inset-bottom)]"
         >
             <div className="flex items-center">
                 {navItems.map((item) => {
@@ -42,11 +49,9 @@ export default function BottomNav() {
                                 type="button"
                                 aria-current={active ? "page" : undefined}
                                 onClick={() => router.replace(item.href, { scroll: false })}
-                                className={`flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-xs font-medium transition-colors ${
-                                    active ? "bg-violet-50 text-violet-600" : "text-slate-400 hover:text-slate-600"
-                                }`}
+                                className={itemClass(active)}
                             >
-                                <Icon className="h-5 w-5" />
+                                <Icon className="size-5" aria-hidden />
                                 <span>{item.label}</span>
                             </button>
                         )
@@ -57,11 +62,9 @@ export default function BottomNav() {
                             key={item.href}
                             href={item.href}
                             aria-current={active ? "page" : undefined}
-                            className={`flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-xs font-medium transition-colors ${
-                                active ? "bg-violet-50 text-violet-600" : "text-slate-400 hover:text-slate-600"
-                            }`}
+                            className={itemClass(active)}
                         >
-                            <Icon className="h-5 w-5" />
+                            <Icon className="size-5" aria-hidden />
                             <span>{item.label}</span>
                         </Link>
                     )

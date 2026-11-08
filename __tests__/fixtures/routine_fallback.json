@@ -6,7 +6,7 @@
   "totalEstimatedTime": 5,
   "summaryTitle": "안전 대체 루틴",
   "rationaleSummary": [
-    "AI 서버 응답을 사용할 수 없어 exercise_tier 카탈로그에서 요청 부위와 제한 조건을 반영한 안전 대체 운동을 선택했습니다."
+    "AI 서버 응답을 사용할 수 없어 운동 카탈로그에서 요청 부위와 제한 조건을 반영한 안전 대체 운동을 선택했습니다."
   ],
   "warnings": [
     "통증이 있거나 불편하면 즉시 중단하고 프로필의 부상 부위를 확인하세요."
@@ -15,7 +15,7 @@
     {
       "order": 1,
       "exerciseId": "117",
-      "exerciseName": "Push-up",
+      "exerciseName": "푸시업",
       "movementPattern": null,
       "primaryMuscles": ["chest", "triceps"],
       "equipmentType": "BODYWEIGHT",

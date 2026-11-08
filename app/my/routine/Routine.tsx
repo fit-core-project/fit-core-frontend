@@ -2,29 +2,25 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { AlertCircle, ChevronDown, Dumbbell, Play } from "lucide-react"
+import { ChevronDown, Play } from "lucide-react"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
-import { RoutineFinalResponse, RoutineDraft } from "@/types/routine"
-import { clearProgramContext } from "@/utils/programContext"
+import { RoutineFinalResponse } from "@/types/routine"
+import { routineOriginLabel, splitLabel, splitTitle } from "@/utils/displayLabels"
+import { lineForRoutine } from "@/utils/routeLine"
+import { prepareFinalRoutineForPlay } from "@/utils/routinePlay"
+import { Button, EmptyState, LineBadge, Notice, RouteStrip, Skeleton, Surface, Tag } from "@/components/ui"
 
-const SPLIT_LABELS: Record<string, string> = {
-    push: "푸시",
-    pull: "풀",
-    legs: "레그",
-    upper: "상체",
-    lower: "하체",
-    full: "전신",
-    custom: "커스텀",
-}
-
-function splitLabel(label: string) {
-    return SPLIT_LABELS[label?.toLowerCase()] ?? label ?? "루틴"
-}
+const MAX_STOPS = 5
 
 function RoutineCard({ routine, onPlay }: { routine: RoutineFinalResponse; onPlay: () => void }) {
     const [expanded, setExpanded] = useState(false)
     const blocks = routine.finalRoutinePayload?.routineBlocks ?? []
     const isFallback = routine.finalRoutinePayload?.fallback === true
+    const line = lineForRoutine(routine.targetSplitLabel, blocks.flatMap((b) => b.primaryMuscles ?? []))
+    const title = routine.finalRoutinePayload?.summaryTitle?.trim() || splitTitle(routine.targetSplitLabel) || splitLabel(routine.targetSplitLabel)
+    const names = blocks.map((b) => b.exerciseName || "운동")
+    const stops = names.length > MAX_STOPS ? [...names.slice(0, MAX_STOPS - 1), `외 ${names.length - MAX_STOPS + 1}개`] : names
+    const listId = `routine-${routine.routineFinalId}-blocks`
     const date = routine.targetWorkoutDate
         ? new Date(routine.targetWorkoutDate).toLocaleDateString("ko-KR", {
               year: "numeric",
@@ -34,61 +30,57 @@ function RoutineCard({ routine, onPlay }: { routine: RoutineFinalResponse; onPla
         : null
 
     return (
-        <div className="rounded-2xl bg-white shadow-sm">
-            <div className="flex items-center gap-3 px-4 py-4">
-                <span className="shrink-0 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-600">
-                    {splitLabel(routine.targetSplitLabel)}
-                </span>
-                {isFallback && (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-700">
-                        <AlertCircle className="h-3 w-3" />
-                        기본 루틴
-                    </span>
-                )}
+        <li className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0">
+            <div className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-slate-800">
-                        {routine.finalRoutinePayload?.summaryTitle || splitLabel(routine.targetSplitLabel)}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <LineBadge line={line} />
+                        {isFallback && <Tag>{routineOriginLabel({ isFallback })}</Tag>}
+                    </div>
+                    <p className="mt-1.5 truncate text-body font-bold text-ink">{title}</p>
+                    <p className="mt-0.5 text-body-sm text-ink-2 tabular-nums">
+                        {blocks.length}개 운동
+                        {date ? ` · ${date}` : ""}
                     </p>
-                    {date && <p className="text-xs text-slate-400">{date}</p>}
                 </div>
-                <button
-                    type="button"
-                    onClick={onPlay}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white"
-                    aria-label="다시 시작"
-                >
-                    <Play size={14} fill="white" />
-                </button>
+                <Button variant="primary" line={line} icon={<Play className="size-4" aria-hidden />} onClick={onPlay} aria-label={`${title} 출발하기`}>
+                    출발
+                </Button>
             </div>
 
-            <button
-                type="button"
-                onClick={() => setExpanded((v) => !v)}
-                className="flex w-full items-center justify-between border-t border-slate-100 px-4 py-2 text-xs text-slate-500"
-            >
-                <span>{blocks.length}개 종목</span>
-                <ChevronDown
-                    size={14}
-                    className={`transition-transform ${expanded ? "rotate-180" : ""}`}
-                />
-            </button>
+            {stops.length > 0 && <RouteStrip line={line} label={`${title} 노선`} stops={stops} />}
 
-            {expanded && (
-                <ul className="divide-y divide-slate-50 px-4 pb-3">
-                    {blocks.map((block) => (
-                        <li key={block.order} className="flex items-center gap-2 py-2">
-                            <span className="w-4 shrink-0 text-center text-xs text-slate-400">
-                                {block.order}
-                            </span>
-                            <span className="flex-1 text-sm text-slate-700">{block.exerciseName}</span>
-                            <span className="text-xs text-slate-400">
-                                {block.prescription?.length ?? 0}세트
-                            </span>
-                        </li>
-                    ))}
-                </ul>
+            {blocks.length > 0 && (
+                <>
+                    <Button
+                        variant="ghost"
+                        className="-mx-2 self-start"
+                        aria-expanded={expanded}
+                        aria-controls={listId}
+                        onClick={() => setExpanded((v) => !v)}
+                        icon={
+                            <ChevronDown
+                                className={`size-4 transition-transform duration-150 motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}
+                                aria-hidden
+                            />
+                        }
+                    >
+                        {expanded ? "운동 목록 접기" : "운동 목록 보기"}
+                    </Button>
+                    {expanded && (
+                        <ol id={listId} className="flex flex-col divide-y divide-hairline border-y border-hairline">
+                            {blocks.map((block) => (
+                                <li key={block.order} className="flex min-h-11 items-center gap-3 text-body-sm">
+                                    <span className="w-5 shrink-0 text-center text-ink-2 tabular-nums">{block.order}</span>
+                                    <span className="min-w-0 flex-1 truncate text-ink">{block.exerciseName}</span>
+                                    <span className="shrink-0 text-ink-2 tabular-nums">{block.prescription?.length ?? 0}세트</span>
+                                </li>
+                            ))}
+                        </ol>
+                    )}
+                </>
             )}
-        </div>
+        </li>
     )
 }
 
@@ -99,6 +91,15 @@ export default function Routine() {
     const [hasMore, setHasMore] = useState(false)
     const [loading, setLoading] = useState(true)
     const [loadingMore, setLoadingMore] = useState(false)
+    const [loadError, setLoadError] = useState(false)
+    const [loadMoreError, setLoadMoreError] = useState(false)
+    const [reloadKey, setReloadKey] = useState(0)
+
+    const retryLoad = () => {
+        setLoading(true)
+        setLoadError(false)
+        setReloadKey((k) => k + 1)
+    }
 
     useEffect(() => {
         routineApiClient
@@ -108,13 +109,14 @@ export default function Routine() {
                 setHasMore(!res.last)
                 setPage(0)
             })
-            .catch(() => setRoutines([]))
+            .catch(() => setLoadError(true))
             .finally(() => setLoading(false))
-    }, [])
+    }, [reloadKey])
 
     const loadMore = () => {
         const next = page + 1
         setLoadingMore(true)
+        setLoadMoreError(false)
         routineApiClient
             .getMyFinals(next, 20)
             .then((res) => {
@@ -122,66 +124,64 @@ export default function Routine() {
                 setHasMore(!res.last)
                 setPage(next)
             })
+            .catch(() => setLoadMoreError(true))
             .finally(() => setLoadingMore(false))
     }
 
     const handlePlay = (routine: RoutineFinalResponse) => {
-        const payload = routine.finalRoutinePayload
-        const draft: RoutineDraft = {
-            routineDraftId: routine.routineDraftId,
-            generationStatus: payload.generationStatus,
-            statusReasonCode: payload.statusReasonCode,
-            isFallback: payload.fallback,
-            totalEstimatedTime: payload.totalEstimatedTime,
-            summaryTitle: payload.summaryTitle,
-            rationaleSummary: payload.rationaleSummary ?? [],
-            warnings: payload.warnings ?? [],
-            routineBlocks: payload.routineBlocks,
-        }
-        clearProgramContext()
-        localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))
-        localStorage.setItem("fitcore_routine_final_id", routine.routineFinalId)
-        router.push("/ai_routine/player")
+        router.push(prepareFinalRoutineForPlay(routine))
     }
 
     if (loading) {
         return (
-            <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-20 animate-pulse rounded-2xl bg-white shadow-sm" />
+            <Surface className="flex flex-col gap-5" aria-busy="true">
+                {[...Array(2)].map((_, i) => (
+                    <div key={i} className="flex flex-col gap-2">
+                        <Skeleton className="h-4 w-12" />
+                        <Skeleton className="h-5 w-40" />
+                        <Skeleton className="h-8 w-full" />
+                    </div>
                 ))}
-            </div>
+            </Surface>
+        )
+    }
+
+    if (loadError) {
+        return (
+            <Notice tone="danger" title="저장한 루틴을 불러오지 못했어요">
+                <Button variant="secondary" className="mt-2" onClick={retryLoad}>
+                    다시 불러오기
+                </Button>
+            </Notice>
         )
     }
 
     if (routines.length === 0) {
         return (
-            <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl bg-white px-6 py-16 text-center shadow-sm">
-                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                    <Dumbbell className="h-8 w-8" />
-                </div>
-                <h2 className="mb-2 text-lg font-extrabold text-slate-800">저장된 루틴이 없습니다</h2>
-                <p className="max-w-xs text-sm leading-relaxed text-slate-500">
-                    AI 운동 루틴 만들기에서 루틴을 만들고 확정하면 이곳에서 확인할 수 있습니다.
-                </p>
-            </div>
+            <Surface tone="sunken" padded={false}>
+                <EmptyState title="저장한 루틴이 아직 없어요" body="만든 루틴을 저장하면 여기서 바로 다시 출발할 수 있어요." />
+            </Surface>
         )
     }
 
     return (
-        <div className="space-y-3">
-            {routines.map((r) => (
-                <RoutineCard key={r.routineFinalId} routine={r} onPlay={() => handlePlay(r)} />
-            ))}
+        <div className="flex flex-col gap-2">
+            <Surface>
+                <ul className="flex flex-col divide-y divide-hairline">
+                    {routines.map((r) => (
+                        <RoutineCard key={r.routineFinalId} routine={r} onPlay={() => handlePlay(r)} />
+                    ))}
+                </ul>
+            </Surface>
+            {loadMoreError && (
+                <p role="alert" className="text-caption text-danger-ink">
+                    루틴을 더 불러오지 못했어요. 다시 눌러 보세요.
+                </p>
+            )}
             {hasMore && (
-                <button
-                    type="button"
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                    className="w-full rounded-2xl bg-white py-3 text-sm font-medium text-slate-500 shadow-sm disabled:opacity-50"
-                >
-                    {loadingMore ? "불러오는 중..." : "더 보기"}
-                </button>
+                <Button variant="ghost" block loading={loadingMore} onClick={loadMore}>
+                    {loadMoreError ? "다시 불러오기" : "루틴 더 보기"}
+                </Button>
             )}
         </div>
     )

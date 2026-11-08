@@ -7,6 +7,7 @@ import BodyCompositionChart from "@/app/my/body-composition/BodyCompositionChart
 import { BodyCompositionEditPage } from "@/app/my/body-composition/BodyCompositionEditPage"
 import { BodyComposition, UserResponse } from "@/types/project"
 import { useSettingsStore } from "@/store/settingsStore"
+import { Button, EmptyState, Section, Surface, ToggleChip } from "@/components/ui"
 
 interface Props {
     profile: UserResponse | null
@@ -45,59 +46,16 @@ const calculateDiff = (current: number | undefined, prev: number | undefined, un
 }
 
 function BodyCompositionRangeSlider({ value, onChange }: { value: number; onChange: (nextValue: number) => void }) {
-    const progress = rangeOptions.length === 1 ? 0 : (value / (rangeOptions.length - 1)) * 100
-
     return (
-        <div className="rounded-xl bg-slate-50 px-3 py-2.5">
-            <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500">표시 기간</span>
-                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-extrabold text-blue-600">
-                    {rangeOptions[value].label}
-                </span>
-            </div>
-
-            <div className="relative h-6">
-                <div className="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-slate-200" />
-                <div
-                    className="absolute left-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-blue-500"
-                    style={{ width: `${progress}%` }}
-                />
-                {rangeOptions.map((option, index) => {
-                    const left = rangeOptions.length === 1 ? 0 : (index / (rangeOptions.length - 1)) * 100
-                    const isActive = index <= value
-
-                    return (
-                        <button
-                            type="button"
-                            key={option.label}
-                            aria-label={`${option.label} 표시`}
-                            onClick={() => onChange(index)}
-                            className={`absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-colors ${
-                                isActive ? "border-blue-500 bg-blue-500" : "border-slate-300 bg-white"
-                            }`}
-                            style={{ left: `${left}%` }}
-                        />
-                    )
-                })}
-                <div
-                    className="pointer-events-none absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-blue-600 shadow-md"
-                    style={{ left: `${progress}%` }}
-                />
-                <input
-                    type="range"
-                    min={0}
-                    max={rangeOptions.length - 1}
-                    step={1}
-                    value={value}
-                    aria-label="체성분 그래프 표시 기간"
-                    onChange={(event) => onChange(Number(event.target.value))}
-                    className="absolute inset-0 h-6 w-full cursor-pointer opacity-0"
-                />
-            </div>
-
-            <div className="mt-0.5 grid grid-cols-5 text-center text-[9px] font-bold text-slate-400">
-                {rangeOptions.map((option) => (
-                    <span key={option.label}>{option.label}</span>
+        <div className="flex flex-col gap-1.5">
+            <span id="body-comp-range-label" className="text-body-sm font-medium text-ink">
+                표시 기간
+            </span>
+            <div className="grid grid-cols-5 gap-1.5" role="group" aria-labelledby="body-comp-range-label">
+                {rangeOptions.map((option, index) => (
+                    <ToggleChip key={option.label} pressed={value === index} onClick={() => onChange(index)}>
+                        {option.label}
+                    </ToggleChip>
                 ))}
             </div>
         </div>
@@ -167,79 +125,66 @@ export default function BodyCompositionPage({ profile, onSave }: Props) {
         return <BodyCompositionEditPage onCancel={() => setIsEditing(false)} onSave={saveTrack} />
     }
 
-    return (
-        <div className="relative w-full bg-gray-50 px-1 pb-4">
-            <h1 className="mb-4 text-lg font-bold text-gray-900">체성분 변화</h1>
+    const addButton = (
+        <Button variant="secondary" icon={<Plus className="size-4" aria-hidden />} onClick={() => setIsEditing(true)}>
+            기록 추가
+        </Button>
+    )
 
+    return (
+        <Section title="체성분 변화" action={snapshots.length > 0 ? addButton : undefined}>
             {snapshots.length === 0 ? (
-                <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-                    <Scale className="mx-auto mb-3 h-10 w-10 text-slate-300" strokeWidth={1.5} />
-                    <p className="text-sm font-bold text-slate-700">아직 체성분 기록이 없어요.</p>
-                    <p className="mt-1 text-xs text-slate-400">체중을 기록하면 변화 추이를 확인할 수 있어요.</p>
-                    <button
-                        type="button"
-                        onClick={() => setIsEditing(true)}
-                        className="mt-4 inline-flex items-center gap-1.5 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-700"
-                    >
-                        <Plus className="h-4 w-4" />
-                        첫 체성분 기록하기
-                    </button>
-                </div>
+                <Surface>
+                    <EmptyState
+                        icon={<Scale aria-hidden />}
+                        title="아직 체성분 기록이 없어요"
+                        body="체중을 기록하면 변화 추이를 볼 수 있어요."
+                        action={
+                            <Button variant="primary" icon={<Plus className="size-4" aria-hidden />} onClick={() => setIsEditing(true)}>
+                                첫 기록 남기기
+                            </Button>
+                        }
+                    />
+                </Surface>
             ) : (
                 <>
-                    <section className="mb-4">
-                        <h2 className="mb-2 text-xs font-semibold text-gray-500">최신 측정 상태</h2>
+                    <div className="flex flex-col gap-2">
+                        <h3 className="text-body-sm font-medium text-ink-2">최근 측정</h3>
                         <div className="grid grid-cols-3 gap-2">
                             <StatCard
                                 label="체중"
                                 value={latestData.weight.value}
                                 unit={latestData.weight.unit}
-                                color="text-blue-600"
-                                icon={<Scale className="h-full w-full" strokeWidth={1.8} />}
+                                icon={<Scale strokeWidth={1.8} />}
                                 diff={latestData.weight.diff}
                             />
                             <StatCard
                                 label="골격근량"
                                 value={latestData.muscle.value}
                                 unit={latestData.muscle.unit}
-                                color="text-emerald-600"
-                                icon={<BicepsFlexed className="h-full w-full" strokeWidth={1.8} />}
+                                icon={<BicepsFlexed strokeWidth={1.8} />}
                                 diff={latestData.muscle.diff}
                             />
                             <StatCard
                                 label="체지방률"
                                 value={latestData.fat.value}
                                 unit={latestData.fat.unit}
-                                color="text-rose-600"
-                                icon={<Percent className="h-full w-full" strokeWidth={1.8} />}
+                                icon={<Percent strokeWidth={1.8} />}
                                 diff={latestData.fat.diff}
                             />
                         </div>
-                    </section>
-
-                    <section className="rounded-xl bg-white p-3 shadow-sm">
-                        <div className="mb-2 flex items-center justify-between">
-                            <h2 className="text-xs font-semibold text-gray-500">변화 추이</h2>
-                            <span className="text-[11px] font-bold text-slate-400">{filteredSnapshots.length}개 기록</span>
-                        </div>
-                        <div className="mb-3">
-                            <BodyCompositionRangeSlider value={rangeIndex} onChange={setRangeIndex} />
-                        </div>
-                        <BodyCompositionChart data={filteredSnapshots} weightUnit={weightUnit} />
-                    </section>
-
-                    <div className="sticky bottom-4 mt-4 flex justify-end">
-                        <button
-                            type="button"
-                            aria-label="체성분 기록 추가"
-                            onClick={() => setIsEditing(true)}
-                            className="flex rounded-full bg-blue-600 p-3.5 text-white shadow-lg transition-all hover:bg-blue-700"
-                        >
-                            <Plus size={24} />
-                        </button>
                     </div>
+
+                    <Surface className="flex flex-col gap-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-body font-bold text-ink">변화 추이</h3>
+                            <span className="text-caption tabular-nums text-ink-2">기록 {filteredSnapshots.length}개</span>
+                        </div>
+                        <BodyCompositionRangeSlider value={rangeIndex} onChange={setRangeIndex} />
+                        <BodyCompositionChart data={filteredSnapshots} weightUnit={weightUnit} />
+                    </Surface>
                 </>
             )}
-        </div>
+        </Section>
     )
 }

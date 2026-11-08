@@ -18,27 +18,45 @@ import {
     verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { AlertCircle, Check, ChevronLeft, Dumbbell, GripVertical, X } from "lucide-react"
+import { Check, ChevronLeft, Dumbbell, GripVertical, X } from "lucide-react"
 import { AxiosError } from "axios"
 import programApiClient from "@/lib/api/program/programApiClient"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
 import type { RoutineFinalResponse } from "@/types/routine"
 import { getRoutineProgramDisplay, moveSelectedRoutineIds } from "@/utils/routineProgramCreation"
+import { lineForRoutine, ROUTE_LINE_COLOR_VAR, type RouteLine } from "@/utils/routeLine"
+import {
+    Button,
+    ButtonLink,
+    EmptyState,
+    LineBadge,
+    Notice,
+    Section,
+    Skeleton,
+    StationRow,
+    Surface,
+    TextField,
+    cx,
+} from "@/components/ui"
 
 function errorMessage(error: unknown): string {
     if (error instanceof AxiosError && error.response?.status === 409) {
-        return "이미 진행 중인 프로그램이 있습니다. 기존 프로그램을 보관한 뒤 새 프로그램을 만들 수 있어요."
+        return "이미 진행 중인 프로그램이 있어요. 기존 프로그램을 보관한 뒤 새 프로그램을 만드세요."
     }
-    return "프로그램을 만들지 못했습니다. 입력을 확인하고 다시 시도해 주세요."
+    return "프로그램을 만들지 못했어요. 입력을 확인하고 다시 시도하세요."
 }
 
 function routineMeta(routine: RoutineFinalResponse): string {
     const display = getRoutineProgramDisplay(routine)
     return [
-        display.splitLabel,
         display.exerciseCount != null ? `${display.exerciseCount}개 운동` : null,
         display.estimatedTime != null ? `${display.estimatedTime}분` : null,
     ].filter(Boolean).join(" · ")
+}
+
+function routineLine(routine: RoutineFinalResponse): RouteLine {
+    const blocks = routine.finalRoutinePayload?.routineBlocks ?? []
+    return lineForRoutine(routine.targetSplitLabel, blocks.flatMap((block) => block.primaryMuscles ?? []))
 }
 
 export default function NewProgramPage() {
@@ -70,8 +88,8 @@ export default function NewProgramPage() {
     )
 
     const disabledReason = useMemo(() => {
-        if (!name.trim()) return "프로그램 이름을 입력해 주세요."
-        if (selectedIds.length < 2) return "루틴을 2개 이상 선택해 주세요."
+        if (!name.trim()) return "프로그램 이름을 입력하세요."
+        if (selectedIds.length < 2) return "루틴을 2개 이상 선택하세요."
         if (selectedIds.length > 20) return "루틴은 최대 20개까지 선택할 수 있어요."
         return null
     }, [name, selectedIds.length])
@@ -118,209 +136,223 @@ export default function NewProgramPage() {
     }
 
     return (
-        <main className="mx-auto flex w-full max-w-[480px] flex-col gap-5 p-4 pb-10">
-            <header className="px-1">
-                <button
-                    type="button"
+        <main className="mx-auto flex w-full max-w-[480px] flex-col gap-6 bg-ground px-4 pt-3">
+            <header>
+                <Button
+                    variant="ghost"
+                    className="-ml-3"
                     onClick={() => router.back()}
-                    className="mb-3 inline-flex items-center gap-1 text-sm font-bold text-slate-500"
+                    icon={<ChevronLeft className="size-4" aria-hidden />}
                 >
-                    <ChevronLeft className="h-4 w-4" />
                     돌아가기
-                </button>
-                <h1 className="text-2xl font-extrabold text-slate-900">운동 프로그램 만들기</h1>
-                <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                    저장한 루틴을 원하는 순서로 묶어 진행해요.
-                </p>
+                </Button>
+                <h1 className="mt-1 text-title font-bold text-ink">운동 프로그램 만들기</h1>
+                <p className="mt-1 text-body-sm text-ink-2">저장한 루틴을 원하는 순서로 이어 환승 노선을 만들어요.</p>
             </header>
 
-            <section className="rounded-3xl bg-white p-5 shadow-sm">
-                <label className="text-sm font-extrabold text-slate-800" htmlFor="program-name">
-                    프로그램 이름
-                </label>
-                <input
-                    id="program-name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder="예: PPL 6분할"
-                    className="mt-3 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-900 outline-none focus:border-blue-400 focus:bg-white"
-                />
-            </section>
+            <TextField
+                label="프로그램 이름"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="예: PPL 6분할"
+            />
 
-            <section className="rounded-3xl bg-white p-5 shadow-sm">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                    <h2 className="text-base font-extrabold text-slate-800">선택한 순서</h2>
-                    <span className="text-xs font-black text-blue-600">{selectedIds.length}/20</span>
-                </div>
+            <Section
+                title="선택한 순서"
+                action={<span className="text-body-sm font-medium text-ink-2 tabular-nums">{selectedIds.length}/20</span>}
+            >
                 {selectedRoutines.length === 0 ? (
-                    <p className="rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-500">
-                        아래 저장 루틴에서 진행할 순서대로 선택하세요.
-                    </p>
+                    <Surface tone="sunken">
+                        <p className="text-body-sm text-ink-2">아래 저장 루틴에서 진행할 순서대로 선택하세요.</p>
+                    </Surface>
                 ) : (
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                         <SortableContext items={selectedIds} strategy={verticalListSortingStrategy}>
-                            <ol className="space-y-2">
-                                {selectedRoutines.map((routine, index) => (
-                                    <SelectedRoutineCard
-                                        key={routine.routineFinalId}
-                                        routine={routine}
-                                        position={index + 1}
-                                        onRemove={() => removeRoutine(routine.routineFinalId)}
-                                    />
-                                ))}
+                            <ol aria-label="프로그램 노선" className="flex flex-col">
+                                {selectedRoutines.map((routine, index) => {
+                                    const next = selectedRoutines[index + 1]
+                                    return (
+                                        <SortableRoutineStation
+                                            key={routine.routineFinalId}
+                                            routine={routine}
+                                            position={index + 1}
+                                            line={routineLine(routine)}
+                                            nextLine={next ? routineLine(next) : null}
+                                            onRemove={() => removeRoutine(routine.routineFinalId)}
+                                        />
+                                    )
+                                })}
                             </ol>
                         </SortableContext>
                     </DndContext>
                 )}
-            </section>
+            </Section>
 
-            <section className="space-y-3">
-                <h2 className="px-1 text-base font-extrabold text-slate-800">저장 루틴</h2>
+            <Section title="저장 루틴" aria-busy={loading || undefined}>
                 {loading ? (
-                    <div className="space-y-3">
+                    <div className="flex flex-col gap-2">
                         {[0, 1, 2].map((item) => (
-                            <div key={item} className="h-24 animate-pulse rounded-3xl bg-white shadow-sm" />
+                            <Skeleton key={item} className="h-20 rounded-panel" />
                         ))}
                     </div>
                 ) : routines.length === 0 ? (
-                    <div className="rounded-3xl bg-white px-6 py-12 text-center shadow-sm">
-                        <Dumbbell className="mx-auto mb-4 h-10 w-10 text-slate-300" />
-                        <p className="text-base font-extrabold text-slate-800">저장된 루틴이 없습니다</p>
-                        <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                            프로그램은 저장 루틴 2개 이상으로 만들 수 있어요.
-                        </p>
-                    </div>
+                    <Surface tone="sunken">
+                        <EmptyState
+                            icon={<Dumbbell aria-hidden />}
+                            title="저장된 루틴이 없어요"
+                            body="프로그램은 저장 루틴 2개 이상으로 만들 수 있어요."
+                            action={
+                                <ButtonLink href="/" variant="secondary">
+                                    루틴 만들러 가기
+                                </ButtonLink>
+                            }
+                        />
+                    </Surface>
                 ) : (
-                    routines.map((routine) => {
-                        const selectedIndex = selectedIds.indexOf(routine.routineFinalId)
-                        const selected = selectedIndex >= 0
-                        const display = getRoutineProgramDisplay(routine)
-                        const meta = routineMeta(routine)
+                    <ul className="flex flex-col gap-2">
+                        {routines.map((routine) => {
+                            const selectedIndex = selectedIds.indexOf(routine.routineFinalId)
+                            const selected = selectedIndex >= 0
+                            const display = getRoutineProgramDisplay(routine)
+                            const meta = routineMeta(routine)
+                            const line = routineLine(routine)
+                            const color = ROUTE_LINE_COLOR_VAR[line]
 
-                        return (
-                            <button
-                                key={routine.routineFinalId}
-                                type="button"
-                                onClick={() => toggleRoutine(routine.routineFinalId)}
-                                className={`flex w-full items-start gap-3 rounded-3xl p-4 text-left shadow-sm ring-1 transition-colors ${
-                                    selected
-                                        ? "bg-blue-50 ring-blue-100"
-                                        : "bg-white ring-transparent hover:bg-slate-50"
-                                }`}
-                            >
-                                <span
-                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black ${
-                                        selected ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400"
-                                    }`}
-                                >
-                                    {selected ? selectedIndex + 1 : <Check className="h-4 w-4" />}
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-sm font-extrabold text-slate-900">
-                                        {display.title}
-                                    </span>
-                                    {meta && (
-                                        <span className="mt-0.5 block text-xs font-semibold text-slate-500">
-                                            {meta}
+                            return (
+                                <li key={routine.routineFinalId}>
+                                    <button
+                                        type="button"
+                                        aria-pressed={selected}
+                                        onClick={() => toggleRoutine(routine.routineFinalId)}
+                                        className={cx(
+                                            "flex min-h-11 w-full items-start gap-3 rounded-panel border p-4 text-left transition-[background-color,border-color] duration-150",
+                                            selected ? "border-ink bg-surface" : "border-hairline bg-ground hover:bg-surface",
+                                        )}
+                                    >
+                                        <span
+                                            aria-hidden
+                                            className="flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-body-sm font-bold tabular-nums"
+                                            style={{
+                                                borderColor: selected ? color : "var(--color-rail)",
+                                                background: selected ? color : "var(--color-ground)",
+                                                color: selected ? "white" : "var(--color-ink-3)",
+                                            }}
+                                        >
+                                            {selected ? selectedIndex + 1 : <Check className="size-4" />}
                                         </span>
-                                    )}
-                                    {display.exercisePreview.length > 0 && (
-                                        <span className="mt-1 block truncate text-xs font-medium text-slate-400">
-                                            {display.exercisePreview.join(" · ")}
+                                        <span className="min-w-0 flex-1">
+                                            <span className="flex min-w-0 items-center gap-2">
+                                                <LineBadge line={line} label={display.splitLabel ?? undefined} className="shrink-0" />
+                                                <span className="truncate text-body font-bold text-ink">{display.title}</span>
+                                            </span>
+                                            {meta && <span className="mt-1 block text-body-sm text-ink-2 tabular-nums">{meta}</span>}
+                                            {display.exercisePreview.length > 0 && (
+                                                <span className="mt-0.5 block truncate text-body-sm text-ink-2">
+                                                    {display.exercisePreview.join(" · ")}
+                                                </span>
+                                            )}
+                                            <span className="mt-1 block text-caption text-ink-2 tabular-nums">
+                                                {selected ? `${selectedIndex + 1}번째 역으로 선택됨` : display.savedDateLabel}
+                                            </span>
                                         </span>
-                                    )}
-                                    <span className="mt-1 block text-[11px] font-bold text-slate-400">
-                                        {selected
-                                            ? `선택됨 · ${selectedIndex + 1}번째`
-                                            : display.savedDateLabel}
-                                    </span>
-                                </span>
-                            </button>
-                        )
-                    })
+                                    </button>
+                                </li>
+                            )
+                        })}
+                    </ul>
                 )}
-            </section>
+            </Section>
 
-            <div className="sticky bottom-3 z-10 rounded-3xl border border-slate-100 bg-white/95 p-3 shadow-xl backdrop-blur">
-                {message && (
-                    <p className="mb-3 flex gap-2 rounded-2xl bg-red-50 px-3 py-2 text-xs font-semibold leading-relaxed text-red-700">
-                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                        {message}
-                    </p>
-                )}
-                {disabledReason && (
-                    <p className="mb-2 px-1 text-xs font-semibold text-slate-500">{disabledReason}</p>
-                )}
-                <button
-                    type="button"
+            <div className="sticky bottom-0 z-10 -mx-4 flex flex-col gap-2 border-t border-hairline bg-ground px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+                {message && <Notice tone="danger">{message}</Notice>}
+                {disabledReason && <p className="text-caption text-ink-2">{disabledReason}</p>}
+                <Button
+                    variant="primary"
+                    size="lg"
+                    block
                     onClick={createProgram}
-                    disabled={Boolean(disabledReason) || creating}
-                    className="min-h-12 w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400"
+                    disabled={Boolean(disabledReason)}
+                    loading={creating}
                 >
-                    {creating ? "만드는 중..." : "프로그램 만들기"}
-                </button>
+                    {creating ? "만드는 중" : "프로그램 만들기"}
+                </Button>
             </div>
         </main>
     )
 }
 
-function SelectedRoutineCard({
+function SortableRoutineStation({
     routine,
     position,
+    line,
+    nextLine,
     onRemove,
 }: {
     routine: RoutineFinalResponse
     position: number
+    line: RouteLine
+    nextLine: RouteLine | null
     onRemove: () => void
 }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: routine.routineFinalId,
     })
     const display = getRoutineProgramDisplay(routine)
+    const color = ROUTE_LINE_COLOR_VAR[line]
     const meta = [
-        display.splitLabel,
         display.exerciseCount != null ? `${display.exerciseCount}개 운동` : null,
+        display.estimatedTime != null ? `${display.estimatedTime}분` : null,
     ].filter(Boolean).join(" · ")
 
     return (
         <li
             ref={setNodeRef}
             style={{ transform: CSS.Transform.toString(transform), transition }}
-            className={`flex items-center gap-3 rounded-2xl bg-blue-50 px-3 py-3 ring-1 ring-blue-100 ${
-                isDragging ? "z-10 shadow-lg" : ""
-            }`}
+            className={cx(isDragging && "relative z-10 opacity-70")}
         >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-black text-white">
-                {position}
-            </span>
-            <button
-                type="button"
-                className="touch-none rounded-full p-1 text-blue-500"
-                aria-label={`${display.title} 순서 이동`}
-                title="순서 이동"
-                {...attributes}
-                {...listeners}
-            >
-                <GripVertical className="h-4 w-4" />
-            </button>
-            <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold text-slate-800">{display.title}</span>
-                {meta && <span className="mt-0.5 block text-xs font-semibold text-slate-500">{meta}</span>}
-                {display.exercisePreview.length > 0 && (
-                    <span className="mt-0.5 block truncate text-xs font-medium text-slate-400">
-                        {display.exercisePreview.join(" · ")}
-                    </span>
-                )}
-            </span>
-            <button
-                type="button"
-                onClick={onRemove}
-                className="shrink-0 rounded-full p-2 text-blue-700"
-                aria-label={`${display.title} 제거`}
-                title="제거"
-            >
-                <X className="h-4 w-4" />
-            </button>
+            <StationRow
+                color={color}
+                markerColor={color}
+                segmentColor={nextLine ? ROUTE_LINE_COLOR_VAR[nextLine] : undefined}
+                isCurrent={false}
+                isDone={false}
+                isLast={!nextLine}
+                station={{
+                    title: (
+                        <span className="flex min-w-0 items-center gap-2">
+                            <span className="shrink-0 text-body-sm font-bold text-ink-2 tabular-nums">{position}</span>
+                            <span className="truncate">{display.title}</span>
+                        </span>
+                    ),
+                    meta: (
+                        <span className="flex flex-wrap items-center gap-1.5">
+                            <LineBadge line={line} label={display.splitLabel ?? undefined} />
+                            {meta && <span>{meta}</span>}
+                        </span>
+                    ),
+                    trailing: (
+                        <span className="flex shrink-0 items-center">
+                            <button
+                                type="button"
+                                {...attributes}
+                                {...listeners}
+                                aria-label={`${display.title} 순서 바꾸기`}
+                                className="inline-flex size-11 cursor-grab touch-none items-center justify-center rounded-control text-ink-2 hover:bg-surface active:cursor-grabbing"
+                            >
+                                <GripVertical className="size-5" aria-hidden />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onRemove}
+                                aria-label={`${display.title} 빼기`}
+                                className="inline-flex size-11 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
+                            >
+                                <X className="size-5" aria-hidden />
+                            </button>
+                        </span>
+                    ),
+                }}
+            />
         </li>
     )
 }

@@ -3,12 +3,13 @@ import React, { useState } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { UserResponse } from "@/types/project"
-import { Edit3, ShieldCheck, User, X } from "lucide-react"
+import { Edit3, ShieldCheck, User } from "lucide-react"
 import SocialButton from "@/app/components/SocialButton"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
 import { useAuthStore } from "@/store/authStore"
 import { getBackendBaseUrl } from "@/utils/backendBaseUrl"
 import { toast } from "sonner"
+import { Button, Section, Sheet, Skeleton } from "@/components/ui"
 
 interface ProfileProps {
     profile: UserResponse | null
@@ -32,31 +33,44 @@ export default function Profile({ profile, logout, onEdit }: ProfileProps) {
         window.location.href = `${getBackendBaseUrl()}/oauth2/authorization/${provider}`
     }
 
-    if (!profile) return <div>로딩 중...</div>
+    if (!profile) {
+        return (
+            <div className="flex flex-col items-center gap-3 py-6" aria-busy="true">
+                <Skeleton className="size-24 rounded-full" />
+                <Skeleton className="h-7 w-32" />
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="mt-6 h-11 w-full" />
+            </div>
+        )
+    }
+
+    const hasImage = Boolean(profile.profileImageUrl)
 
     return (
-        <div className="w-100 mx-auto p-6 space-y-8">
-            {/* 1. 상단 프로필 영역 */}
-            <div className="flex flex-col items-center">
-                <div className="relative">
-                    {/* [수정] 클릭 시 모달 오픈 이벤트 추가 */}
-                    <div
-                        className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden border-4 border-white shadow-lg cursor-pointer"
+        <div className="flex w-full flex-col gap-8 py-2">
+            <div className="flex flex-col items-center text-center">
+                {hasImage ? (
+                    <button
+                        type="button"
                         onClick={toggleImageModal}
+                        aria-label="프로필 사진 크게 보기"
+                        className="flex size-24 items-center justify-center overflow-hidden rounded-full border border-hairline bg-surface"
                     >
-                        {profile?.profileImageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={profile.profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
-                        ) : (
-                            <User size={64} className="text-gray-400" />
-                        )}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={profile.profileImageUrl ?? undefined} alt="" className="size-full object-cover" />
+                    </button>
+                ) : (
+                    <div className="flex size-24 items-center justify-center rounded-full border border-hairline bg-surface">
+                        <User className="size-12 text-ink-3" aria-hidden />
                     </div>
-                </div>
-                <h2
-                    className="mt-4 text-2xl font-bold"
+                )}
+                <button
+                    type="button"
+                    className="mt-4 min-h-11 rounded-control px-2 text-title font-bold text-ink hover:bg-surface"
+                    aria-label={isNickName ? `${profile.name}, 눌러서 닉네임 보기` : `${profile.nickname ?? "닉네임 없음"}, 눌러서 이름 보기`}
                     onClick={() => {
                         if (!profile.nickname) {
-                            toast.error("프로필 수정 화면에서 닉네임을 먼저 설정해주세요.")
+                            toast.error("프로필 수정에서 닉네임을 먼저 정해 주세요.")
                             return
                         }
 
@@ -64,86 +78,66 @@ export default function Profile({ profile, logout, onEdit }: ProfileProps) {
                     }}
                 >
                     {isNickName ? profile?.name : profile.nickname}
-                </h2>
-                <p className="text-gray-500">{profile?.email}</p>
-                {/* 2. 프로필 관리 버튼 섹션 */}
-                <div className="w-full max-w-md mx-auto mt-8 grid grid-cols-1 gap-3">
-                    <button
-                        className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                        onClick={onEdit}
-                    >
-                        <Edit3 size={18} />
-                        프로필 정보 수정
-                    </button>
-
-                    <div className="w-full max-w-md mx-auto mt-8 space-y-3">
-                        <p className="text-sm font-semibold text-gray-700 mb-2">소셜 계정 연동</p>
-
-                        <SocialButton
-                            provider="kakao"
-                            imageSrc="/images/kakao.png"
-                            onClick={handleSocialLogin}
-                            isLinked={profile.linkedProviders?.includes("kakao")}
-                            isConnect={!profile.linkedProviders?.includes("kakao")}
-                        />
-                        <SocialButton
-                            provider="naver"
-                            imageSrc="/images/naver.png"
-                            onClick={handleSocialLogin}
-                            isLinked={profile.linkedProviders?.includes("naver")}
-                            isConnect={!profile.linkedProviders?.includes("naver")}
-                        />
-                        <SocialButton
-                            provider="google"
-                            imageSrc="/images/google.png"
-                            onClick={handleSocialLogin}
-                            isLinked={profile.linkedProviders?.includes("google")}
-                            isConnect={!profile.linkedProviders?.includes("google")}
-                        />
-                    </div>
-                    {isAdmin && (
-                        <button
-                            className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
-                            onClick={() => router.push("/admin")}
-                        >
-                            <ShieldCheck size={18} />
-                            관리자 페이지
-                        </button>
-                    )}
-                    <button
-                        className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium border border-red-100"
-                        onClick={logout}
-                    >
-                        로그아웃
-                    </button>
-                </div>
+                </button>
+                <p className="text-body-sm text-ink-2">{profile?.email}</p>
             </div>
 
-            {/* [추가] 이미지 확대 모달 (LightBox) */}
-            {isImageModalOpen && profile?.profileImageUrl && (
-                <div
-                    className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm"
-                    onClick={toggleImageModal} // 배경 클릭 시 닫기
-                >
-                    {/* 닫기 버튼 */}
-                    <button
-                        className="absolute top-4 right-4 text-white p-2 rounded-full bg-white/10 hover:bg-white/20"
-                        onClick={toggleImageModal}
-                    >
-                        <X size={24} />
-                    </button>
+            <Button variant="secondary" block icon={<Edit3 className="size-4" aria-hidden />} onClick={onEdit}>
+                프로필 수정하기
+            </Button>
 
-                    {/* 확대된 이미지 (w 크기 최대로 잡음) */}
+            <Section title="소셜 계정 연동">
+                <div className="flex flex-col gap-2">
+                    <SocialButton
+                        provider="kakao"
+                        imageSrc="/images/kakao.png"
+                        onClick={handleSocialLogin}
+                        isLinked={profile.linkedProviders?.includes("kakao")}
+                        isConnect={!profile.linkedProviders?.includes("kakao")}
+                    />
+                    <SocialButton
+                        provider="naver"
+                        imageSrc="/images/naver.png"
+                        onClick={handleSocialLogin}
+                        isLinked={profile.linkedProviders?.includes("naver")}
+                        isConnect={!profile.linkedProviders?.includes("naver")}
+                    />
+                    <SocialButton
+                        provider="google"
+                        imageSrc="/images/google.png"
+                        onClick={handleSocialLogin}
+                        isLinked={profile.linkedProviders?.includes("google")}
+                        isConnect={!profile.linkedProviders?.includes("google")}
+                    />
+                </div>
+            </Section>
+
+            <div className="flex flex-col gap-2 border-t border-hairline pt-6">
+                {isAdmin && (
+                    <Button variant="secondary" block icon={<ShieldCheck className="size-4" aria-hidden />} onClick={() => router.push("/admin")}>
+                        관리자 페이지 열기
+                    </Button>
+                )}
+                <button
+                    type="button"
+                    onClick={logout}
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-control text-body-sm font-bold text-danger-ink transition-colors hover:bg-danger-bg"
+                >
+                    로그아웃
+                </button>
+            </div>
+
+            {hasImage && (
+                <Sheet open={isImageModalOpen} onClose={toggleImageModal} title="프로필 사진">
                     <Image
-                        src={profile.profileImageUrl}
-                        alt="Profile Zoomed"
+                        src={profile.profileImageUrl as string}
+                        alt="프로필 사진"
                         width={1200}
                         height={1200}
                         unoptimized
-                        className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-                        onClick={(e) => e.stopPropagation()} // 이미지 클릭 시 닫힘 방지
+                        className="mx-auto max-h-[70dvh] w-full rounded-control object-contain"
                     />
-                </div>
+                </Sheet>
             )}
         </div>
     )

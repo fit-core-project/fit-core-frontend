@@ -4,11 +4,11 @@
   "statusReasonCode": "none",
   "isFallback": false,
   "totalEstimatedTime": 58,
-  "summaryTitle": "어깨 부담을 낮춘 Push 루틴",
+  "summaryTitle": "어깨 부담을 낮춘 밀기 루틴",
   "rationaleSummary": [
-    "오늘 선택한 push 부위를 기준으로 가슴과 삼두 중심 루틴을 구성했다.",
-    "가슴 DOMS moderate를 반영해 총 볼륨을 줄이고 어깨 부담이 큰 동작을 피했다.",
-    "사용 불가 장비 MACHINE을 제외하고 바벨, 덤벨, 맨몸 중심으로 구성했다."
+    "오늘 선택한 밀기 분할을 기준으로 가슴과 삼두 중심 루틴을 구성했다.",
+    "가슴 근육통이 중간 정도라 총 볼륨을 줄이고 어깨 부담이 큰 동작을 피했다.",
+    "사용할 수 없는 머신을 제외하고 바벨, 덤벨, 맨몸 운동 중심으로 구성했다."
   ],
   "warnings": [
     "왼쪽 어깨 통증이 올라오면 벤치 각도를 낮추거나 해당 세트를 중단한다."
@@ -17,16 +17,16 @@
     {
       "order": 1,
       "exerciseId": "barbell_bench_press",
-      "exerciseName": "Barbell Bench Press",
+      "exerciseName": "바벨 벤치프레스",
       "movementPattern": "horizontalPush",
         "primaryMuscles": ["chest", "triceps", "front-deltoids"],
       "equipmentType": "BARBELL",
       "defaultRestSec": 120,
-      "exerciseRationale": "가슴 중심 push 루틴의 주운동이며, 어깨 부담을 줄이기 위해 중량보다 자세 안정성을 우선한다.",
+      "exerciseRationale": "가슴 중심 밀기 루틴의 주운동이며, 어깨 부담을 줄이기 위해 중량보다 자세 안정성을 우선한다.",
       "substitutionCandidates": [
         {
           "exerciseId": "dumbbell_flat_press",
-          "exerciseName": "Dumbbell Flat Press",
+          "exerciseName": "덤벨 체스트프레스",
           "reason": "바벨이 불편하거나 벤치 점유 시 수평 밀기 의도를 유지할 수 있다."
         }
       ],
@@ -60,7 +60,7 @@
     {
       "order": 2,
       "exerciseId": "dumbbell_incline_press",
-      "exerciseName": "Dumbbell Incline Press",
+      "exerciseName": "인클라인 덤벨 체스트프레스",
       "movementPattern": "inclinePush",
       "primaryMuscles": ["chest", "front-deltoids", "triceps"],
       "equipmentType": "DUMBBELL",
@@ -69,7 +69,7 @@
       "substitutionCandidates": [
         {
           "exerciseId": "push_up",
-          "exerciseName": "Push-up",
+          "exerciseName": "푸시업",
           "reason": "덤벨 사용이 어렵거나 어깨가 불편할 때 강도를 낮출 수 있다."
         }
       ],
@@ -95,16 +95,16 @@
     {
       "order": 3,
       "exerciseId": "cable_triceps_pushdown",
-      "exerciseName": "Cable Triceps Pushdown",
+      "exerciseName": "케이블 푸시다운",
       "movementPattern": "elbowExtension",
       "primaryMuscles": ["triceps"],
       "equipmentType": "CABLE",
       "defaultRestSec": 60,
-      "exerciseRationale": "가슴 볼륨을 줄인 대신 삼두 보조 운동으로 push 루틴 완성도를 보완한다.",
+      "exerciseRationale": "가슴 볼륨을 줄인 대신 삼두 보조 운동으로 밀기 루틴 완성도를 보완한다.",
       "substitutionCandidates": [
         {
           "exerciseId": "bench_dip",
-          "exerciseName": "Bench Dip",
+          "exerciseName": "벤치 딥",
           "reason": "케이블 사용이 어려울 때 맨몸으로 삼두 자극을 유지할 수 있다."
         }
       ],

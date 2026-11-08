@@ -3,9 +3,13 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
+import { Button, TextField, ToggleChip } from "@/components/ui"
 
-const INPUT_CLS =
-    "w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+const GENDER_OPTIONS = [
+    { value: "MALE", label: "남성" },
+    { value: "FEMALE", label: "여성" },
+    { value: "NONE", label: "선택 안 함" },
+] as const
 
 interface Props {
     onNext: () => void
@@ -15,8 +19,12 @@ export default function StepProfile({ onNext }: Props) {
     const [nickname, setNickname] = useState("")
     const [gender, setGender] = useState<"MALE" | "FEMALE" | "NONE">("NONE")
     const [birthDate, setBirthDate] = useState("")
-    const [nicknameStatus, setNicknameStatus] = useState<"idle" | "checking" | "ok" | "dup" | "empty">("idle")
+    const [nicknameStatus, setNicknameStatus] = useState<"idle" | "checking" | "ok" | "dup" | "empty" | "error">("idle")
+    const [checkAttempt, setCheckAttempt] = useState(0)
     const [saving, setSaving] = useState(false)
+    // Display-only: the required message waits until the field was touched or 다음 was pressed.
+    const [touched, setTouched] = useState(false)
+    const [attempted, setAttempted] = useState(false)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
@@ -28,14 +36,14 @@ export default function StepProfile({ onNext }: Props) {
         setNicknameStatus("checking")
         debounceRef.current = setTimeout(() => {
             profileApiClient
-                .checkNickname(nickname.trim())
-                .then((available) => setNicknameStatus(available ? "ok" : "dup"))
-                .catch(() => setNicknameStatus("idle"))
+                .isNicknameTaken(nickname.trim())
+                .then((taken) => setNicknameStatus(taken ? "dup" : "ok"))
+                .catch(() => setNicknameStatus("error"))
         }, 400)
         return () => {
             if (debounceRef.current) clearTimeout(debounceRef.current)
         }
-    }, [nickname])
+    }, [nickname, checkAttempt])
 
     const canProceed = nicknameStatus === "ok" && !saving
 
@@ -50,83 +58,84 @@ export default function StepProfile({ onNext }: Props) {
             })
             onNext()
         } catch {
-            toast.error("프로필 저장 중 오류가 발생했습니다.")
+            toast.error("프로필을 저장하지 못했어요. 잠시 후 다시 시도하세요.")
         } finally {
             setSaving(false)
         }
     }
 
+    const showRequired = nicknameStatus === "empty" && (touched || attempted)
+    const nicknameError =
+        nicknameStatus === "dup"
+            ? "이미 쓰이고 있는 닉네임이에요. 다른 닉네임을 입력하세요."
+            : nicknameStatus === "error"
+              ? "닉네임을 확인하지 못했어요. 아래 버튼으로 다시 확인하세요."
+              : showRequired
+                ? "닉네임을 입력하세요."
+                : undefined
+    const nicknameHint =
+        nicknameStatus === "checking" ? "쓸 수 있는지 확인하고 있어요." : nicknameStatus === "ok" ? "사용할 수 있는 닉네임이에요." : "20자까지 쓸 수 있어요."
+
     return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-8">
             <div>
-                <h2 className="text-xl font-extrabold text-slate-900">기본 정보를 입력해주세요</h2>
-                <p className="mt-1 text-sm text-slate-500">나중에 마이페이지에서 수정할 수 있어요.</p>
+                <h1 className="text-title font-bold text-ink">기본 정보를 알려주세요</h1>
+                <p className="mt-1 text-body-sm text-ink-2">나중에 마이 페이지에서 바꿀 수 있어요.</p>
             </div>
 
-            <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-slate-500">닉네임 *</label>
-                    <input
-                        type="text"
-                        value={nickname}
-                        onChange={(e) => setNickname(e.target.value)}
-                        placeholder="닉네임을 입력하세요"
-                        maxLength={20}
-                        className={INPUT_CLS}
-                    />
-                    {nicknameStatus === "checking" && (
-                        <p className="text-xs text-slate-400">확인 중...</p>
-                    )}
-                    {nicknameStatus === "ok" && (
-                        <p className="text-xs text-emerald-600">사용 가능한 닉네임입니다.</p>
-                    )}
-                    {nicknameStatus === "dup" && (
-                        <p className="text-xs text-red-500">이미 사용 중인 닉네임입니다.</p>
-                    )}
-                    {nicknameStatus === "empty" && nickname === "" && (
-                        <p className="text-xs text-slate-400">닉네임은 필수입니다.</p>
-                    )}
-                </div>
+            <div className="flex flex-col gap-5">
+                <TextField
+                    label="닉네임"
+                    type="text"
+                    value={nickname}
+                    onChange={(e) => {
+                        setTouched(true)
+                        setNickname(e.target.value)
+                    }}
+                    onBlur={() => setTouched(true)}
+                    placeholder="닉네임을 입력하세요"
+                    maxLength={20}
+                    autoComplete="nickname"
+                    required
+                    hint={nicknameHint}
+                    error={nicknameError}
+                />
+                {nicknameStatus === "error" && (
+                    <Button variant="secondary" className="self-start" onClick={() => setCheckAttempt((n) => n + 1)}>
+                        다시 확인
+                    </Button>
+                )}
 
-                <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-slate-500">성별 (선택)</span>
-                    <div className="flex gap-2">
-                        {(["MALE", "FEMALE", "NONE"] as const).map((g) => (
-                            <button
-                                key={g}
-                                type="button"
-                                onClick={() => setGender(g)}
-                                className={`flex-1 rounded-xl border py-2.5 text-sm font-bold transition-all ${
-                                    gender === g
-                                        ? "border-emerald-600 bg-emerald-600 text-white"
-                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                                }`}
-                            >
-                                {g === "MALE" ? "남성" : g === "FEMALE" ? "여성" : "선택 안함"}
-                            </button>
+                <div className="flex flex-col gap-1.5">
+                    <span id="onboarding-gender-label" className="text-body-sm font-medium text-ink">
+                        성별<span className="ml-1 font-normal text-ink-2">(선택)</span>
+                    </span>
+                    <div className="grid grid-cols-3 gap-2" role="group" aria-labelledby="onboarding-gender-label">
+                        {GENDER_OPTIONS.map((option) => (
+                            <ToggleChip key={option.value} pressed={gender === option.value} onClick={() => setGender(option.value)}>
+                                {option.label}
+                            </ToggleChip>
                         ))}
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-slate-500">생년월일 (선택)</label>
-                    <input
-                        type="date"
-                        value={birthDate}
-                        onChange={(e) => setBirthDate(e.target.value)}
-                        className={INPUT_CLS}
-                    />
-                </div>
+                <TextField label="생년월일" optional type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
             </div>
 
-            <button
-                type="button"
-                onClick={handleSave}
-                disabled={!canProceed}
-                className="mt-2 w-full rounded-2xl bg-emerald-600 py-3.5 text-base font-bold text-white transition-colors hover:bg-emerald-700 disabled:opacity-40"
+            <Button
+                variant="primary"
+                size="lg"
+                block
+                loading={saving}
+                aria-disabled={!canProceed || undefined}
+                className={!canProceed && !saving ? "opacity-40" : undefined}
+                onClick={() => {
+                    setAttempted(true)
+                    void handleSave()
+                }}
             >
-                {saving ? "저장 중..." : "다음"}
-            </button>
+                {saving ? "저장하고 있어요" : "다음"}
+            </Button>
         </div>
     )
 }

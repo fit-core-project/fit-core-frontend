@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Send, Bot, Loader2, Pill, Sparkles, Mic, StopCircle, ChevronDown, ExternalLink, X } from "lucide-react"
+import { ChevronDown, ExternalLink, Loader2, Mic, Pill, Send, StopCircle, X } from "lucide-react"
 import AxiosController from "@/lib/axios/AxiosController"
+import { cx } from "@/components/ui"
 
 // --- TypeScript 타입 정의 ---
 type SourceRecord = {
@@ -160,22 +161,22 @@ function MessageSources({
     if (!sources || sources.length === 0) return null
 
     return (
-        <div className="mt-3 border-t border-slate-100 pt-3 text-xs whitespace-normal">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-bold text-slate-500">{getSourceSummary(sources)}</span>
+        <div className="mt-3 whitespace-normal border-t border-hairline pt-2 text-caption">
+            <div className="flex flex-wrap items-center justify-between gap-x-2">
+                <span className="text-ink-2">{getSourceSummary(sources)}</span>
                 <button
                     type="button"
                     onClick={onToggle}
                     aria-expanded={expanded}
-                    className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 font-bold text-emerald-700 transition-colors hover:bg-emerald-100"
+                    className="-mr-2 inline-flex min-h-11 items-center gap-1 rounded-control px-2 font-bold text-ink hover:bg-hairline"
                 >
-                    {expanded ? "참고 근거 접기" : "참고 근거 보기"}
-                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+                    {expanded ? "근거 접기" : "근거 보기"}
+                    <ChevronDown className={cx("size-4 transition-transform duration-150", expanded && "rotate-180")} aria-hidden />
                 </button>
             </div>
 
             {expanded && (
-                <ul className="mt-3 space-y-2">
+                <ul className="mt-1 divide-y divide-hairline">
                     {sources.map((source, index) => {
                         const title = getSourceTitle(source)
                         const snippet = getSourceSnippet(source, title)
@@ -185,26 +186,23 @@ function MessageSources({
                         const detail = [typeLabel, sourceId ? `ID ${sourceId}` : null].filter(Boolean).join(" · ")
 
                         return (
-                            <li key={`${sourceId ?? url ?? title}-${index}`} className="rounded-xl bg-slate-50 px-3 py-2">
-                                <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                        {url ? (
-                                            <a
-                                                href={url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex max-w-full items-center gap-1 font-bold text-slate-700 underline-offset-2 hover:text-emerald-700 hover:underline"
-                                            >
-                                                <span className="truncate">{title}</span>
-                                                <ExternalLink className="h-3 w-3 shrink-0" />
-                                            </a>
-                                        ) : (
-                                            <p className="font-bold text-slate-700">{title}</p>
-                                        )}
-                                        {detail && <p className="mt-0.5 text-[11px] font-semibold text-slate-400">{detail}</p>}
-                                    </div>
-                                </div>
-                                {snippet && <p className="mt-1 leading-relaxed text-slate-500">{snippet}</p>}
+                            <li key={`${sourceId ?? url ?? title}-${index}`} className="py-2">
+                                {url ? (
+                                    <a
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex max-w-full items-center gap-1 font-bold text-ink underline underline-offset-2"
+                                    >
+                                        <span className="truncate">{title}</span>
+                                        <ExternalLink className="size-3 shrink-0" aria-hidden />
+                                        <span className="sr-only">(새 창)</span>
+                                    </a>
+                                ) : (
+                                    <p className="font-bold text-ink">{title}</p>
+                                )}
+                                {detail && <p className="mt-0.5 text-ink-2">{detail}</p>}
+                                {snippet && <p className="mt-1 text-ink-2">{snippet}</p>}
                             </li>
                         )
                     })}
@@ -221,7 +219,7 @@ export default function SupplementChatPage() {
             id: "1",
             role: "ai",
             content:
-                "안녕하세요! 헬스케어 및 영양제 전문 AI 코치입니다.\n현재 복용 중인 영양제 조합, 부작용, 약물 상호작용에 대해 궁금한 점을 편하게 물어보세요.",
+                "복용 정보와 주의사항을 참고용으로 정리해 줘요.\n먹고 있는 영양제 조합, 부작용, 약과 함께 먹어도 되는지 물어보세요.",
         },
     ])
     const [inputText, setInputText] = useState("")
@@ -229,7 +227,7 @@ export default function SupplementChatPage() {
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const [expandedSourceMessageIds, setExpandedSourceMessageIds] = useState<Set<string>>(new Set())
 
-    // 🌟 오디오 녹음(STT) 관련 상태 및 Ref 추가
+    // 오디오 녹음(STT) 상태
     const [isRecording, setIsRecording] = useState(false)
     const [isSttLoading, setIsSttLoading] = useState(false)
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -247,7 +245,7 @@ export default function SupplementChatPage() {
     }, [messages, isLoading])
 
     // ==========================================
-    // 🎙️ 오디오 녹음 및 Whisper STT 전송 (QuickLog와 동일)
+    // 오디오 녹음 및 Whisper STT 전송 (QuickLog와 동일)
     // ==========================================
     const startRecording = async () => {
         try {
@@ -274,7 +272,7 @@ export default function SupplementChatPage() {
                             {
                                 id: Date.now().toString(),
                                 role: "ai",
-                                content: data.message ?? "음성 인식 서버가 닫혀 있어 텍스트 입력을 사용해 주세요.",
+                                content: data.message ?? "지금은 음성 인식을 쓸 수 없어요. 글로 적어 주세요.",
                                 mode: "fallback",
                                 fallbackReason: data.fallbackReason,
                             },
@@ -289,7 +287,7 @@ export default function SupplementChatPage() {
                         {
                             id: Date.now().toString(),
                             role: "ai",
-                            content: `⚠️ 음성 인식 중 오류가 발생했습니다: ${msg}`,
+                            content: `음성을 알아듣지 못했어요(${msg}). 다시 말하거나 글로 적어 주세요.`,
                         },
                     ])
                 } finally {
@@ -303,7 +301,7 @@ export default function SupplementChatPage() {
         } catch {
             setMessages((prev) => [
                 ...prev,
-                { id: Date.now().toString(), role: "ai", content: "⚠️ 마이크 접근 권한이 필요합니다." },
+                { id: Date.now().toString(), role: "ai", content: "마이크 권한이 없어요. 브라우저 설정에서 마이크를 허용하거나 글로 적어 주세요." },
             ])
         }
     }
@@ -316,7 +314,7 @@ export default function SupplementChatPage() {
     }
 
     // ==========================================
-    // 🚀 메시지 전송 로직
+    // 메시지 전송
     // ==========================================
     const handleSendMessage = async (textToSubmit: string = inputText) => {
         if (!textToSubmit.trim() || isLoading) return
@@ -346,7 +344,7 @@ export default function SupplementChatPage() {
             const errorMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: "ai",
-                content: `⚠️ 오류가 발생했습니다: ${e.response?.data?.detail ?? e.message ?? "알 수 없는 오류"}\n잠시 후 다시 시도해 주세요.`,
+                content: `답변을 받지 못했어요(${e.response?.data?.detail ?? e.message ?? "알 수 없는 오류"}).\n잠시 후 다시 물어봐 주세요.`,
             }
             setMessages((prev) => [...prev, errorMsg])
         } finally {
@@ -382,183 +380,157 @@ export default function SupplementChatPage() {
         })
     }
 
-    return (
-        <div className="flex-1 w-full h-full flex flex-col items-center px-4 py-4 md:px-8 relative">
-            <div className="w-full max-w-3xl flex-1 min-h-0 flex flex-col bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative">
-                {/* 1. 헤더 영역 */}
-                <div className="bg-emerald-50/50 p-5 border-b border-emerald-100 flex items-center justify-between shrink-0">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-md shadow-emerald-200">
-                            <Pill className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-lg font-extrabold text-slate-800">영양제 코치</h1>
-                            <p className="text-xs text-emerald-600 font-medium">
-                                복용 정보와 주의사항을 참고용으로 정리해요
-                            </p>
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => router.push("/nutrition")}
-                        aria-label="영양 페이지로 돌아가기"
-                        className="rounded-xl p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                    >
-                        <X className="h-5 w-5" />
-                    </button>
-                </div>
+    const canSend = !isLoading && inputText.length > 0 && !isRecording && !isSttLoading
 
-                {/* 2. 대화 기록 영역 */}
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 bg-slate-50/50">
-                    {messages.map((msg) => (
+    return (
+        <div className="flex h-full min-h-0 w-full flex-1 flex-col bg-ground">
+            {/* 헤더 */}
+            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-hairline px-4 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-surface text-ink">
+                        <Pill className="size-5" aria-hidden />
+                    </span>
+                    <div className="min-w-0">
+                        <h1 className="text-title-sm font-bold text-ink">영양제 코치</h1>
+                        <p className="text-body-sm text-ink-2">영양제 조합·복용 시간·부작용을 물어보세요</p>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => router.push("/nutrition")}
+                    aria-label="영양 화면으로 돌아가기"
+                    className="-mr-2 inline-flex size-11 shrink-0 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
+                >
+                    <X className="size-5" aria-hidden />
+                </button>
+            </header>
+
+            {/* 대화 기록 */}
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4" aria-live="polite">
+                {messages.map((msg) => (
+                    <div key={msg.id} className={cx("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
                         <div
-                            key={msg.id}
-                            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
+                            className={cx(
+                                "max-w-[85%] rounded-panel px-4 py-3 text-body",
+                                msg.role === "user" ? "whitespace-pre-wrap bg-ink text-white" : "whitespace-pre-wrap bg-surface text-ink",
+                            )}
                         >
-                            {msg.role === "ai" && (
-                                <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center mr-3 shrink-0 mt-1">
-                                    <Bot className="w-5 h-5 text-emerald-600" />
+                            {msg.role === "ai" && <span className="sr-only">코치: </span>}
+                            {msg.mode === "fallback" && (
+                                <p className="mb-2 text-caption font-medium text-ink-2">AI 서버에 연결하지 못해 일반 안전 안내로 대신했어요.</p>
+                            )}
+                            <div>{msg.content}</div>
+                            {msg.role === "ai" && msg.caution && msg.caution.trim().length > 0 && (
+                                <div className="mt-3 border-l-[3px] border-danger pl-3 text-body-sm">
+                                    <p className="font-bold text-danger-ink">주의사항</p>
+                                    <p className="whitespace-pre-wrap text-ink">{msg.caution}</p>
                                 </div>
                             )}
-
-                            <div className="max-w-[85%] flex flex-col">
-                                <div
-                                    className={`p-4 text-[15px] leading-relaxed shadow-sm ${
-                                        msg.role === "user"
-                                            ? "bg-slate-800 text-white rounded-3xl rounded-tr-none"
-                                            : "bg-white text-slate-700 border border-slate-100 rounded-3xl rounded-tl-none whitespace-pre-wrap"
-                                    }`}
-                                >
-                                    {msg.mode === "fallback" && (
-                                        <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700">
-                                            AI 서버가 닫혀 있어 일반 안전 안내로 대체했습니다.
-                                        </div>
-                                    )}
-                                    <div>{msg.content}</div>
-                                    {msg.role === "ai" && msg.caution && msg.caution.trim().length > 0 && (
-                                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
-                                            <div className="mb-1 font-semibold">주의사항</div>
-                                            <p className="whitespace-pre-wrap">{msg.caution}</p>
-                                        </div>
-                                    )}
-                                    {msg.role === "ai" && (
-                                        <MessageSources
-                                            sources={msg.sources}
-                                            expanded={expandedSourceMessageIds.has(msg.id)}
-                                            onToggle={() => toggleMessageSources(msg.id)}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-
-                    {isLoading && (
-                        <div className="flex justify-start animate-in fade-in">
-                            <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center mr-3 shrink-0">
-                                <Bot className="w-5 h-5 text-emerald-600" />
-                            </div>
-                            <div className="bg-white border border-slate-100 p-4 rounded-3xl rounded-tl-none shadow-sm flex items-center space-x-3">
-                                <Loader2 className="w-5 h-5 text-emerald-500 animate-spin" />
-                                <span className="text-sm font-medium text-slate-500">
-                                    관련 근거와 주의 문구를 확인하고 있어요...
-                                </span>
-                            </div>
-                        </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                </div>
-
-                {/* 3. 하단 입력 영역 (QuickLog 레이아웃과 완벽하게 동일) */}
-                <div className="bg-white border-t border-slate-100 shrink-0 py-4 flex flex-col w-full">
-                    {/* 첫 화면에서만 추천 질문 표시 */}
-                    {messages.length === 1 && (
-                        <div
-                            ref={scrollRef}
-                            onMouseDown={onDragStart}
-                            onMouseLeave={onDragEnd}
-                            onMouseUp={onDragEnd}
-                            onMouseMove={onDragMove}
-                            className={`flex gap-2 overflow-x-auto px-4 mb-3 select-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] ${
-                                isDragging ? "cursor-grabbing" : "cursor-grab"
-                            }`}
-                        >
-                            {SUGGESTED_QUESTIONS.map((q, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={() => handleSendMessage(q)}
-                                    className="shrink-0 bg-white border border-slate-200 shadow-sm text-slate-600 text-xs py-2 px-4 rounded-full flex items-center hover:bg-emerald-50 hover:border-emerald-200 transition-colors pointer-events-auto"
-                                >
-                                    <Sparkles className="w-3 h-3 text-emerald-500 mr-1.5" />
-                                    {q}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* 🌟 텍스트 입력창 및 마이크/전송 버튼 통합 영역 */}
-                    <div className="px-4 w-full">
-                        <div className="flex items-end gap-2">
-                            {/* STT 마이크 버튼 */}
-                            <button
-                                onClick={isRecording ? stopRecording : startRecording}
-                                disabled={isSttLoading || isLoading}
-                                className={`rounded-2xl transition-all shrink-0 border h-[52px] w-[52px] flex items-center justify-center ${
-                                    isRecording
-                                        ? "bg-red-50 text-red-500 border-red-200 animate-pulse"
-                                        : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
-                                }`}
-                            >
-                                {isRecording ? <StopCircle className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-                            </button>
-
-                            <div className="flex-1 flex items-end bg-slate-50 border border-slate-200 rounded-2xl focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-transparent transition-all">
-                                <textarea
-                                    value={inputText}
-                                    onChange={(e) => setInputText(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter" && !e.shiftKey) {
-                                            e.preventDefault()
-                                            if (!isLoading && inputText.length > 0 && !isRecording && !isSttLoading) {
-                                                handleSendMessage()
-                                            }
-                                        }
-                                    }}
-                                    placeholder={
-                                        isSttLoading
-                                            ? "음성 인식 중..."
-                                            : "예: 오메가3와 비타민D를 같이 먹어도 될까요?"
-                                    }
-                                    disabled={isSttLoading || isLoading || isRecording}
-                                    className="w-full bg-transparent text-slate-800 py-3.5 pl-4 pr-2 outline-none resize-none overflow-y-auto min-h-[52px] max-h-32 text-[15px] leading-relaxed"
-                                    rows={1}
+                            {msg.role === "ai" && (
+                                <MessageSources
+                                    sources={msg.sources}
+                                    expanded={expandedSourceMessageIds.has(msg.id)}
+                                    onToggle={() => toggleMessageSources(msg.id)}
                                 />
-
-                                <button
-                                    onClick={() => handleSendMessage()}
-                                    disabled={isLoading || inputText.length === 0 || isRecording || isSttLoading}
-                                    className="shrink-0 mb-1.5 mr-1.5 w-10 h-10 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white rounded-xl transition-colors flex items-center justify-center"
-                                >
-                                    <Send className="w-5 h-5 ml-0.5" />
-                                </button>
-                            </div>
+                            )}
                         </div>
+                    </div>
+                ))}
 
-                        {/* STT 로딩 텍스트 */}
-                        {isSttLoading && (
-                            <p className="text-[11px] text-center text-emerald-500 mt-2 font-bold animate-pulse">
-                                STT 엔진이 음성을 텍스트로 변환 중입니다...
-                            </p>
+                {isLoading && (
+                    <div className="flex justify-start" aria-busy="true">
+                        <div className="flex items-center gap-2 rounded-panel bg-surface px-4 py-3">
+                            <Loader2 className="size-4 shrink-0 animate-spin text-ink-2 motion-reduce:animate-none" aria-hidden />
+                            <span className="text-body-sm text-ink-2">관련 근거와 주의 문구를 확인하고 있어요</span>
+                        </div>
+                    </div>
+                )}
+                <div ref={messagesEndRef} />
+            </div>
+
+            {/* 하단 입력 */}
+            <div className="shrink-0 border-t border-hairline bg-ground pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+                {messages.length === 1 && (
+                    <div
+                        ref={scrollRef}
+                        onMouseDown={onDragStart}
+                        onMouseLeave={onDragEnd}
+                        onMouseUp={onDragEnd}
+                        onMouseMove={onDragMove}
+                        className={cx(
+                            "mb-3 flex select-none gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                            isDragging ? "cursor-grabbing" : "cursor-grab",
                         )}
-                        <p className="mt-2 px-1 text-[11px] font-medium leading-relaxed text-slate-400">
-                            예: 마그네슘 복용 시간, 오메가3와 약물 상호작용, 위장 불편 등
-                        </p>
+                    >
+                        {SUGGESTED_QUESTIONS.map((q, idx) => (
+                            <button
+                                key={idx}
+                                type="button"
+                                onClick={() => handleSendMessage(q)}
+                                className="inline-flex min-h-11 shrink-0 items-center rounded-control border border-rail bg-ground px-3.5 text-body-sm text-ink hover:border-ink-3"
+                            >
+                                {q}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                <div className="px-4">
+                    <div className="flex items-end gap-2">
+                        <button
+                            type="button"
+                            onClick={isRecording ? stopRecording : startRecording}
+                            disabled={isSttLoading || isLoading}
+                            aria-label={isRecording ? "녹음 멈추기" : "음성으로 입력"}
+                            aria-pressed={isRecording}
+                            className={cx(
+                                "inline-flex size-11 shrink-0 items-center justify-center rounded-control border transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40",
+                                isRecording ? "border-danger bg-danger-bg text-danger-ink" : "border-rail bg-ground text-ink hover:bg-surface",
+                            )}
+                        >
+                            {isRecording ? <StopCircle className="size-5" aria-hidden /> : <Mic className="size-5" aria-hidden />}
+                        </button>
+
+                        <label htmlFor="supplement-input" className="sr-only">
+                            질문
+                        </label>
+                        <textarea
+                            id="supplement-input"
+                            value={inputText}
+                            onChange={(e) => setInputText(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault()
+                                    if (!isLoading && inputText.length > 0 && !isRecording && !isSttLoading) {
+                                        handleSendMessage()
+                                    }
+                                }
+                            }}
+                            placeholder={isSttLoading ? "음성을 글자로 바꾸는 중" : "영양제에 대해 물어보세요"}
+                            disabled={isSttLoading || isLoading || isRecording}
+                            rows={1}
+                            className="field-sizing-content min-h-11 max-h-32 min-w-0 flex-1 resize-none overflow-y-auto rounded-control border border-rail bg-ground px-3 py-2.5 text-body leading-6 text-ink [scrollbar-width:thin] placeholder:text-ink-2 hover:border-ink-3 focus:border-ink focus:outline-none disabled:bg-surface"
+                        />
+
+                        <button
+                            type="button"
+                            onClick={() => handleSendMessage()}
+                            disabled={!canSend}
+                            aria-label="질문 보내기"
+                            className="inline-flex size-11 shrink-0 items-center justify-center rounded-control bg-ink text-white transition-[filter] duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:bg-rail"
+                        >
+                            <Send className="size-5" aria-hidden />
+                        </button>
                     </div>
 
-                    <div className="text-[10px] text-center text-slate-400 mt-3 px-4 font-medium">
-                        <p>이 답변은 참고 정보이며 진단이나 처방을 대신하지 않습니다.</p>
-                        <p>질환이 있거나 약을 복용 중이라면 전문가와 상담해 주세요.</p>
-                    </div>
+                    {(isRecording || isSttLoading) && (
+                        <p className="mt-2 text-center text-caption text-ink-2" role="status">
+                            {isRecording ? "듣고 있어요. 다 말했으면 멈춤 버튼을 누르세요." : "음성을 글자로 바꾸고 있어요."}
+                        </p>
+                    )}
+                    <p className="mt-2 text-center text-caption text-ink-2">
+                        질환이 있거나 약을 먹고 있다면 의사·약사와 상담하세요.
+                    </p>
                 </div>
             </div>
         </div>

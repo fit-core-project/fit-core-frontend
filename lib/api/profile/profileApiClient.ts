@@ -20,9 +20,11 @@ const profileApiClient = {
         return data
     },
 
-    checkNickname: (nickname: string): Promise<boolean> => {
-        if (isDemoMode()) return Promise.resolve(nickname !== getDemoProfile().nickname)
-        return AxiosController.get<boolean>(`/api/profile/check-nickname/${nickname}`)
+    /** true when another account already uses the nickname (BE `/check-nickname` returns isDuplicate). */
+    isNicknameTaken: (nickname: string): Promise<boolean> => {
+        // Demo mode has no other accounts, so no nickname is taken.
+        if (isDemoMode()) return Promise.resolve(false)
+        return AxiosController.get<boolean>(`/api/profile/check-nickname/${encodeURIComponent(nickname)}`)
     },
 
     setLinkMode: (): Promise<void> =>

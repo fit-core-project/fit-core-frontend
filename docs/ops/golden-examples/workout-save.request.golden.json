@@ -21,7 +21,7 @@
     {
       "exerciseOrder": 1,
       "exerciseId": "barbell_bench_press",
-      "exerciseNameSnapshot": "Barbell Bench Press",
+      "exerciseNameSnapshot": "바벨 벤치프레스",
       "setIndex": 1,
       "setType": "working",
       "trackingMode": "weightReps",
@@ -36,7 +36,7 @@
     {
       "exerciseOrder": 1,
       "exerciseId": "barbell_bench_press",
-      "exerciseNameSnapshot": "Barbell Bench Press",
+      "exerciseNameSnapshot": "바벨 벤치프레스",
       "setIndex": 2,
       "setType": "working",
       "trackingMode": "weightReps",

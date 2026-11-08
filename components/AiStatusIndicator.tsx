@@ -8,11 +8,11 @@ type AiStatus = "checking" | "up" | "limited" | "down"
 const POLL_INTERVAL_MS = 30_000
 const REQUEST_TIMEOUT_MS = 5_000
 
-const STATUS_CONFIG: Record<AiStatus, { dot: string; label: string; glow: string }> = {
-    checking: { dot: "bg-slate-400",   label: "확인 중",  glow: "" },
-    up:       { dot: "bg-emerald-500", label: "AI 정상",  glow: "shadow-[0_0_4px_1px_rgba(16,185,129,0.5)]" },
-    limited:  { dot: "bg-amber-400",   label: "AI 제한",  glow: "shadow-[0_0_4px_1px_rgba(251,191,36,0.5)]" },
-    down:     { dot: "bg-red-500",     label: "AI 꺼짐",  glow: "" },
+const STATUS_CONFIG: Record<AiStatus, { dot: string; label: string }> = {
+    checking: { dot: "bg-rail", label: "AI 확인 중" },
+    up: { dot: "bg-line-pull", label: "AI 정상" },
+    limited: { dot: "bg-line-legs", label: "AI 제한" },
+    down: { dot: "bg-danger", label: "AI 꺼짐" },
 }
 
 export default function AiStatusIndicator() {
@@ -57,20 +57,12 @@ export default function AiStatusIndicator() {
         }
     }, [])
 
-    const { dot, label, glow } = STATUS_CONFIG[status]
+    const { dot, label } = STATUS_CONFIG[status]
 
     return (
-        <div
-            className="flex items-center gap-1.5"
-            aria-label={`AI 서버 상태: ${label}`}
-            title={label}
-        >
-            <span
-                className={`h-2 w-2 shrink-0 rounded-full ${dot} ${glow}`}
-            />
-            <span className="hidden text-xs font-medium text-slate-500 sm:block">
-                {label}
-            </span>
+        <div role="status" className="flex items-center gap-1.5" title="AI 루틴 생성 서버 상태">
+            <span aria-hidden className={`size-2 shrink-0 rounded-full ${dot}`} />
+            <span className="text-caption text-ink-2">{label}</span>
         </div>
     )
 }

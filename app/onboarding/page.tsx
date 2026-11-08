@@ -29,31 +29,33 @@ export default function OnboardingPage() {
     }
 
     const stepIndex = STEPS.indexOf(step as (typeof STEPS)[number])
+    const progress = ((stepIndex + 1) / STEPS.length) * 100
 
     return (
-        <div className="flex min-h-screen flex-col bg-white">
-            <div className="px-6 pt-14 pb-4">
-                <p className="text-xs font-semibold text-emerald-600 mb-1">FIT-CORE 시작하기</p>
+        <div className="flex min-h-screen flex-col bg-ground">
+            <div className="px-4 pb-6 pt-10">
+                <p className="text-body-sm font-medium text-ink-2">시작 설정</p>
                 {step !== "done" && (
-                    <>
-                        <div className="flex gap-1.5 mt-3">
-                            {STEPS.map((s, i) => (
-                                <div
-                                    key={s}
-                                    className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                                        i <= stepIndex ? "bg-emerald-500" : "bg-slate-200"
-                                    }`}
-                                />
-                            ))}
+                    <div className="mt-3 flex items-center gap-3">
+                        <div
+                            className="h-0.5 flex-1 bg-hairline"
+                            role="progressbar"
+                            aria-label="시작 설정 진행"
+                            aria-valuemin={1}
+                            aria-valuemax={STEPS.length}
+                            aria-valuenow={stepIndex + 1}
+                            aria-valuetext={`${STEPS.length}단계 중 ${stepIndex + 1}단계`}
+                        >
+                            <div className="h-full bg-ink transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${progress}%` }} />
                         </div>
-                        <p className="mt-2 text-xs text-slate-400">
+                        <p className="text-body-sm font-bold tabular-nums text-ink" aria-hidden>
                             {stepIndex + 1} / {STEPS.length}
                         </p>
-                    </>
+                    </div>
                 )}
             </div>
 
-            <main className="flex-1 px-6 pb-10">
+            <main className="flex-1 px-4 pb-10">
                 {step === "profile" && <StepProfile onNext={() => setStep("workout")} />}
                 {step === "workout" && <StepWorkout onNext={() => setStep("nutrition")} />}
                 {step === "nutrition" && <StepNutrition onNext={goToDone} />}

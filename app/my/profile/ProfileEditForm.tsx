@@ -1,10 +1,10 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import Link from "next/link"
-import { ChevronDown, User } from "lucide-react"
+import { ChevronDown } from "lucide-react"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
 import type { UserResponse } from "@/types/project"
+import { Button, ButtonLink, Section, Surface, TextField } from "@/components/ui"
 
 const GENDER_OPTIONS: { label: string; value: UserResponse["gender"] }[] = [
     { label: "남성", value: "MALE" },
@@ -12,9 +12,8 @@ const GENDER_OPTIONS: { label: string; value: UserResponse["gender"] }[] = [
     { label: "선택 안 함", value: "NONE" },
 ]
 
-const INPUT_CLS =
-    "w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm text-slate-900 placeholder:text-slate-400"
-const SELECT_CLS = `${INPUT_CLS} appearance-none cursor-pointer`
+const SELECT_CLS =
+    "min-h-12 w-full cursor-pointer appearance-none rounded-control border border-rail bg-ground px-3 pr-10 text-body text-ink transition-[border-color] duration-150 hover:border-ink-3"
 
 interface ProfileEditFormProps {
     initialProfile: UserResponse | null
@@ -40,7 +39,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
 
             setNicknameStatus("checking")
             try {
-                const isDuplicate = await profileApiClient.checkNickname(trimmedNickname)
+                const isDuplicate = await profileApiClient.isNicknameTaken(trimmedNickname)
                 setNicknameStatus(isDuplicate ? "duplicate" : "available")
             } catch {
                 setNicknameStatus("idle")
@@ -67,7 +66,7 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
 
         if (nickname !== initialProfile?.nickname) {
             try {
-                const isDuplicate = await profileApiClient.checkNickname(nickname)
+                const isDuplicate = await profileApiClient.isNicknameTaken(nickname)
                 if (isDuplicate) {
                     setNicknameStatus("duplicate")
                     return
@@ -84,97 +83,73 @@ export default function ProfileEditForm({ initialProfile, onSave, onCancel }: Pr
         })
     }
 
+    const nicknameHint =
+        nicknameStatus === "checking" ? "중복을 확인하고 있어요." : nicknameStatus === "available" ? "사용할 수 있는 닉네임이에요." : undefined
+    const nicknameError =
+        nicknameStatus !== "duplicate"
+            ? undefined
+            : formData.nickname.trim() === ""
+              ? "닉네임을 입력하세요."
+              : "이미 쓰이고 있는 닉네임이에요. 다른 닉네임을 입력하세요."
+
     return (
-        <form onSubmit={handleSubmit} className="w-full space-y-4">
-            <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-5">
-                <div className="mb-4 flex items-center gap-2">
-                    <User className="h-5 w-5 text-blue-600" />
-                    <h2 className="text-base font-bold text-slate-800">기본 정보</h2>
-                </div>
+        <form onSubmit={handleSubmit} className="flex w-full flex-col gap-8 py-2">
+            <Section title="기본 정보">
+                <div className="flex flex-col gap-4">
+                    <TextField
+                        label="닉네임"
+                        name="nickname"
+                        value={formData.nickname}
+                        onChange={handleChange}
+                        placeholder="사용자 닉네임"
+                        autoComplete="nickname"
+                        hint={nicknameHint}
+                        error={nicknameError}
+                    />
 
-                <div className="space-y-3">
-                    <label className="block space-y-1">
-                        <span className="text-xs font-semibold text-slate-500">닉네임</span>
-                        <input
-                            name="nickname"
-                            value={formData.nickname}
-                            onChange={handleChange}
-                            className={INPUT_CLS}
-                            placeholder="사용자 닉네임"
-                        />
-                        <span className="block h-4 text-xs">
-                            {nicknameStatus === "checking" && <span className="text-slate-400">중복 확인 중...</span>}
-                            {nicknameStatus === "available" && <span className="text-green-600">사용 가능한 닉네임입니다.</span>}
-                            {nicknameStatus === "duplicate" && <span className="text-red-600">이미 사용 중인 닉네임입니다.</span>}
-                        </span>
-                    </label>
+                    <TextField label="생년월일" type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} optional />
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <label className="block space-y-1">
-                            <span className="text-xs font-semibold text-slate-500">생년월일</span>
-                            <input
-                                type="date"
-                                name="birthDate"
-                                value={formData.birthDate}
-                                onChange={handleChange}
-                                className={INPUT_CLS}
-                            />
+                    <div className="flex flex-col gap-1.5">
+                        <label htmlFor="profile-gender" className="text-body-sm font-medium text-ink">
+                            성별
                         </label>
-
-                        <label className="block space-y-1">
-                            <span className="text-xs font-semibold text-slate-500">성별</span>
-                            <span className="relative block">
-                                <select
-                                    name="gender"
-                                    value={formData.gender}
-                                    onChange={handleChange}
-                                    className={SELECT_CLS}
-                                >
-                                    {GENDER_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                            </span>
-                        </label>
+                        <div className="relative">
+                            <select id="profile-gender" name="gender" value={formData.gender} onChange={handleChange} className={SELECT_CLS}>
+                                {GENDER_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-ink-2" aria-hidden />
+                        </div>
                     </div>
                 </div>
-            </section>
+            </Section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h2 className="text-base font-bold text-slate-800">체성분 관리</h2>
-                <p className="mt-2 text-sm font-semibold text-slate-700">
-                    체중과 체지방률은 체성분 변화에서 관리합니다.
-                </p>
-                <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                    시간에 따라 변하는 신체 기록은 통계 화면에서 확인하고 기록할 수 있습니다.
-                </p>
-                <Link
-                    href="/my?tab=stats"
-                    className="mt-4 inline-flex min-h-11 items-center rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50"
-                >
-                    체성분 변화로 이동
-                </Link>
-            </section>
+            <Section title="체성분">
+                <Surface tone="sunken" className="flex flex-col gap-3">
+                    <p className="text-body-sm text-ink-2">체중과 체지방률은 시간에 따라 바뀌어서 통계 탭의 체성분 변화에서 기록해요.</p>
+                    <ButtonLink href="/my?tab=stats" variant="secondary" className="self-start">
+                        체성분 기록하기
+                    </ButtonLink>
+                </Surface>
+            </Section>
 
-            <div className="sticky bottom-0 -mx-4 border-t border-slate-100 bg-white/95 px-4 pb-4 pt-3 backdrop-blur-sm">
-                <div className="flex gap-3">
-                    <button
-                        type="button"
-                        onClick={onCancel}
-                        className="flex-1 rounded-xl bg-slate-100 py-3 font-semibold text-slate-600 transition-colors hover:bg-slate-200"
-                    >
+            <div className="sticky bottom-0 -mx-4 border-t border-hairline bg-ground px-4 pb-4 pt-3">
+                <div className="grid grid-cols-3 gap-2">
+                    <Button variant="secondary" size="lg" onClick={onCancel}>
                         취소
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         type="submit"
+                        variant="primary"
+                        size="lg"
+                        className="col-span-2"
                         disabled={nicknameStatus === "duplicate" || nicknameStatus === "checking"}
-                        className="flex-[2] rounded-xl bg-blue-600 py-3 font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:bg-blue-700 disabled:opacity-50"
                     >
                         저장하기
-                    </button>
+                    </Button>
                 </div>
             </div>
         </form>

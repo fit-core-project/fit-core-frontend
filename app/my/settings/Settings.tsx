@@ -1,12 +1,9 @@
 "use client"
 
 import { useSettingsStore } from "@/store/settingsStore"
+import { Section, ToggleChip } from "@/components/ui"
 
 const APP_VERSION = "0.1.0"
-
-function SectionHeader({ title }: { title: string }) {
-    return <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">{title}</p>
-}
 
 function SettingRow({
     label,
@@ -18,10 +15,10 @@ function SettingRow({
     children: React.ReactNode
 }) {
     return (
-        <div className="flex items-center justify-between gap-4 rounded-2xl bg-white px-4 py-4 shadow-sm">
+        <div className="flex min-h-14 items-center justify-between gap-4 px-4 py-3">
             <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-800">{label}</p>
-                {description && <p className="mt-0.5 text-xs text-slate-400">{description}</p>}
+                <p className="text-body font-medium text-ink">{label}</p>
+                {description && <p className="mt-0.5 text-body-sm text-ink-2">{description}</p>}
             </div>
             <div className="shrink-0">{children}</div>
         </div>
@@ -31,20 +28,11 @@ function SettingRow({
 function UnitToggle() {
     const { weightUnit, setWeightUnit } = useSettingsStore()
     return (
-        <div className="flex rounded-lg bg-slate-100 p-0.5">
+        <div className="flex gap-1.5" role="group" aria-label="무게 단위">
             {(["kg", "lbs"] as const).map((unit) => (
-                <button
-                    key={unit}
-                    type="button"
-                    onClick={() => setWeightUnit(unit)}
-                    className={`rounded-md px-3 py-1 text-xs font-bold transition-colors ${
-                        weightUnit === unit
-                            ? "bg-white text-blue-600 shadow-sm"
-                            : "text-slate-500 hover:text-slate-700"
-                    }`}
-                >
+                <ToggleChip key={unit} pressed={weightUnit === unit} onClick={() => setWeightUnit(unit)} className="min-w-14">
                     {unit}
-                </button>
+                </ToggleChip>
             ))}
         </div>
     )
@@ -52,32 +40,30 @@ function UnitToggle() {
 
 export default function Settings() {
     return (
-        <div className="space-y-6">
-            <div className="space-y-2">
-                <SectionHeader title="표시 설정" />
-                <SettingRow label="무게 단위" description="루틴 및 기록에 표시되는 중량 단위">
-                    <UnitToggle />
-                </SettingRow>
-            </div>
+        <div className="flex flex-col gap-8 py-2">
+            <Section title="표시">
+                <div className="rounded-panel border border-hairline bg-ground">
+                    <SettingRow label="무게 단위" description="루틴과 기록에 보이는 중량 단위">
+                        <UnitToggle />
+                    </SettingRow>
+                </div>
+            </Section>
 
-            <div className="space-y-2">
-                <SectionHeader title="앱 정보" />
-                <div className="rounded-2xl bg-white shadow-sm divide-y divide-slate-50">
-                    <div className="flex items-center justify-between px-4 py-4">
-                        <p className="text-sm font-semibold text-slate-800">버전</p>
-                        <p className="text-sm text-slate-400">{APP_VERSION}</p>
-                    </div>
-                    <div className="flex items-center justify-between px-4 py-4">
-                        <p className="text-sm font-semibold text-slate-800">문의 / 피드백</p>
+            <Section title="앱 정보">
+                <div className="divide-y divide-hairline rounded-panel border border-hairline bg-ground">
+                    <SettingRow label="버전">
+                        <p className="text-body-sm tabular-nums text-ink-2">{APP_VERSION}</p>
+                    </SettingRow>
+                    <SettingRow label="문의 / 피드백">
                         <a
                             href="mailto:tpwls6478@gmail.com"
-                            className="text-sm text-blue-500 hover:underline"
+                            className="inline-flex min-h-11 items-center text-body-sm font-bold text-ink underline underline-offset-2"
                         >
                             이메일 보내기
                         </a>
-                    </div>
+                    </SettingRow>
                 </div>
-            </div>
+            </Section>
         </div>
     )
 }

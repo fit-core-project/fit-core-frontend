@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { AlertCircle, CheckCircle2, Clock, Trash2, Plus, Save, X, Info, Search, GripVertical, ArrowLeft } from "lucide-react"
+import { ArrowLeft, ChevronDown, Clock, GripVertical, Minus, Plus, Repeat, Save, Search, Trash2 } from "lucide-react"
 import {
     DndContext,
     closestCenter,
@@ -24,86 +24,68 @@ import { getExerciseCatalog, getRecentRecord } from "@/services/exerciseService"
 import { ExerciseCatalogItem } from "@/services/mockDataFactory"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
 import { generateEditSummary } from "@/utils/routineDiff"
+import { getKstToday } from "@/utils/date"
 import { FinalizeState } from "@/types/state"
 import { useForm } from "react-hook-form"
 import { NUMERIC_RANGES, NumericFieldName, numericRules, toDisplayBound, validateNumericRange } from "@/utils/numericValidation"
+import { equipmentLabel, fallbackReasonLabel, muscleLabel, routineOriginLabel } from "@/utils/displayLabels"
+import { lineForRoutine, ROUTE_LINE_COLOR_VAR, type RouteLine } from "@/utils/routeLine"
+import { Button, ButtonLink, cx, EmptyState, LineBadge, Notice, RouteStrip, Sheet, Skeleton, StationRow, Tag } from "@/components/ui"
 
-// 값은 primaryMuscle에 대해 includes()로 매칭되는 영문 부분 문자열 목록
+// Korean search words → SSOT muscle slugs, matched with includes() against the catalog primaryMuscle.
 const MUSCLE_KR: Record<string, string[]> = {
-    // 가슴 (chest 포함하면 upperChest/lowerChest 모두 매칭)
     "가슴": ["chest"],
     "흉근": ["chest"],
-    "상부 가슴": ["upperchest"],
-    "가슴 상부": ["upperchest"],
-    "상부가슴": ["upperchest"],
-    "가슴상부": ["upperchest"],
-    "하부 가슴": ["lowerchest"],
-    "가슴 하부": ["lowerchest"],
+    "상부 가슴": ["chest"],
+    "하부 가슴": ["chest"],
 
-    // 등 (back → upperBack/lowerBack, lat → lats)
-    "등": ["back", "lat"],
-    "광배": ["lat"],
-    "광배근": ["lat"],
-    "상부 등": ["upperback"],
-    "등 상부": ["upperback"],
-    "하부 등": ["lowerback"],
-    "등 하부": ["lowerback"],
-    "허리": ["lowerback"],
+    "등": ["upper-back", "lower-back"],
+    "광배": ["upper-back"],
+    "광배근": ["upper-back"],
+    "상부 등": ["upper-back"],
+    "하부 등": ["lower-back"],
+    "허리": ["lower-back"],
 
-    // 어깨 (delt → frontDelt/sideDelt/rearDelt 모두 매칭)
-    "어깨": ["delt", "shoulder"],
-    "삼각근": ["delt", "shoulder"],
-    "전면어깨": ["frontdelt"],
-    "전면 어깨": ["frontdelt"],
-    "전방어깨": ["frontdelt"],
-    "전방 어깨": ["frontdelt"],
-    "앞어깨": ["frontdelt"],
-    "앞 어깨": ["frontdelt"],
-    "측면어깨": ["sidedelt"],
-    "측면 어깨": ["sidedelt"],
-    "옆어깨": ["sidedelt"],
-    "옆 어깨": ["sidedelt"],
-    "후면어깨": ["reardelt"],
-    "후면 어깨": ["reardelt"],
-    "후방어깨": ["reardelt"],
-    "후방 어깨": ["reardelt"],
-    "뒤어깨": ["reardelt"],
-    "뒤 어깨": ["reardelt"],
+    "어깨": ["deltoids"],
+    "삼각근": ["deltoids"],
+    "전면 어깨": ["front-deltoids"],
+    "전면어깨": ["front-deltoids"],
+    "앞 어깨": ["front-deltoids"],
+    "측면 어깨": ["side-deltoids"],
+    "측면어깨": ["side-deltoids"],
+    "옆 어깨": ["side-deltoids"],
+    "후면 어깨": ["back-deltoids"],
+    "후면어깨": ["back-deltoids"],
+    "뒤 어깨": ["back-deltoids"],
 
-    // 팔
-    "이두": ["bicep"],
-    "이두근": ["bicep"],
-    "삼두": ["tricep"],
-    "삼두근": ["tricep"],
+    "이두": ["biceps"],
+    "이두근": ["biceps"],
+    "삼두": ["triceps"],
+    "삼두근": ["triceps"],
     "전완": ["forearm"],
     "전완근": ["forearm"],
 
-    // 하체 대분류 (quad/hamstring/glute/calf 등 하체 전체)
-    "하체": ["quad", "hamstring", "glute", "calf", "leg", "adduct", "abduct"],
-    "다리": ["quad", "hamstring", "glute", "calf", "leg", "adduct", "abduct"],
-    "하지": ["quad", "hamstring", "glute", "calf", "leg"],
-
-    // 하체 소분류
-    "허벅지": ["quad", "hamstring"],
-    "대퇴사두": ["quad"],
-    "대퇴사두근": ["quad"],
+    "하체": ["quadriceps", "hamstring", "gluteal", "calves", "adductor", "abductors"],
+    "다리": ["quadriceps", "hamstring", "gluteal", "calves", "adductor", "abductors"],
+    "허벅지": ["quadriceps", "hamstring"],
+    "앞 허벅지": ["quadriceps"],
+    "뒤 허벅지": ["hamstring"],
+    "대퇴사두": ["quadriceps"],
     "햄스트링": ["hamstring"],
-    "엉덩이": ["glute"],
-    "둔근": ["glute"],
-    "힙": ["glute", "hip"],
-    "종아리": ["calf"],
-    "내전근": ["adduct"],
-    "외전근": ["abduct"],
-    "전거근": ["serratus"],
+    "엉덩이": ["gluteal"],
+    "둔근": ["gluteal"],
+    "힙": ["gluteal"],
+    "종아리": ["calves"],
+    "내전근": ["adductor"],
+    "외전근": ["abductors"],
 
-    // 코어 / 복부
-    "복근": ["abs", "core"],
-    "복부": ["abs", "core"],
-    "코어": ["core", "abs"],
+    "복근": ["abs", "obliques"],
+    "복부": ["abs", "obliques"],
+    "코어": ["abs", "obliques", "lower-back"],
+    "옆구리": ["obliques"],
 
-    // 승모근
-    "승모근": ["trap"],
-    "승모": ["trap"],
+    "승모근": ["trapezius"],
+    "승모": ["trapezius"],
 }
 
 // Fetch recent record for exerciseId and apply default weight/reps to all sets.
@@ -121,34 +103,6 @@ async function applyRecentRecordDefaults(block: RoutineBlock, exerciseId: string
     }
 }
 
-function fallbackReasonLabel(reasonCode: RoutineDraft["statusReasonCode"]): string {
-    switch (reasonCode) {
-        case "llmTimeout":
-            return "AI \uc751\ub2f5 \uc9c0\uc5f0"
-        case "schemaError":
-            return "AI \uc751\ub2f5 \ud615\uc2dd \uc624\ub958"
-        case "networkError":
-            return "AI \uc5f0\uacb0 \uc2e4\ud328"
-        case "ai_server_unavailable":
-        case "ai_connection_refused":
-            return "AI \uc11c\ubc84 \uc5f0\uacb0 \uc2e4\ud328"
-        case "ai_timeout":
-            return "AI \uc751\ub2f5 \uc9c0\uc5f0"
-        case "ai_bad_response":
-        case "ai_schema_mismatch":
-            return "AI \uc751\ub2f5 \ud615\uc2dd \uc624\ub958"
-        case "ai_remote_error":
-            return "AI \uc11c\ubc84 \uc751\ub2f5 \uc624\ub958"
-        case "ai_disabled":
-            return "AI \uae30\ub2a5 \ube44\ud65c\uc131\ud654"
-        case "unknown_ai_error":
-            return "AI \uc751\ub2f5 \uc0ac\uc6a9 \ubd88\uac00"
-        case "emptyCandidate":
-            return "\uc0ac\uc6a9 \uac00\ub2a5\ud55c \uc6b4\ub3d9 \ud6c4\ubcf4 \uc5c6\uc74c"
-        default:
-            return "\uc548\uc804 \ub300\uccb4"
-    }
-}
 
 export default function RoutineReviewPage() {
     const router = useRouter()
@@ -172,6 +126,10 @@ export default function RoutineReviewPage() {
     const [swapBlockId, setSwapBlockId] = useState<string | null>(null)
     const [swapQuery, setSwapQuery] = useState("")
     const [swapLoading, setSwapLoading] = useState(false)
+    const [editingBlockId, setEditingBlockId] = useState<string | null>(null)
+    const [backConfirmOpen, setBackConfirmOpen] = useState(false)
+
+    const line = useMemo(() => lineForRoutine(null, draft?.routineBlocks.flatMap((block) => block.primaryMuscles ?? []) ?? []), [draft])
 
     // 1. Load routine + catalog, then apply weights to all blocks
     useEffect(() => {
@@ -316,7 +274,7 @@ export default function RoutineReviewPage() {
                 ...currentBlock,
                 exerciseId: item.id,
                 exerciseName: item.nameKr,
-                exerciseRationale: `${item.primaryMuscle} 주동근 운동 (${item.equipment})`,
+                exerciseRationale: `${muscleLabel(item.primaryMuscle)} 주동근 운동 (${equipmentLabel(item.equipment)})`,
             }
             const enrichedBlock = await applyRecentRecordDefaults(baseBlock, item.id)
 
@@ -441,7 +399,7 @@ export default function RoutineReviewPage() {
         })
 
         const payload = {
-            targetWorkoutDate: new Date().toISOString().split("T")[0],
+            targetWorkoutDate: getKstToday(),
             // clientBlockId is UI-only state for drag-and-drop, not part of the public finalize contract.
             finalRoutinePayload: { routineBlocks: cleanRoutineBlocks },
             acceptedWithoutEdits,
@@ -459,382 +417,290 @@ export default function RoutineReviewPage() {
         }
     }
 
-    const handleBack = () => {
-        if (window.confirm("편집 내용이 사라질 수 있어요. 돌아갈까요?")) {
-            router.push(isManualMode ? "/workout" : "/ai_routine/generator")
-        }
+    const leaveEditing = () => router.push(isManualMode ? "/workout" : "/ai_routine/generator")
+
+    if (finalizeStatus === "loading" && !draft) {
+        return (
+            <div className="flex flex-col gap-3 bg-ground p-4" aria-busy="true">
+                <span className="sr-only">루틴을 불러오는 중…</span>
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-8 w-3/4" />
+                <Skeleton className="mt-4 h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+            </div>
+        )
+    }
+    if (!draft) {
+        return (
+            <EmptyState
+                className="pt-16"
+                title="확인할 루틴이 없어요"
+                body="AI 루틴을 만들거나 직접 루틴을 구성해 보세요."
+                action={
+                    <ButtonLink href="/ai_routine" variant="primary">
+                        루틴 만들기
+                    </ButtonLink>
+                }
+            />
+        )
     }
 
-    if (finalizeStatus === "loading" && !draft) return <div className="p-10 text-center text-slate-500">루틴 불러오는 중...</div>
-    if (!draft) return <div className="p-10 text-center text-slate-500">저장된 루틴이 없습니다.</div>
+    const blocks = draft.routineBlocks
+    const originLabel = routineOriginLabel({ isManual: isManualMode, isFallback: draft.isFallback })
+    const fallbackReason = draft.isFallback ? fallbackReasonLabel(draft.statusReasonCode) : null
 
     return (
-        <div className="flex flex-col w-full">
-
-            {/* 상단 뒤로가기 */}
-            <div className="sticky top-0 z-20 bg-white border-b border-slate-100 px-4 py-2 flex items-center shadow-sm">
+        <div className="flex min-h-full w-full flex-col bg-ground">
+            <header className="sticky top-0 z-20 flex items-center gap-1 border-b border-hairline bg-ground px-2 py-1.5">
                 <button
                     type="button"
-                    onClick={handleBack}
-                    className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
+                    onClick={() => setBackConfirmOpen(true)}
+                    aria-label="뒤로"
+                    className="inline-flex size-11 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
                 >
-                    <ArrowLeft className="w-4 h-4" />
-                    뒤로
+                    <ArrowLeft className="size-5" aria-hidden />
                 </button>
-            </div>
-
-            {/* Fallback warning banner */}
-            {draft.isFallback && (
-                <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 shadow-sm animate-in fade-in slide-in-from-top-2">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-                    <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-md border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-800">
-                                기본 루틴
-                            </span>
-                            <span className="text-xs font-bold text-amber-700">
-                                {fallbackReasonLabel(draft.statusReasonCode)}
-                            </span>
-                        </div>
-                        <p className="mt-1 text-sm font-semibold leading-relaxed text-amber-900">
-                            현재 AI 코치에 연결할 수 없어 기본 루틴을 제공하고 있습니다.
-                            <br />
-                            개인화 수준이 제한될 수 있습니다.
-                        </p>
-                    </div>
-                </div>
-            )}
-        <div className="flex flex-col w-full max-w-2xl mx-auto p-4 space-y-6 pb-44">
-
-            {/* Status badge + estimated time */}
-            <div
-                className={`p-4 rounded-2xl flex items-center justify-between ${
-                    draft.isFallback ? "bg-amber-50 border border-amber-100" : "bg-blue-50 border border-blue-100"
-                }`}
-            >
-                <div className="flex items-center space-x-3">
-                    {isManualMode ? (
-                        <CheckCircle2 className="w-5 h-5 text-violet-500" />
-                    ) : draft.isFallback ? (
-                        <AlertCircle className="w-5 h-5 text-amber-500" />
-                    ) : (
-                        <CheckCircle2 className="w-5 h-5 text-blue-500" />
-                    )}
-                    <div>
-                        <h2 className="font-bold text-slate-800 text-sm">
-                            {isManualMode ? "내 루틴" : draft.isFallback ? "기본 루틴" : "AI 추천 루틴"}
-                        </h2>
-                        <p className="text-[10px] text-slate-400 uppercase font-mono">
-                            {isManualMode ? "직접 작성" : draft.isFallback ? "개인화 제한" : draft.statusReasonCode}
-                        </p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    {/* kg / lbs toggle */}
-                    <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                <span className="min-w-0 flex-1 truncate text-body font-bold text-ink">루틴 확인</span>
+                <div role="group" aria-label="무게 단위" className="flex rounded-control bg-surface p-0.5">
+                    {(["kg", "lbs"] as const).map((unit) => (
                         <button
-                            onClick={() => setDisplayUnit("kg")}
-                            className={`px-2.5 py-1 rounded-md text-xs font-black transition-all ${
-                                displayUnit === "kg"
-                                    ? "bg-white text-slate-800 shadow-sm"
-                                    : "text-slate-400 hover:text-slate-600"
-                            }`}
+                            key={unit}
+                            type="button"
+                            aria-pressed={displayUnit === unit}
+                            onClick={() => setDisplayUnit(unit)}
+                            className={cx(
+                                "min-h-9 min-w-11 rounded-[4px] px-2 text-body-sm font-bold",
+                                displayUnit === unit ? "bg-ground text-ink shadow-[0_0_0_1px_var(--color-hairline)]" : "text-ink-2",
+                            )}
                         >
-                            kg
+                            {unit}
                         </button>
-                        <button
-                            onClick={() => setDisplayUnit("lbs")}
-                            className={`px-2.5 py-1 rounded-md text-xs font-black transition-all ${
-                                displayUnit === "lbs"
-                                    ? "bg-white text-slate-800 shadow-sm"
-                                    : "text-slate-400 hover:text-slate-600"
-                            }`}
-                        >
-                            lbs
-                        </button>
-                    </div>
-                    <span className="text-blue-600 font-bold flex items-center gap-1">
-                        <Clock className="w-4 h-4" /> {totalTime}분
-                    </span>
+                    ))}
                 </div>
-            </div>
+                <Tag className="ml-1 mr-1">
+                    <Clock className="size-3.5" aria-hidden />
+                    <span className="tabular-nums">{totalTime}분</span>
+                </Tag>
+            </header>
 
-            {/* Routine summary card */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
-                <h1 className="text-lg font-extrabold text-slate-800">{draft.summaryTitle}</h1>
+            <div className="flex flex-col gap-5 px-4 pb-6 pt-5">
+                <div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <LineBadge line={line} />
+                        <Tag>{originLabel}</Tag>
+                    </div>
+                    <h1 className="mt-2 text-title font-bold text-ink">{draft.summaryTitle || (isManualMode ? "내 루틴" : "오늘의 루틴")}</h1>
+                </div>
+
+                {draft.isFallback && (
+                    <Notice title={fallbackReason ?? "기본 규칙으로 만든 루틴이에요"}>
+                        AI 개인화 없이 만든 루틴이에요. 필요하면 운동을 바꿔서 쓰세요.
+                    </Notice>
+                )}
 
                 {draft.warnings.length > 0 && (
-                    <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl p-3">
-                        <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                        <ul className="space-y-0.5">
-                            {draft.warnings.map((w, i) => (
-                                <li key={i} className="text-xs text-amber-700 font-medium">
-                                    {w}
-                                </li>
+                    <Notice tone="danger">
+                        <ul className="flex flex-col gap-1">
+                            {draft.warnings.map((warning, index) => (
+                                <li key={index}>{warning}</li>
                             ))}
                         </ul>
-                    </div>
+                    </Notice>
                 )}
 
                 {!isManualMode && draft.rationaleSummary.length > 0 && (
-                    <div className="flex items-start gap-2">
-                        <Info className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
-                        <ul className="space-y-1">
-                            {draft.rationaleSummary.map((line, i) => (
-                                <li key={i} className="text-xs text-slate-600 leading-relaxed">
-                                    {line}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                    <ul className="flex flex-col gap-1.5 text-body-sm text-ink-2">
+                        {draft.rationaleSummary.map((text, index) => (
+                            <li key={index}>{text}</li>
+                        ))}
+                    </ul>
                 )}
+
+                <section aria-label="운동 순서" className="flex flex-col gap-4">
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={({ active, over }: DragEndEvent) => {
+                            if (over && active.id !== over.id) reorderBlocks(String(active.id), String(over.id))
+                        }}
+                    >
+                        <SortableContext items={blocks.map((b) => b.clientBlockId!)} strategy={verticalListSortingStrategy}>
+                            <ol aria-label="루틴 노선" className="flex flex-col">
+                                {blocks.map((block, index) => (
+                                    <SortableStation
+                                        key={block.clientBlockId}
+                                        block={block}
+                                        line={line}
+                                        isLast={index === blocks.length - 1}
+                                        expanded={editingBlockId === block.clientBlockId}
+                                        onToggle={() => setEditingBlockId((prev) => (prev === block.clientBlockId ? null : block.clientBlockId!))}
+                                        displayUnit={displayUnit}
+                                        onUpdateSet={updateSet}
+                                        onUpdateRestTime={updateRestTime}
+                                        onAddSet={addSet}
+                                        onDeleteSet={deleteSet}
+                                        onDeleteBlock={deleteBlock}
+                                        onSwapRequest={(blockId) => {
+                                            setSwapBlockId(blockId)
+                                            setSwapQuery("")
+                                        }}
+                                    />
+                                ))}
+                            </ol>
+                        </SortableContext>
+                    </DndContext>
+
+                    {isManualMode && blocks.length === 0 && (
+                        <EmptyState title="아직 운동이 없어요" body="아래 버튼으로 첫 운동을 추가하세요." />
+                    )}
+
+                    <Button variant="secondary" block icon={<Plus className="size-4" aria-hidden />} onClick={addNewExerciseBlock}>
+                        운동 추가
+                    </Button>
+                </section>
             </div>
 
-            {/* Exercise block list */}
-            <section className="space-y-4">
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={({ active, over }: DragEndEvent) => {
-                        if (over && active.id !== over.id)
-                            reorderBlocks(String(active.id), String(over.id))
-                    }}
-                >
-                    <SortableContext
-                        items={draft.routineBlocks.map((b) => b.clientBlockId!)}
-                        strategy={verticalListSortingStrategy}
-                    >
-                        {draft.routineBlocks.map((block) => (
-                            <SortableExerciseCard
-                                key={block.clientBlockId}
-                                block={block}
-                                isFallback={draft.isFallback}
-                                displayUnit={displayUnit}
-                                onUpdateSet={updateSet}
-                                onUpdateRestTime={updateRestTime}
-                                onAddSet={addSet}
-                                onDeleteSet={deleteSet}
-                                onDeleteBlock={deleteBlock}
-                                onSwapRequest={(blockId) => {
-                                    setSwapBlockId(blockId)
-                                    setSwapQuery("")
-                                }}
-                            />
-                        ))}
-                    </SortableContext>
-                </DndContext>
-
-                {isManualMode && draft.routineBlocks.length === 0 && (
-                    <div className="rounded-2xl bg-slate-50 p-5 text-center">
-                        <p className="text-sm font-bold text-slate-600">아직 추가된 운동이 없습니다.</p>
-                        <p className="mt-1 text-sm text-slate-400">아래 버튼을 눌러 루틴을 구성하세요.</p>
-                    </div>
-                )}
-
-                <button
-                    onClick={addNewExerciseBlock}
-                    className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-sm text-slate-400 font-bold hover:bg-slate-50 hover:border-blue-300 hover:text-blue-500 transition-colors flex items-center justify-center gap-2"
-                >
-                    <Plus className="w-4 h-4" /> 운동 추가
-                </button>
-            </section>
-
-            {/* Bottom action bar */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-100 shadow-[0_-4px_24px_-2px_rgba(0,0,0,0.08)] px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            <div className="sticky bottom-0 z-10 mt-auto border-t border-hairline bg-ground px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
                 {!isRoutineValid && (
-                    <p className="text-center text-xs text-red-500 font-bold mb-2">
-                        세트 값이 유효하지 않습니다 (횟수 1~50, 무게 0~500, 휴식 0~600초)
+                    <p role="alert" className="mb-2 text-caption text-danger-ink">
+                        세트 값을 확인하세요. 횟수 1~50, 무게 0~500kg, 휴식 0~600초 안이어야 해요.
                     </p>
                 )}
                 {finalizeStatus === "failed" && (
-                    <p className="text-center text-xs text-red-500 font-bold mb-2">
-                        루틴 저장에 실패했습니다. 다시 시도해 주세요.
+                    <p role="alert" className="mb-2 text-caption text-danger-ink">
+                        저장하지 못했어요. 다시 시도하세요.
                     </p>
                 )}
-                <button
+                <Button
+                    variant="primary"
+                    size="lg"
+                    block
+                    line={line}
+                    loading={finalizeStatus === "loading"}
+                    disabled={!isRoutineValid}
                     onClick={handleFinalize}
-                    disabled={finalizeStatus === "loading" || !isRoutineValid}
-                    className="w-full max-w-2xl mx-auto bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 flex items-center justify-center gap-2 transition-transform active:scale-[0.98] block"
+                    icon={<Save className="size-5" aria-hidden />}
                 >
-                    <Save className="w-5 h-5" /> {finalizeStatus === "loading" ? "저장 중..." : "루틴 저장"}
-                </button>
+                    루틴 저장
+                </Button>
             </div>
 
-            {finalizeStatus === "finalized" && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4 backdrop-blur-sm animate-in fade-in duration-200"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="routine-save-complete-title"
-                    onClick={goHomeAfterSave}
-                >
-                    <div
-                        className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl animate-in zoom-in-95 duration-200"
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <div className="flex justify-end">
-                            <button
-                                type="button"
-                                onClick={goHomeAfterSave}
-                                aria-label="홈으로 이동하며 닫기"
-                                className="rounded-xl p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
-                        </div>
-
-                        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                            <CheckCircle2 className="h-8 w-8" />
-                        </div>
-                        <h3 id="routine-save-complete-title" className="text-xl font-extrabold text-slate-900">
-                            루틴 저장이 완료되었습니다.
-                        </h3>
-                        <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
-                            지금 바로 운동을 시작하거나 홈으로 이동할 수 있습니다.
-                        </p>
-
-                        <div className="mt-6 grid grid-cols-2 gap-3">
-                            <button
-                                type="button"
-                                onClick={goHomeAfterSave}
-                                className="rounded-2xl border border-slate-200 bg-white py-3.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 active:scale-[0.98]"
-                            >
-                                홈으로
-                            </button>
-                            <button
-                                type="button"
-                                onClick={startSavedRoutine}
-                                className="rounded-2xl bg-blue-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-colors hover:bg-blue-700 active:scale-[0.98]"
-                            >
-                                바로 시작
-                            </button>
-                        </div>
+            <Sheet
+                open={finalizeStatus === "finalized"}
+                onClose={goHomeAfterSave}
+                title="루틴을 저장했어요"
+                description="바로 출발하거나, 나중에 운동 탭에서 시작할 수 있어요."
+                footer={
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button variant="secondary" size="lg" onClick={goHomeAfterSave}>
+                            홈으로
+                        </Button>
+                        <Button variant="primary" size="lg" line={line} onClick={startSavedRoutine}>
+                            바로 시작
+                        </Button>
                     </div>
-                </div>
-            )}
+                }
+            >
+                <RouteStrip line={line} label="저장한 루틴" stops={blocks.map((b) => b.exerciseName || "운동")} />
+            </Sheet>
 
-            {/* Exercise swap modal */}
-            {swapBlockId && (
-                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center">
-                    <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[80vh] flex flex-col shadow-2xl">
-                        {/* Modal header */}
-                        <div className="flex items-center justify-between p-5 border-b border-slate-100 shrink-0">
-                            <h3 className="font-bold text-slate-800 text-base">{"\uc6b4\ub3d9 \uad50\uccb4"}</h3>
-                            <button
-                                onClick={handleCloseSwapModal}
-                                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        {/* Search input */}
-                        <div className="p-4 border-b border-slate-100 shrink-0">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                <input
-                                    type="text"
-                                    placeholder="운동 이름, 근육 검색..."
-                                    value={swapQuery}
-                                    onChange={(e) => setSwapQuery(e.target.value)}
-                                    autoFocus
-                                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-400"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Exercise list */}
-                        <div className="overflow-y-auto flex-1">
-                            {swapLoading ? (
-                                <div className="p-10 text-center text-slate-400 text-sm animate-pulse">
-                                    운동 정보 불러오는 중...
-                                </div>
-                            ) : (
-                                <>
-                                    {/* AI candidates */}
-                                    {aiCandidates.length > 0 && (
-                                        <div>
-                                            <p className="px-5 pt-4 pb-2 text-[10px] font-black text-purple-500 uppercase tracking-widest">
-                                                ✨ AI 추천 운동
-                                            </p>
-                                            {aiCandidates.map((item) => (
-                                                <button
-                                                    key={item.id}
-                                                    onClick={() => replaceExercise(swapBlockId, item)}
-                                                    className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-purple-50 transition-colors border-b border-slate-50 text-left bg-purple-50/40"
-                                                >
-                                                    <div>
-                                                        <p className="font-bold text-slate-800 text-sm">{item.nameKr}</p>
-                                                        <p className="text-xs text-slate-400 mt-0.5">
-                                                            {item.primaryMuscle} · {item.equipment}
-                                                        </p>
-                                                    </div>
-                                                    <span className="text-[10px] font-bold text-purple-600 bg-purple-100 border border-purple-200 px-2 py-1 rounded-full shrink-0">
-                                                        AI
-                                                    </span>
-                                                </button>
-                                            ))}
-                                            <p className="px-5 pt-4 pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                                전체 운동
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* All exercises list */}
-                                    {filteredCatalog.length === 0 ? (
-                                        <div className="p-10 text-center text-slate-400 text-sm">검색 결과가 없습니다.</div>
-                                    ) : (
-                                        filteredCatalog.map((item) => (
-                                            <button
-                                                key={item.id}
-                                                onClick={() => replaceExercise(swapBlockId, item)}
-                                                className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-blue-50 transition-colors border-b border-slate-50 text-left"
-                                            >
-                                                <div>
-                                                    <p className="font-bold text-slate-800 text-sm">{item.nameKr}</p>
-                                                    <p className="text-xs text-slate-400 mt-0.5">
-                                                        {item.primaryMuscle} · {item.equipment}
-                                                    </p>
-                                                </div>
-                                                <span className="text-[10px] font-bold text-blue-500 bg-blue-50 border border-blue-100 px-2 py-1 rounded-full shrink-0">
-                                                    T{item.tier}
-                                                </span>
-                                            </button>
-                                        ))
-                                    )}
-                                </>
-                            )}
-                        </div>
+            <Sheet
+                open={backConfirmOpen}
+                onClose={() => setBackConfirmOpen(false)}
+                title="편집을 그만둘까요?"
+                description="저장하지 않은 변경은 사라져요."
+                footer={
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button variant="secondary" size="lg" onClick={() => setBackConfirmOpen(false)}>
+                            계속 편집
+                        </Button>
+                        <Button variant="primary" size="lg" onClick={leaveEditing}>
+                            나가기
+                        </Button>
                     </div>
+                }
+            >
+                {null}
+            </Sheet>
+
+            <Sheet open={swapBlockId !== null} onClose={handleCloseSwapModal} title="다른 운동으로 교체" description="이름이나 부위로 찾을 수 있어요.">
+                <div className="relative mb-3">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-3" aria-hidden />
+                    <input
+                        type="search"
+                        aria-label="운동 검색"
+                        placeholder="벤치프레스, 가슴"
+                        value={swapQuery}
+                        onChange={(e) => setSwapQuery(e.target.value)}
+                        className="min-h-12 w-full rounded-control border border-rail bg-ground pl-9 pr-3 text-body hover:border-ink-3"
+                    />
                 </div>
-            )}
-        </div>
+                {swapLoading ? (
+                    <div className="flex flex-col gap-2" aria-busy="true">
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                    </div>
+                ) : (
+                    <>
+                        {aiCandidates.length > 0 && (
+                            <>
+                                <p className="mb-1 text-caption font-bold text-ink-2">AI 추천</p>
+                                <ul className="mb-4 flex flex-col divide-y divide-hairline">
+                                    {aiCandidates.map((item) => (
+                                        <SwapOption key={item.id} item={item} recommended onPick={() => replaceExercise(swapBlockId!, item)} />
+                                    ))}
+                                </ul>
+                                <p className="mb-1 text-caption font-bold text-ink-2">전체 운동</p>
+                            </>
+                        )}
+                        {filteredCatalog.length === 0 ? (
+                            <EmptyState title="찾는 운동이 없어요" body="다른 이름이나 부위로 검색해 보세요." />
+                        ) : (
+                            <ul className="flex flex-col divide-y divide-hairline">
+                                {filteredCatalog.map((item) => (
+                                    <SwapOption key={item.id} item={item} onPick={() => replaceExercise(swapBlockId!, item)} />
+                                ))}
+                            </ul>
+                        )}
+                    </>
+                )}
+            </Sheet>
         </div>
     )
 }
 
-// SortableExerciseCard
-
-function SortableExerciseCard(props: ExerciseCardProps) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-        useSortable({ id: props.block.clientBlockId! })
-
+function SwapOption({ item, recommended, onPick }: { item: ExerciseCatalogItem; recommended?: boolean; onPick: () => void }) {
     return (
-        <div
-            ref={setNodeRef}
-            style={{ transform: CSS.Transform.toString(transform), transition }}
-            className={isDragging ? "opacity-50 z-10 relative" : ""}
-        >
-            <ExerciseCard {...props} dragHandleProps={{ ...attributes, ...listeners }} />
-        </div>
+        <li>
+            <button type="button" onClick={onPick} className="flex min-h-14 w-full items-center justify-between gap-3 py-2 text-left hover:bg-surface">
+                <span className="min-w-0">
+                    <span className="block truncate text-body font-medium text-ink">{item.nameKr}</span>
+                    <span className="block text-caption text-ink-2">
+                        {muscleLabel(item.primaryMuscle)} · {equipmentLabel(item.equipment)}
+                    </span>
+                </span>
+                {recommended && <Tag>AI 추천</Tag>}
+            </button>
+        </li>
     )
 }
 
-// ExerciseCard
+function blockSummary(block: RoutineBlock, unit: "kg" | "lbs"): string {
+    const toUnit = (kg: number) => (unit === "lbs" ? Math.round(kg * 2.20462) : kg)
+    const weights = block.prescription.map((s) => s.targetWeightKg).filter((kg): kg is number => kg !== null).map(toUnit)
+    const reps = block.prescription.map((s) => s.targetReps)
+    const weightText =
+        weights.length === 0 ? "맨몸" : Math.min(...weights) === Math.max(...weights) ? `${weights[0]}${unit}` : `${Math.min(...weights)}–${Math.max(...weights)}${unit}`
+    const repsText = reps.length === 0 ? "" : Math.min(...reps) === Math.max(...reps) ? `${reps[0]}회` : `${Math.min(...reps)}–${Math.max(...reps)}회`
+    return [`${block.prescription.length}세트`, weightText, repsText].filter(Boolean).join(" · ")
+}
 
-interface ExerciseCardProps {
+interface StationProps {
     block: RoutineBlock
-    isFallback: boolean
+    line: RouteLine
+    isLast: boolean
+    expanded: boolean
+    onToggle: () => void
     displayUnit: "kg" | "lbs"
     onUpdateSet: (blockId: string, arrayIndex: number, field: keyof SetPrescription, value: number | null) => void
     onUpdateRestTime: (blockId: string, arrayIndex: number, value: number) => void
@@ -842,97 +708,97 @@ interface ExerciseCardProps {
     onDeleteSet: (blockId: string, arrayIndex: number) => void
     onDeleteBlock: (blockId: string) => void
     onSwapRequest: (blockId: string) => void
-    dragHandleProps?: Record<string, unknown>
 }
 
-function ExerciseCard({
-    block,
-    isFallback,
-    displayUnit,
-    onUpdateSet,
-    onUpdateRestTime,
-    onAddSet,
-    onDeleteSet,
-    onDeleteBlock,
-    onSwapRequest,
-    dragHandleProps,
-}: ExerciseCardProps) {
+function SortableStation({ block, line, isLast, expanded, onToggle, displayUnit, onUpdateSet, onUpdateRestTime, onAddSet, onDeleteSet, onDeleteBlock, onSwapRequest }: StationProps) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.clientBlockId! })
+    const color = ROUTE_LINE_COLOR_VAR[line]
+    const blockId = block.clientBlockId!
+    const name = block.exerciseName || "운동을 선택하세요"
+    const editorId = `${blockId}-editor`
+
     return (
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative">
-            <button
-                onClick={() => onDeleteBlock(block.clientBlockId!)}
-                className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 transition-colors"
-            >
-                <Trash2 className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-2 pr-10 mb-1">
-                <div
-                    {...dragHandleProps}
-                    className="p-0.5 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0 touch-none"
-                >
-                    <GripVertical className="w-4 h-4" />
-                </div>
-                <h4 className="min-w-0 font-bold text-slate-800 truncate">
-                    {block.exerciseName || <span className="text-slate-300 font-medium">운동을 선택하세요</span>}
-                </h4>
-            </div>
-            {isFallback && (
-                <div className="mb-3 inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-700">
-                    <AlertCircle className="h-3 w-3" />
-                    기본 루틴
-                </div>
-            )}
-            {block.exerciseRationale && (
-                <p className="pr-10 text-xs text-slate-500 mt-1 mb-4 leading-relaxed whitespace-pre-wrap break-words">
-                    {block.exerciseRationale}
-                </p>
-            )}
-
-            {/* Set table header */}
-            <div className="mb-2 hidden grid-cols-[1.25rem_1fr_1fr_3rem_1.25rem] gap-x-1.5 px-1 sm:grid">
-                <span className="text-[10px] font-black text-slate-400 uppercase text-center">SET</span>
-                <span className="text-[10px] font-black text-slate-400 uppercase text-center">{displayUnit.toUpperCase()}</span>
-                <span className="text-[10px] font-black text-slate-400 uppercase text-center">REPS</span>
-                <span className="text-[10px] font-black text-slate-400 uppercase text-center">REST</span>
-                <span />
-            </div>
-
-            {/* Set rows */}
-            <div className="space-y-2 sm:space-y-1.5">
-                {block.prescription.map((set, arrayIndex) => (
-                    <SetRow
-                        key={arrayIndex}
-                        set={set}
-                        arrayIndex={arrayIndex}
-                        blockId={block.clientBlockId!}
-                        displayUnit={displayUnit}
-                        onUpdate={onUpdateSet}
-                        onUpdateRest={onUpdateRestTime}
-                        onDelete={onDeleteSet}
-                        isOnly={block.prescription.length === 1}
-                    />
-                ))}
-            </div>
-
-            <button
-                onClick={() => onAddSet(block.clientBlockId!)}
-                className="w-full mt-3 py-2 border-2 border-dashed border-slate-100 rounded-xl text-xs text-slate-400 font-bold hover:bg-slate-50 hover:border-blue-200 hover:text-blue-500 transition-colors flex items-center justify-center gap-1"
-            >
-                <Plus className="w-3.5 h-3.5" /> 세트 추가
-            </button>
-
-            <button
-                onClick={() => onSwapRequest(block.clientBlockId!)}
-                className="w-full mt-2 py-2 border-2 border-dashed border-slate-100 rounded-xl text-xs text-slate-400 font-bold hover:bg-slate-50 hover:border-purple-200 hover:text-purple-500 transition-colors"
-            >
-                다른 운동으로 교체 ↻
-            </button>
-        </div>
+        <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className={cx(isDragging && "relative z-10 opacity-70")}>
+            <StationRow
+                color={color}
+                markerColor={color}
+                segmentColor={isLast ? undefined : color}
+                isCurrent={false}
+                isDone={false}
+                isLast={isLast}
+                station={{
+                    title: (
+                        <button
+                            type="button"
+                            onClick={onToggle}
+                            aria-expanded={expanded}
+                            aria-controls={editorId}
+                            className={cx("flex min-h-11 max-w-full items-center gap-1 text-left", !block.exerciseName && "text-ink-3")}
+                        >
+                            <span className="truncate">{name}</span>
+                            <ChevronDown className={cx("size-4 shrink-0 text-ink-3 transition-transform duration-150", expanded && "rotate-180")} aria-hidden />
+                        </button>
+                    ),
+                    trailing: (
+                        <button
+                            type="button"
+                            {...attributes}
+                            {...listeners}
+                            aria-label={`${name} 순서 바꾸기`}
+                            className="inline-flex size-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-control text-ink-3 hover:bg-surface active:cursor-grabbing"
+                        >
+                            <GripVertical className="size-5" aria-hidden />
+                        </button>
+                    ),
+                    meta: blockSummary(block, displayUnit),
+                    content: (
+                        <div className="flex flex-col gap-3">
+                            {block.exerciseRationale && (
+                                <p className={cx("text-body-sm text-ink-2", !expanded && "line-clamp-2")}>{block.exerciseRationale}</p>
+                            )}
+                            {expanded && (
+                                <div id={editorId} className="flex flex-col gap-3 rounded-panel bg-surface p-3">
+                                    <div className="grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_2.75rem] gap-2 text-caption font-bold text-ink-2">
+                                        <span>세트</span>
+                                        <span>무게({displayUnit})</span>
+                                        <span>횟수</span>
+                                        <span className="sr-only">삭제</span>
+                                    </div>
+                                    <ol className="flex flex-col divide-y divide-hairline">
+                                        {block.prescription.map((set, arrayIndex) => (
+                                            <SetRow
+                                                key={arrayIndex}
+                                                set={set}
+                                                arrayIndex={arrayIndex}
+                                                blockId={blockId}
+                                                displayUnit={displayUnit}
+                                                onUpdate={onUpdateSet}
+                                                onUpdateRest={onUpdateRestTime}
+                                                onDelete={onDeleteSet}
+                                                isOnly={block.prescription.length === 1}
+                                            />
+                                        ))}
+                                    </ol>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Button variant="secondary" icon={<Plus className="size-4" aria-hidden />} onClick={() => onAddSet(blockId)}>
+                                            세트 추가
+                                        </Button>
+                                        <Button variant="secondary" icon={<Repeat className="size-4" aria-hidden />} onClick={() => onSwapRequest(blockId)}>
+                                            운동 교체
+                                        </Button>
+                                    </div>
+                                    <Button variant="danger-ghost" icon={<Trash2 className="size-4" aria-hidden />} onClick={() => onDeleteBlock(blockId)}>
+                                        이 운동 빼기
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    ),
+                }}
+            />
+        </li>
     )
 }
-
-// SetRow
 
 interface SetRowProps {
     set: SetPrescription
@@ -949,6 +815,10 @@ function validateDraftSetValue(field: NumericFieldName, value: number, unit: "kg
     return validateNumericRange(field, value, unit) === true
 }
 
+const SET_INPUT_BASE =
+    "min-h-11 rounded-control border border-rail bg-ground px-2 text-center text-body font-bold tabular-nums text-ink hover:border-ink-3 aria-[invalid=true]:border-danger"
+const SET_INPUT = `${SET_INPUT_BASE} w-full`
+
 function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest, onDelete, isOnly }: SetRowProps) {
     const {
         register,
@@ -958,13 +828,10 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
     const weightRegister = register("weightKg", numericRules("weightKg", displayUnit))
     const repsRegister = register("reps", numericRules("reps"))
     const restRegister = register("restSec", numericRules("restSec"))
-    // View converts kg→lbs when needed; model always stores kg
+    // The model always stores kg; only the view converts.
     const weightDisplay =
-        set.targetWeightKg === null
-            ? ""
-            : displayUnit === "lbs"
-              ? String(Math.round(set.targetWeightKg * 2.20462))
-              : String(set.targetWeightKg)
+        set.targetWeightKg === null ? "" : displayUnit === "lbs" ? String(Math.round(set.targetWeightKg * 2.20462)) : String(set.targetWeightKg)
+    const setNo = arrayIndex + 1
 
     const handleWeightChange = (raw: string) => {
         if (raw === "") {
@@ -993,19 +860,17 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
         if (!isNaN(num) && validateDraftSetValue("restSec", num)) onUpdateRest(blockId, arrayIndex, num)
     }
 
-    return (
-        <div className="grid grid-cols-[2.5rem_1fr_1fr_2.5rem] items-start gap-x-2 gap-y-2 rounded-xl bg-slate-50/70 p-2 sm:grid-cols-[1.25rem_1fr_1fr_3rem_1.25rem] sm:gap-x-1.5 sm:gap-y-0 sm:bg-transparent sm:p-0">
-            <span className="pt-7 text-center text-xs font-black text-slate-500 sm:pt-0">
-                <span className="sm:hidden">SET </span>
-                {arrayIndex + 1}
-            </span>
+    const errorText = [errors.weightKg?.message, errors.reps?.message, errors.restSec?.message].filter(Boolean).map(String)
 
-            <div>
-                <span className="mb-1 block text-[10px] font-black uppercase text-slate-400 sm:hidden">
-                    {displayUnit.toUpperCase()}
-                </span>
+    return (
+        <li className="flex flex-col gap-2 py-2.5">
+            <div className="grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_2.75rem] items-center gap-2">
+                <span className="text-body-sm font-bold tabular-nums text-ink">{setNo}</span>
                 <input
                     type="number"
+                    inputMode="decimal"
+                    aria-label={`${setNo}세트 무게(${displayUnit})`}
+                    aria-invalid={errors.weightKg ? true : undefined}
                     min={toDisplayBound(NUMERIC_RANGES.weightKg.min, displayUnit)}
                     max={toDisplayBound(NUMERIC_RANGES.weightKg.max, displayUnit)}
                     step={displayUnit === "lbs" ? 1 : NUMERIC_RANGES.weightKg.step}
@@ -1015,16 +880,14 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
                         handleWeightChange(e.target.value)
                         void trigger("weightKg")
                     }}
-                    placeholder="BW"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-1.5 py-2 text-sm font-bold text-center text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    placeholder="맨몸"
+                    className={SET_INPUT}
                 />
-                {errors.weightKg?.message && <p className="mt-1 text-[10px] text-red-600">{String(errors.weightKg.message)}</p>}
-            </div>
-
-            <div>
-                <span className="mb-1 block text-[10px] font-black uppercase text-slate-400 sm:hidden">REPS</span>
                 <input
                     type="number"
+                    inputMode="numeric"
+                    aria-label={`${setNo}세트 횟수`}
+                    aria-invalid={errors.reps ? true : undefined}
                     min={NUMERIC_RANGES.reps.min}
                     max={NUMERIC_RANGES.reps.max}
                     step={NUMERIC_RANGES.reps.step}
@@ -1034,24 +897,34 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
                         handleRepsChange(e.target.value)
                         void trigger("reps")
                     }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-1.5 py-2 text-sm font-bold text-center text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    className={SET_INPUT}
                 />
-                {errors.reps?.message && <p className="mt-1 text-[10px] text-red-600">{String(errors.reps.message)}</p>}
-            </div>
-
-            <div className="order-5 col-span-4 grid grid-cols-[3.5rem_2.75rem_1fr_2.75rem] items-center gap-2 sm:order-none sm:col-span-1 sm:flex sm:flex-col sm:gap-0.5">
-                <span className="text-[10px] font-black uppercase text-slate-400 sm:hidden">REST</span>
                 <button
                     type="button"
-                    onClick={() => handleRestStep(30)}
-                    aria-label={`${arrayIndex + 1}세트 휴식 시간 30초 증가`}
-                    title="휴식 시간 30초 증가"
-                    className="min-h-9 w-full rounded-lg text-xs font-bold leading-none text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-500 sm:min-h-0 sm:py-0.5 sm:text-[9px]"
+                    onClick={() => onDelete(blockId, arrayIndex)}
+                    disabled={isOnly}
+                    aria-label={`${setNo}세트 삭제`}
+                    className="inline-flex size-11 items-center justify-center rounded-control text-ink-3 hover:bg-ground hover:text-danger-ink disabled:cursor-not-allowed disabled:opacity-30"
                 >
-                    ▲
+                    <Trash2 className="size-4" aria-hidden />
+                </button>
+            </div>
+            <div className="ml-10 flex items-center gap-2">
+                <span className="text-caption text-ink-2">휴식</span>
+                <button
+                    type="button"
+                    onClick={() => handleRestStep(-30)}
+                    disabled={set.targetRestSec <= 0}
+                    aria-label={`${setNo}세트 휴식 30초 줄이기`}
+                    className="inline-flex size-11 items-center justify-center rounded-control border border-rail bg-ground text-ink hover:border-ink-3 disabled:opacity-30"
+                >
+                    <Minus className="size-4" aria-hidden />
                 </button>
                 <input
                     type="number"
+                    inputMode="numeric"
+                    aria-label={`${setNo}세트 휴식(초)`}
+                    aria-invalid={errors.restSec ? true : undefined}
                     min={NUMERIC_RANGES.restSec.min}
                     max={NUMERIC_RANGES.restSec.max}
                     step={NUMERIC_RANGES.restSec.step}
@@ -1061,35 +934,23 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
                         handleRestChange(e.target.value)
                         void trigger("restSec")
                     }}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-center text-xs font-black tabular-nums text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-400 sm:rounded-lg sm:bg-slate-50 sm:px-0.5 sm:py-0.5 sm:text-[10px] sm:leading-none"
+                    className={cx(SET_INPUT_BASE, "w-20")}
                 />
-                {errors.restSec?.message && (
-                    <p className="col-span-4 mt-1 text-[10px] text-red-600 sm:col-span-1">
-                        {String(errors.restSec.message)}
-                    </p>
-                )}
+                <span className="text-caption text-ink-2">초</span>
                 <button
                     type="button"
-                    onClick={() => handleRestStep(-30)}
-                    disabled={set.targetRestSec <= 0}
-                    aria-label={`${arrayIndex + 1}세트 휴식 시간 30초 감소`}
-                    title="휴식 시간 30초 감소"
-                    className="min-h-9 w-full rounded-lg text-xs font-bold leading-none text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-20 sm:min-h-0 sm:py-0.5 sm:text-[9px]"
+                    onClick={() => handleRestStep(30)}
+                    aria-label={`${setNo}세트 휴식 30초 늘리기`}
+                    className="inline-flex size-11 items-center justify-center rounded-control border border-rail bg-ground text-ink hover:border-ink-3"
                 >
-                    ▼
+                    <Plus className="size-4" aria-hidden />
                 </button>
             </div>
-
-            <button
-                type="button"
-                onClick={() => onDelete(blockId, arrayIndex)}
-                disabled={isOnly}
-                aria-label={`${arrayIndex + 1}세트 삭제`}
-                title={`${arrayIndex + 1}세트 삭제`}
-                className="order-4 flex min-h-10 items-center justify-center rounded-xl text-slate-300 transition-colors hover:bg-red-50 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-20 sm:order-none sm:min-h-0 sm:rounded-none sm:hover:bg-transparent"
-            >
-                <X className="w-4 h-4" />
-            </button>
-        </div>
+            {errorText.length > 0 && (
+                <p role="alert" className="ml-10 text-caption text-danger-ink">
+                    {errorText.join(" ")}
+                </p>
+            )}
+        </li>
     )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { ReactNode, useCallback, useEffect, useMemo, useState } from "react"
+import { KeyboardEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Dumbbell, Settings, Trophy, User, Utensils } from "lucide-react"
 import { toast } from "sonner"
@@ -19,11 +19,11 @@ import NutritionTargetSection from "@/app/my/nutrition/NutritionTargetSection"
 type TabId = "profile" | "stats" | "workout" | "nutrition" | "settings"
 
 const tabs: { id: TabId; label: string; icon: ReactNode }[] = [
-    { id: "profile", label: "프로필", icon: <User size={18} /> },
-    { id: "stats", label: "통계", icon: <Trophy size={18} /> },
-    { id: "workout", label: "운동", icon: <Dumbbell size={18} /> },
-    { id: "nutrition", label: "영양", icon: <Utensils size={18} /> },
-    { id: "settings", label: "설정", icon: <Settings size={18} /> },
+    { id: "profile", label: "프로필", icon: <User className="size-5" aria-hidden /> },
+    { id: "stats", label: "통계", icon: <Trophy className="size-5" aria-hidden /> },
+    { id: "workout", label: "운동", icon: <Dumbbell className="size-5" aria-hidden /> },
+    { id: "nutrition", label: "영양", icon: <Utensils className="size-5" aria-hidden /> },
+    { id: "settings", label: "설정", icon: <Settings className="size-5" aria-hidden /> },
 ]
 
 const VALID_TABS: TabId[] = ["profile", "stats", "workout", "nutrition", "settings"]
@@ -39,6 +39,19 @@ export default function MyPageContent() {
     }, [searchParams])
     const user = useAuthStore((state) => state.user)
     const [profile, setProfile] = useState<UserResponse | null>(null)
+    const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
+    const selectTab = (id: TabId) => router.replace(id === "profile" ? "/my" : `/my?tab=${id}`, { scroll: false })
+    const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+        let next = -1
+        if (event.key === "ArrowRight") next = (index + 1) % tabs.length
+        else if (event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length
+        else if (event.key === "Home") next = 0
+        else if (event.key === "End") next = tabs.length - 1
+        if (next < 0) return
+        event.preventDefault()
+        tabRefs.current[next]?.focus()
+        selectTab(tabs[next].id)
+    }
     const logout = useCallback(() => {
         useAuthStore.getState().logout()
         window.location.href = "/login"
@@ -55,19 +68,19 @@ export default function MyPageContent() {
 
     const onSave = async (updatedData: Partial<UserResponse>) => {
         if (!profile?.email) {
-            toast.error("사용자 정보를 찾을 수 없습니다.")
+            toast.error("사용자 정보를 찾지 못했어요. 다시 로그인해 주세요.")
             return
         }
 
         profileApiClient
             .updateMe(updatedData as UserUpdateRequest)
             .then((res) => {
-                toast.success("프로필이 성공적으로 업데이트되었습니다.")
+                toast.success("프로필을 저장했어요.")
                 setIsEditing(false)
                 setProfile(res)
             })
             .catch(() => {
-                toast.error("프로필 업데이트 중 오류가 발생했습니다.")
+                toast.error("프로필을 저장하지 못했어요. 잠시 후 다시 시도하세요.")
             })
     }
 
@@ -81,37 +94,47 @@ export default function MyPageContent() {
                 bodyCompositionSnapshot: updatedSnapshots,
             } as UserUpdateRequest)
 
-            toast.success("체성분 정보가 성공적으로 업데이트되었습니다.")
+            toast.success("체성분 기록을 저장했어요.")
             setProfile(res)
             return true
         } catch (error) {
             console.error("Update Error:", error)
-            toast.error("체성분 업데이트 중 오류가 발생했습니다.")
+            toast.error("체성분 기록을 저장하지 못했어요. 잠시 후 다시 시도하세요.")
             return false
         }
     }
 
     return (
-        <div className="mx-auto w-full max-w-[480px] p-4">
-            <div className="mb-6 grid grid-cols-5 border-b border-gray-200">
-                {tabs.map((tab) => (
-                    <button
-                        type="button"
-                        key={tab.id}
-                        onClick={() => router.replace(tab.id === "profile" ? "/my" : `/my?tab=${tab.id}`, { scroll: false })}
-                        className={`flex min-w-0 flex-col items-center justify-center gap-1 border-b-2 px-1 py-3 text-[11px] font-medium transition-colors ${
-                            activeTab === tab.id
-                                ? "border-blue-600 text-blue-600"
-                                : "border-transparent text-gray-500 hover:text-gray-700"
-                        }`}
-                    >
-                        {tab.icon}
-                        <span className="w-full truncate">{tab.label}</span>
-                    </button>
-                ))}
+        <div className="mx-auto w-full max-w-[480px] bg-ground px-4 pb-24 pt-2">
+            <div role="tablist" aria-label="마이 페이지" className="mb-5 grid grid-cols-5 border-b border-hairline">
+                {tabs.map((tab, index) => {
+                    const selected = activeTab === tab.id
+                    return (
+                        <button
+                            type="button"
+                            key={tab.id}
+                            ref={(el) => {
+                                tabRefs.current[index] = el
+                            }}
+                            role="tab"
+                            id={`my-tab-${tab.id}`}
+                            aria-selected={selected}
+                            aria-controls="my-tabpanel"
+                            tabIndex={selected ? 0 : -1}
+                            onClick={() => selectTab(tab.id)}
+                            onKeyDown={(event) => onTabKeyDown(event, index)}
+                            className={`-mb-px flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 border-b-2 px-1 py-2 text-caption transition-colors ${
+                                selected ? "border-ink font-bold text-ink" : "border-transparent font-medium text-ink-2 hover:text-ink"
+                            }`}
+                        >
+                            {tab.icon}
+                            <span className="w-full truncate">{tab.label}</span>
+                        </button>
+                    )
+                })}
             </div>
 
-            <div className="min-h-[360px]">
+            <div id="my-tabpanel" role="tabpanel" aria-labelledby={`my-tab-${activeTab}`} className="min-h-[360px]">
                 {activeTab === "profile" &&
                     (isEditing ? (
                         <ProfileEditForm
@@ -123,11 +146,11 @@ export default function MyPageContent() {
                         <Profile profile={profile} logout={logout} onEdit={() => setIsEditing(true)} />
                     ))}
                 {activeTab === "stats" && (
-                    <>
+                    <div className="flex flex-col gap-8">
                         <BodyCompositionPage profile={profile} onSave={onBodyCompositionSave} />
                         <PrSection />
                         <NutritionTrendSection />
-                    </>
+                    </div>
                 )}
                 {activeTab === "workout" && <WorkoutTab />}
                 {activeTab === "nutrition" && <NutritionTargetSection />}
