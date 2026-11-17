@@ -41,7 +41,7 @@ function NextRow({
     )
 }
 
-export default function StepDone() {
+export default function StepDone({ weightSaved = false }: { weightSaved?: boolean }) {
     const router = useRouter()
     const [isCreating, setIsCreating] = useState(false)
 
@@ -86,9 +86,9 @@ export default function StepDone() {
             </div>
 
             <p className="text-center text-body-sm text-ink-2">
-                체성분을 기록하면 변화 추이를 볼 수 있어요.{" "}
+                {weightSaved ? "오늘 체중을 기록했어요. 골격근량·체지방도 적으면 변화를 더 자세히 볼 수 있어요." : "체성분을 기록하면 변화 추이를 볼 수 있어요."}{" "}
                 <Link href="/my?tab=stats" className="inline-flex min-h-11 items-center font-bold text-ink underline underline-offset-2">
-                    첫 체성분 기록하기
+                    {weightSaved ? "체성분 더 기록하기" : "첫 체성분 기록하기"}
                 </Link>
             </p>
         </div>

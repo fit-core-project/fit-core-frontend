@@ -26,11 +26,43 @@ export default function StepProfile({ onNext }: Props) {
     const [touched, setTouched] = useState(false)
     const [attempted, setAttempted] = useState(false)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    // The account's own saved nickname (after a refresh or coming back to this step) is not a duplicate.
+    const [savedNickname, setSavedNickname] = useState<string | null>(null)
+
+    useEffect(() => {
+        let cancelled = false
+        profileApiClient
+            .getMe()
+            .then((profile) => {
+                if (cancelled) return
+                const saved = profile.nickname?.trim()
+                if (saved) {
+                    setSavedNickname(saved)
+                    setNickname((current) => current || saved)
+                }
+                if (profile.gender === "MALE" || profile.gender === "FEMALE" || profile.gender === "NONE") {
+                    const savedGender = profile.gender
+                    setGender((current) => (current === "NONE" ? savedGender : current))
+                }
+                if (profile.birthDate) {
+                    const savedBirthDate = profile.birthDate
+                    setBirthDate((current) => current || savedBirthDate)
+                }
+            })
+            .catch(() => {})
+        return () => {
+            cancelled = true
+        }
+    }, [])
 
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current)
         if (!nickname.trim()) {
             setNicknameStatus("empty")
+            return
+        }
+        if (savedNickname && nickname.trim() === savedNickname) {
+            setNicknameStatus("ok")
             return
         }
         setNicknameStatus("checking")
@@ -43,7 +75,7 @@ export default function StepProfile({ onNext }: Props) {
         return () => {
             if (debounceRef.current) clearTimeout(debounceRef.current)
         }
-    }, [nickname, checkAttempt])
+    }, [nickname, checkAttempt, savedNickname])
 
     const canProceed = nicknameStatus === "ok" && !saving
 
@@ -56,6 +88,7 @@ export default function StepProfile({ onNext }: Props) {
                 gender,
                 birthDate: birthDate || undefined,
             })
+            setSavedNickname(nickname.trim())
             onNext()
         } catch {
             toast.error("프로필을 저장하지 못했어요. 잠시 후 다시 시도하세요.")

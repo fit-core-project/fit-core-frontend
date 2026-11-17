@@ -3,58 +3,88 @@ import { BodyComposition } from "@/types/project"
 import { useSettingsStore } from "@/store/settingsStore"
 import { useForm } from "react-hook-form"
 import { NUMERIC_RANGES, numericRules, toDisplayBound } from "@/utils/numericValidation"
-import { Button, Section, TextField } from "@/components/ui"
+import { Button, Notice, Section, TextField } from "@/components/ui"
+import {
+    BODY_COMPOSITION_RANGES,
+    type BodyCompositionErrors,
+    type ExtraRangeField,
+    displayBound,
+    hasBodyCompositionErrors,
+    toKstDateString,
+    validateBodyComposition,
+    validateExtraRange,
+} from "./bodyCompositionValidation"
+import { toDisplayValues, toStoredValues } from "./bodyCompositionUnits"
 
 function getKstTodayDateString(): string {
-    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    return toKstDateString()
 }
 
 type props = {
     onCancel: () => void
     onSave: (formData: BodyComposition) => void
+    /** Record being edited (values in kg). Omitted for a new record. */
+    initialValue?: BodyComposition
 }
 
-const WEIGHT_KG_FIELDS: (keyof BodyComposition)[] = [
-    "bodyWeightKg",
-    "skeletalMuscleMassKg",
-    "bodyFatMassKg",
-    "fatFreeMassKg",
-]
 
-export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
-    const [formData, setFormData] = useState<Partial<BodyComposition>>({ measuredAt: getKstTodayDateString() })
+export const BodyCompositionEditPage = ({ onCancel, onSave, initialValue }: props) => {
     const { weightUnit } = useSettingsStore()
+    const [initialDisplay] = useState<Partial<BodyComposition>>(() =>
+        initialValue ? toDisplayValues(initialValue, weightUnit) : { measuredAt: getKstTodayDateString() }
+    )
+    const [formData, setFormData] = useState<Partial<BodyComposition>>(initialDisplay)
     const {
         register,
         trigger,
         formState: { errors },
-    } = useForm<Record<string, unknown>>({ mode: "onChange" })
+    } = useForm<Record<string, unknown>>({
+        mode: "onChange",
+        defaultValues: {
+            bodyWeightKg: initialDisplay.bodyWeightKg,
+            skeletalMuscleMassKg: initialDisplay.skeletalMuscleMassKg,
+            bodyFatPct: initialDisplay.bodyFatPct,
+        },
+    })
+
+    const [formErrors, setFormErrors] = useState<BodyCompositionErrors>({})
+    const [submitted, setSubmitted] = useState(false)
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type } = e.target
+        const parsed = type === "number" ? (value === "" ? undefined : parseFloat(value)) : value
         setFormData((prev) => ({
             ...(prev ?? {}),
-            [name]: type === "number" ? (value === "" ? undefined : parseFloat(value)) : value,
+            [name]: parsed,
         }))
+        // Live feedback for the extra range fields; form-level messages refresh after the first submit.
+        setFormErrors((prev) => {
+            const next = { ...prev }
+            if (name in BODY_COMPOSITION_RANGES) {
+                const message = validateExtraRange(name as ExtraRangeField, parsed, weightUnit)
+                if (message) next[name as ExtraRangeField] = message
+                else delete next[name as ExtraRangeField]
+            }
+            if (submitted) {
+                const all = validateBodyComposition({ ...formData, [name]: parsed }, weightUnit)
+                if (all.measuredAt) next.measuredAt = all.measuredAt
+                else delete next.measuredAt
+                if (all.measurements) next.measurements = all.measurements
+                else delete next.measurements
+            }
+            return next
+        })
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        setSubmitted(true)
         const isValid = await trigger()
-        if (!isValid) return
+        const errorsNow = validateBodyComposition(formData, weightUnit)
+        setFormErrors(errorsNow)
+        if (!isValid || hasBodyCompositionErrors(errorsNow)) return
 
-        if (weightUnit === "lbs") {
-            const converted = { ...formData } as BodyComposition
-            for (const field of WEIGHT_KG_FIELDS) {
-                const val = converted[field] as number | undefined
-                if (val != null) {
-                    ;(converted as Record<string, unknown>)[field] = val / 2.20462
-                }
-            }
-            onSave(converted)
-        } else {
-            onSave(formData as BodyComposition)
-        }
+        onSave(toStoredValues(formData, weightUnit, initialValue ? { stored: initialValue, display: initialDisplay } : undefined))
     }
 
     const bodyWeightRegister = register("bodyWeightKg", numericRules("bodyWeightKg", weightUnit))
@@ -62,11 +92,20 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
     const bodyFatPctRegister = register("bodyFatPct", numericRules("bodyFatPct"))
 
     return (
-        <form onSubmit={handleSubmit} className="flex w-full flex-col gap-6">
-            <Section title="체성분 기록">
+        <form noValidate onSubmit={handleSubmit} className="flex w-full flex-col gap-6">
+            <Section title={initialValue ? "체성분 기록 수정" : "체성분 기록"}>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-4">
                     <div className="col-span-2">
-                        <TextField label="측정일" type="date" name="measuredAt" value={formData?.measuredAt || ""} onChange={handleChange} />
+                        <TextField
+                            label="측정일"
+                            type="date"
+                            name="measuredAt"
+                            required
+                            max={getKstTodayDateString()}
+                            value={formData?.measuredAt || ""}
+                            onChange={handleChange}
+                            error={formErrors.measuredAt}
+                        />
                     </div>
 
                     <div className="col-span-2">
@@ -123,9 +162,12 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
                         inputMode="decimal"
                         suffix={weightUnit}
                         step="0.1"
+                        min={displayBound(BODY_COMPOSITION_RANGES.bodyFatMassKg.min, weightUnit)}
+                        max={displayBound(BODY_COMPOSITION_RANGES.bodyFatMassKg.max, weightUnit)}
                         name="bodyFatMassKg"
                         value={formData?.bodyFatMassKg || ""}
                         onChange={handleChange}
+                        error={formErrors.bodyFatMassKg}
                     />
 
                     <TextField
@@ -152,18 +194,25 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
                         inputMode="decimal"
                         suffix={weightUnit}
                         step="0.1"
+                        min={displayBound(BODY_COMPOSITION_RANGES.fatFreeMassKg.min, weightUnit)}
+                        max={displayBound(BODY_COMPOSITION_RANGES.fatFreeMassKg.max, weightUnit)}
                         name="fatFreeMassKg"
                         value={formData?.fatFreeMassKg || ""}
                         onChange={handleChange}
+                        error={formErrors.fatFreeMassKg}
                     />
 
                     <TextField
                         label="내장지방 레벨"
                         type="number"
                         inputMode="numeric"
+                        min={BODY_COMPOSITION_RANGES.visceralFatLevel.min}
+                        max={BODY_COMPOSITION_RANGES.visceralFatLevel.max}
+                        step={BODY_COMPOSITION_RANGES.visceralFatLevel.step}
                         name="visceralFatLevel"
                         value={formData?.visceralFatLevel || ""}
                         onChange={handleChange}
+                        error={formErrors.visceralFatLevel}
                     />
 
                     <div className="col-span-2">
@@ -172,13 +221,18 @@ export const BodyCompositionEditPage = ({ onCancel, onSave }: props) => {
                             type="number"
                             inputMode="decimal"
                             step="0.01"
+                            min={BODY_COMPOSITION_RANGES.waistHipRatio.min}
+                            max={BODY_COMPOSITION_RANGES.waistHipRatio.max}
                             name="waistHipRatio"
                             value={formData?.waistHipRatio || ""}
                             onChange={handleChange}
+                            error={formErrors.waistHipRatio}
                         />
                     </div>
                 </div>
             </Section>
+
+            {formErrors.measurements && <Notice tone="danger">{formErrors.measurements}</Notice>}
 
             <div className="sticky bottom-0 z-10 -mx-4 border-t border-hairline bg-ground px-4 pb-4 pt-3">
                 <div className="grid grid-cols-3 gap-2">

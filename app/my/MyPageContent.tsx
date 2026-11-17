@@ -9,7 +9,16 @@ import ProfileEditForm from "@/app/my/profile/ProfileEditForm"
 import { BodyComposition, UserResponse, UserUpdateRequest } from "@/types/project"
 import { useAuthStore } from "@/store/authStore"
 import profileApiClient from "@/lib/api/profile/profileApiClient"
+import { clearOnboardingFlags } from "@/lib/api/profile/onboardingFlag"
+import { markManualLogout } from "@/lib/axios/authRedirect"
+import { Button, Notice } from "@/components/ui"
 import BodyCompositionPage from "@/app/my/body-composition/BodyComposition"
+import {
+    type BodyCompositionRef,
+    addBodyComposition,
+    removeBodyComposition,
+    replaceBodyComposition,
+} from "@/app/my/body-composition/bodyCompositionList"
 import PrSection from "@/app/my/stats/PrSection"
 import NutritionTrendSection from "@/app/my/stats/NutritionTrendSection"
 import SettingsPanel from "@/app/my/settings/Settings"
@@ -53,9 +62,20 @@ export default function MyPageContent() {
         selectTab(tabs[next].id)
     }
     const logout = useCallback(() => {
+        markManualLogout()
+        clearOnboardingFlags()
         useAuthStore.getState().logout()
         window.location.href = "/login"
     }, [])
+    const afterWithdraw = useCallback(() => {
+        markManualLogout()
+        clearOnboardingFlags()
+        useAuthStore.getState().logout({ withdrawn: true })
+        window.location.href = "/login"
+    }, [])
+    const [loadError, setLoadError] = useState(false)
+    const [loadAttempt, setLoadAttempt] = useState(0)
+    const [retrying, setRetrying] = useState(false)
 
     useEffect(() => {
         if (!user?.email) {
@@ -63,8 +83,33 @@ export default function MyPageContent() {
             return
         }
 
-        profileApiClient.getMe().then(setProfile).catch(logout)
-    }, [user, logout])
+        // A failed load must not end the session: a 401 is handled globally by the axios interceptor,
+        // anything else (network, 5xx) shows a notice with a retry button.
+        let cancelled = false
+        profileApiClient
+            .getMe()
+            .then((res) => {
+                if (cancelled) return
+                setProfile(res)
+                setLoadError(false)
+            })
+            .catch((error) => {
+                if (cancelled) return
+                console.error("Profile load error:", error)
+                setLoadError(true)
+            })
+            .finally(() => {
+                if (!cancelled) setRetrying(false)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [user, logout, loadAttempt])
+
+    const retryLoad = () => {
+        setRetrying(true)
+        setLoadAttempt((n) => n + 1)
+    }
 
     const onSave = async (updatedData: Partial<UserResponse>) => {
         if (!profile?.email) {
@@ -84,25 +129,54 @@ export default function MyPageContent() {
             })
     }
 
-    const onBodyCompositionSave = async (formData: BodyComposition): Promise<boolean> => {
-        const existingSnapshots = profile?.bodyCompositionSnapshot || []
-        const updatedSnapshots = [...existingSnapshots, formData]
-
+    // PUT /api/profile/me merges: only the full, sorted snapshot list is sent (an empty list clears it).
+    // On failure the profile state is untouched, so the list and chart stay as they were.
+    const sendBodyCompositions = async (
+        nextSnapshots: BodyComposition[] | null,
+        successMessage: string,
+        failureMessage: string
+    ): Promise<boolean> => {
+        // Without a loaded profile the stored list is unknown; sending would overwrite the history.
+        if (!profile) {
+            toast.error("프로필을 불러온 뒤 다시 시도하세요.")
+            return false
+        }
+        if (!nextSnapshots) {
+            toast.error("기록 목록이 바뀌었어요. 새로고침 후 다시 시도하세요.")
+            return false
+        }
         try {
-            const res = await profileApiClient.updateMe({
-                ...profile,
-                bodyCompositionSnapshot: updatedSnapshots,
-            } as UserUpdateRequest)
-
-            toast.success("체성분 기록을 저장했어요.")
+            const res = await profileApiClient.updateMe({ bodyCompositionSnapshot: nextSnapshots })
+            toast.success(successMessage)
             setProfile(res)
             return true
         } catch (error) {
-            console.error("Update Error:", error)
-            toast.error("체성분 기록을 저장하지 못했어요. 잠시 후 다시 시도하세요.")
+            console.error("Body composition update error:", error)
+            toast.error(failureMessage)
             return false
         }
     }
+
+    const onBodyCompositionSave = (formData: BodyComposition) =>
+        sendBodyCompositions(
+            addBodyComposition(profile?.bodyCompositionSnapshot, formData),
+            "체성분 기록을 저장했어요.",
+            "체성분 기록을 저장하지 못했어요. 잠시 후 다시 시도하세요."
+        )
+
+    const onBodyCompositionUpdate = (ref: BodyCompositionRef, formData: BodyComposition) =>
+        sendBodyCompositions(
+            replaceBodyComposition(profile?.bodyCompositionSnapshot, ref, formData),
+            "체성분 기록을 수정했어요.",
+            "체성분 기록을 수정하지 못했어요. 잠시 후 다시 시도하세요."
+        )
+
+    const onBodyCompositionDelete = (ref: BodyCompositionRef) =>
+        sendBodyCompositions(
+            removeBodyComposition(profile?.bodyCompositionSnapshot, ref),
+            "체성분 기록을 삭제했어요.",
+            "체성분 기록을 삭제하지 못했어요. 잠시 후 다시 시도하세요."
+        )
 
     return (
         <div className="mx-auto w-full max-w-[480px] bg-ground px-4 pb-24 pt-2">
@@ -134,8 +208,18 @@ export default function MyPageContent() {
                 })}
             </div>
 
+            {loadError && !profile && (
+                <Notice tone="danger" title="프로필을 불러오지 못했어요" className="mb-5">
+                    <p>네트워크 상태를 확인하고 다시 시도하세요.</p>
+                    <Button variant="secondary" className="mt-2" loading={retrying} onClick={retryLoad}>
+                        다시 불러오기
+                    </Button>
+                </Notice>
+            )}
+
             <div id="my-tabpanel" role="tabpanel" aria-labelledby={`my-tab-${activeTab}`} className="min-h-[360px]">
                 {activeTab === "profile" &&
+                    !(loadError && !profile) &&
                     (isEditing ? (
                         <ProfileEditForm
                             initialProfile={profile}
@@ -147,14 +231,19 @@ export default function MyPageContent() {
                     ))}
                 {activeTab === "stats" && (
                     <div className="flex flex-col gap-8">
-                        <BodyCompositionPage profile={profile} onSave={onBodyCompositionSave} />
+                        <BodyCompositionPage
+                            profile={profile}
+                            onSave={onBodyCompositionSave}
+                            onUpdate={onBodyCompositionUpdate}
+                            onDelete={onBodyCompositionDelete}
+                        />
                         <PrSection />
                         <NutritionTrendSection />
                     </div>
                 )}
                 {activeTab === "workout" && <WorkoutTab />}
                 {activeTab === "nutrition" && <NutritionTargetSection />}
-                {activeTab === "settings" && <SettingsPanel />}
+                {activeTab === "settings" && <SettingsPanel onWithdrawn={afterWithdraw} />}
             </div>
         </div>
     )

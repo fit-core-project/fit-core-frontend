@@ -1,7 +1,7 @@
 import AxiosController from "@/lib/axios/AxiosController"
 import { UserResponse, UserUpdateRequest } from "@/types/project"
 import { guardProfileResponse } from "@/utils/responseGuard"
-import { getDemoProfile, isDemoMode, updateDemoProfile } from "@/utils/demoMode"
+import { clearDemoSession, getDemoProfile, isDemoMode, updateDemoProfile } from "@/utils/demoMode"
 
 const profileApiClient = {
     getMe: async (): Promise<UserResponse> => {
@@ -18,6 +18,18 @@ const profileApiClient = {
         const data = await AxiosController.put<unknown>("/api/profile/me", request)
         guardProfileResponse(data)
         return data
+    },
+
+    /**
+     * 회원 탈퇴 (DELETE /api/profile/me, 204). The caller logs out afterwards.
+     * Demo mode has no server account, so it only clears the demo session.
+     */
+    withdraw: async (): Promise<void> => {
+        if (isDemoMode()) {
+            clearDemoSession()
+            return
+        }
+        await AxiosController.delete("/api/profile/me")
     },
 
     /** true when another account already uses the nickname (BE `/check-nickname` returns isDuplicate). */

@@ -1,28 +1,60 @@
 "use client"
 
+import { useEffect } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import SocialButton from "@/app/components/SocialButton"
 import { useAuthStore } from "@/store/authStore"
 import { getBackendBaseUrl } from "@/utils/backendBaseUrl"
 import { Button } from "@/components/ui"
+import { isDemoLoginEnabled } from "@/utils/demoLoginFlag"
+import {
+    consumeReturnPath,
+    peekReturnPath,
+    preservingFailedWorkoutSave,
+    readReturnPathFromSearch,
+    rememberReturnPath,
+} from "@/lib/axios/authRedirect"
 
-// NEXT_PUBLIC_ENABLE_DEMO_LOGIN: show demo login unless explicitly set to 'false'
-const SHOW_DEMO_LOGIN = process.env.NEXT_PUBLIC_ENABLE_DEMO_LOGIN !== "false"
+// NEXT_PUBLIC_ENABLE_DEMO_LOGIN: "true" shows it; unset shows it only outside production builds.
+const SHOW_DEMO_LOGIN = isDemoLoginEnabled()
+
+/** `?next=` wins; otherwise the path the guard or the 401 handler stashed. */
+function resolveReturnPath(): string | null {
+    if (typeof window === "undefined") return null
+    return readReturnPathFromSearch(window.location.search) ?? peekReturnPath()
+}
 
 export default function LoginPage() {
     const router = useRouter()
     const setToken = useAuthStore((state) => state.setToken)
+    const token = useAuthStore((state) => state.token)
+    const isLoading = useAuthStore((state) => state.isLoading)
+
+    // Already logged in and sent here with a return path (e.g. /admin after a browser restart):
+    // go straight back. The role cookie was re-set on rehydrate.
+    useEffect(() => {
+        if (isLoading || !token) return
+        const fromQuery = readReturnPathFromSearch(window.location.search)
+        if (!fromQuery) return
+        consumeReturnPath()
+        router.replace(fromQuery)
+    }, [isLoading, token, router])
 
     const handleSocialLogin = (provider: string) => {
+        // The OAuth round trip only carries token/mode back, so keep the return path in sessionStorage.
+        rememberReturnPath(resolveReturnPath())
         window.location.href = `${getBackendBaseUrl()}/oauth2/authorization/${provider}`
     }
 
     const handleDemoLogin = async () => {
         const { seedDemoSession, createDemoToken } = await import("@/utils/demoMode")
-        seedDemoSession()
+        const returnPath = resolveReturnPath()
+        preservingFailedWorkoutSave(seedDemoSession)
         setToken(createDemoToken())
         useAuthStore.getState().setIsLoading(false)
-        router.replace("/")
+        consumeReturnPath()
+        router.replace(returnPath ?? "/")
     }
 
     return (
@@ -57,6 +89,19 @@ export default function LoginPage() {
                 <Button variant="ghost" block className="mt-8" onClick={() => router.push("/")}>
                     돌아가기
                 </Button>
+
+                <footer className="mt-6 flex flex-col items-center gap-1 text-center text-caption text-ink-2">
+                    <p>로그인 전에 이용약관과 개인정보 처리방침을 확인하세요.</p>
+                    <nav aria-label="약관" className="flex items-center gap-2">
+                        <Link href="/terms" className="inline-flex min-h-11 items-center px-2 font-bold text-ink underline underline-offset-2">
+                            이용약관
+                        </Link>
+                        <span aria-hidden>·</span>
+                        <Link href="/privacy" className="inline-flex min-h-11 items-center px-2 font-bold text-ink underline underline-offset-2">
+                            개인정보 처리방침
+                        </Link>
+                    </nav>
+                </footer>
             </div>
         </div>
     )
