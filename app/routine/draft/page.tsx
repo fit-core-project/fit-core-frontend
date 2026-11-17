@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, useRef, useCallback } from "react"
+import { useEffect, useState, useMemo, useRef, useCallback, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, ChevronDown, Clock, GripVertical, Minus, Plus, Repeat, Save, Search, Trash2 } from "lucide-react"
 import {
@@ -26,11 +26,11 @@ import routineApiClient from "@/lib/api/routine/routineApiClient"
 import { generateEditSummary } from "@/utils/routineDiff"
 import { getKstToday } from "@/utils/date"
 import { FinalizeState } from "@/types/state"
-import { useForm } from "react-hook-form"
-import { NUMERIC_RANGES, NumericFieldName, numericRules, toDisplayBound, validateNumericRange } from "@/utils/numericValidation"
+import { NUMERIC_RANGES, toDisplayBound } from "@/utils/numericValidation"
 import { equipmentLabel, fallbackReasonLabel, muscleLabel, routineOriginLabel } from "@/utils/displayLabels"
 import { lineForRoutine, ROUTE_LINE_COLOR_VAR, type RouteLine } from "@/utils/routeLine"
 import { Button, ButtonLink, cx, EmptyState, LineBadge, Notice, RouteStrip, Sheet, Skeleton, StationRow, Tag } from "@/components/ui"
+import { DRAFT_INVALID_MESSAGE, DRAFT_WEIGHT_MAX_KG, draftInvalidReason, formatWeight, kgToDisplay, parseSetInput, type SetField, type WeightUnit } from "./draftEditing"
 
 // Korean search words → SSOT muscle slugs, matched with includes() against the catalog primaryMuscle.
 const MUSCLE_KR: Record<string, string[]> = {
@@ -128,38 +128,56 @@ export default function RoutineReviewPage() {
     const [swapLoading, setSwapLoading] = useState(false)
     const [editingBlockId, setEditingBlockId] = useState<string | null>(null)
     const [backConfirmOpen, setBackConfirmOpen] = useState(false)
+    const [pendingDeleteBlockId, setPendingDeleteBlockId] = useState<string | null>(null)
+    const [catalogStatus, setCatalogStatus] = useState<"loading" | "ready" | "failed">("loading")
+    const [toastMessage, setToastMessage] = useState("")
 
     const line = useMemo(() => lineForRoutine(null, draft?.routineBlocks.flatMap((block) => block.primaryMuscles ?? []) ?? []), [draft])
 
-    // 1. Load routine + catalog, then apply weights to all blocks
+    // 1. Load the stored routine first; the catalog loads on its own so a catalog failure never hides the routine.
     useEffect(() => {
-        const init = async () => {
-            try {
-                const [catalogData, saved] = await Promise.all([
-                    getExerciseCatalog(),
-                    Promise.resolve(localStorage.getItem("fitcore_active_routine")),
-                ])
-                setCatalog(catalogData)
-
-                if (!saved) return
+        try {
+            const saved = localStorage.getItem("fitcore_active_routine")
+            if (saved) {
                 const data = JSON.parse(saved) as RoutineDraft
                 const hydratedDraft: RoutineDraft = {
                     ...data,
-                    routineBlocks: data.routineBlocks.map((block, index) => ({
+                    routineBlocks: (data.routineBlocks ?? []).map((block, index) => ({
                         ...block,
                         clientBlockId: block.clientBlockId ?? `cbid_${Date.now()}_${index}`,
                     })),
                 }
                 initialDraftRef.current = JSON.parse(JSON.stringify(hydratedDraft))
                 setDraft(hydratedDraft)
-            } catch (err) {
-                console.error("루틴 초기화 오류:", err)
-            } finally {
-                setFinalizeStatus("idle")
             }
+        } catch (err) {
+            console.error("루틴 초기화 오류:", err)
+        } finally {
+            setFinalizeStatus("idle")
         }
-        init()
     }, [])
+
+    const loadCatalog = useCallback(async () => {
+        setCatalogStatus("loading")
+        try {
+            const catalogData = await getExerciseCatalog()
+            setCatalog(Array.isArray(catalogData) ? catalogData : [])
+            setCatalogStatus("ready")
+        } catch (err) {
+            console.error("[draft] exercise catalog failed:", err)
+            setCatalogStatus("failed")
+        }
+    }, [])
+
+    useEffect(() => {
+        void loadCatalog()
+    }, [loadCatalog])
+
+    useEffect(() => {
+        if (!toastMessage) return
+        const timer = window.setTimeout(() => setToastMessage(""), 3000)
+        return () => window.clearTimeout(timer)
+    }, [toastMessage])
 
     // Set / Block mutations
 
@@ -225,29 +243,41 @@ export default function RoutineReviewPage() {
         })
     }
 
-    const deleteBlock = (blockId: string) => {
-        if (!draft) return
-        if (!confirm("이 운동을 루틴에서 삭제할까요?")) return
-        setDraft({ ...draft, routineBlocks: draft.routineBlocks.filter((b) => b.clientBlockId !== blockId) })
+    const requestDeleteBlock = (blockId: string) => setPendingDeleteBlockId(blockId)
+
+    const confirmDeleteBlock = () => {
+        const blockId = pendingDeleteBlockId
+        setPendingDeleteBlockId(null)
+        if (!blockId) return
+        setDraft((prev) =>
+            prev ? { ...prev, routineBlocks: prev.routineBlocks.filter((b) => b.clientBlockId !== blockId) } : prev
+        )
+        setEditingBlockId((prev) => (prev === blockId ? null : prev))
     }
 
     const updateRestTime = (blockId: string, arrayIndex: number, value: number) => {
         updateSet(blockId, arrayIndex, "targetRestSec", value)
     }
 
+    // Closing the picker drops a newly added block that never got an exercise.
     const handleCloseSwapModal = () => {
-        if (swapBlockId && draft) {
-            const block = draft.routineBlocks.find((b) => b.clientBlockId === swapBlockId)
-            if (block && !block.exerciseId) {
-                setDraft({ ...draft, routineBlocks: draft.routineBlocks.filter((b) => b.clientBlockId !== swapBlockId) })
-            }
+        const blockId = swapBlockId
+        if (blockId) {
+            setDraft((prev) => {
+                if (!prev) return prev
+                const block = prev.routineBlocks.find((b) => b.clientBlockId === blockId)
+                if (!block || block.exerciseId) return prev
+                return { ...prev, routineBlocks: prev.routineBlocks.filter((b) => b.clientBlockId !== blockId) }
+            })
         }
         setSwapBlockId(null)
         setSwapQuery("")
     }
 
+    const catalogReady = catalogStatus === "ready"
+
     const addNewExerciseBlock = () => {
-        if (!draft) return
+        if (!draft || !catalogReady) return
         const clientBlockId = `cbid_${Date.now()}`
         const newBlock: RoutineBlock = {
             order: draft.routineBlocks.length + 1,
@@ -276,7 +306,16 @@ export default function RoutineReviewPage() {
                 exerciseName: item.nameKr,
                 exerciseRationale: `${muscleLabel(item.primaryMuscle)} 주동근 운동 (${equipmentLabel(item.equipment)})`,
             }
-            const enrichedBlock = await applyRecentRecordDefaults(baseBlock, item.id)
+            let enrichedBlock: RoutineBlock
+            try {
+                enrichedBlock = await applyRecentRecordDefaults(baseBlock, item.id)
+            } catch (err) {
+                // Keep the previous exercise; a newly added empty block is removed by the close path.
+                console.error("[draft] recent record failed:", err)
+                handleCloseSwapModal()
+                setToastMessage("최근 기록을 불러오지 못해 운동을 바꾸지 못했어요. 다시 시도하세요.")
+                return
+            }
 
             setDraft((prev) => {
                 if (!prev) return prev
@@ -285,9 +324,9 @@ export default function RoutineReviewPage() {
                     routineBlocks: prev.routineBlocks.map((b) => (b.clientBlockId !== blockId ? b : enrichedBlock)),
                 }
             })
-        } finally {
             setSwapBlockId(null)
             setSwapQuery("")
+        } finally {
             setSwapLoading(false)
         }
     }
@@ -312,23 +351,9 @@ export default function RoutineReviewPage() {
         return Math.ceil((warmupSec + transitionSec + workAndRestSec) / 60)
     }, [draft])
 
-    // Validation: gate finalize when any set violates bounds
-    const isRoutineValid = useMemo(() => {
-        if (!draft) return false
-        if (isManualMode && draft.routineBlocks.length === 0) return false
-        return draft.routineBlocks.every(
-            (block) =>
-                block.prescription.length > 0 &&
-                block.prescription.every(
-                    (s) =>
-                        s.targetReps >= 1 &&
-                        s.targetReps <= 50 &&
-                        (s.targetWeightKg === null || (s.targetWeightKg > 0 && s.targetWeightKg <= 500)) &&
-                        s.targetRestSec >= 0 &&
-                        s.targetRestSec <= 600
-                )
-        )
-    }, [draft, isManualMode])
+    // Validation: gate finalize on zero exercises, an unpicked exercise, or any set out of bounds (every mode).
+    const invalidReason = useMemo(() => (draft ? draftInvalidReason(draft.routineBlocks) : "noExercises"), [draft])
+    const isRoutineValid = invalidReason === null
 
     const swapBlock = useMemo(
         () => (swapBlockId && draft ? (draft.routineBlocks.find((b) => b.clientBlockId === swapBlockId) ?? null) : null),
@@ -446,6 +471,7 @@ export default function RoutineReviewPage() {
     }
 
     const blocks = draft.routineBlocks
+    const pendingDeleteBlock = pendingDeleteBlockId ? (blocks.find((b) => b.clientBlockId === pendingDeleteBlockId) ?? null) : null
     const originLabel = routineOriginLabel({ isManual: isManualMode, isFallback: draft.isFallback })
     const fallbackReason = draft.isFallback ? fallbackReasonLabel(draft.statusReasonCode) : null
 
@@ -469,7 +495,7 @@ export default function RoutineReviewPage() {
                             aria-pressed={displayUnit === unit}
                             onClick={() => setDisplayUnit(unit)}
                             className={cx(
-                                "min-h-9 min-w-11 rounded-[4px] px-2 text-body-sm font-bold",
+                                "min-h-11 min-w-11 rounded-[4px] px-2 text-body-sm font-bold",
                                 displayUnit === unit ? "bg-ground text-ink shadow-[0_0_0_1px_var(--color-hairline)]" : "text-ink-2",
                             )}
                         >
@@ -482,6 +508,12 @@ export default function RoutineReviewPage() {
                     <span className="tabular-nums">{totalTime}분</span>
                 </Tag>
             </header>
+
+            <div role="alert" aria-live="assertive" className="pointer-events-none fixed inset-x-0 top-4 z-50 flex justify-center px-4">
+                {toastMessage && (
+                    <p className="max-w-[440px] rounded-control bg-ink px-4 py-3 text-body-sm font-medium text-white">{toastMessage}</p>
+                )}
+            </div>
 
             <div className="flex flex-col gap-5 px-4 pb-6 pt-5">
                 <div>
@@ -505,6 +537,19 @@ export default function RoutineReviewPage() {
                                 <li key={index}>{warning}</li>
                             ))}
                         </ul>
+                    </Notice>
+                )}
+
+                {catalogStatus === "failed" && (
+                    <Notice tone="danger" title="운동 목록을 불러오지 못했어요">
+                        <p>루틴은 그대로 편집하고 저장할 수 있지만, 지금은 운동 교체와 추가를 할 수 없어요.</p>
+                        <button
+                            type="button"
+                            onClick={() => void loadCatalog()}
+                            className="mt-1 inline-flex min-h-11 items-center font-bold underline underline-offset-2"
+                        >
+                            다시 불러오기
+                        </button>
                     </Notice>
                 )}
 
@@ -539,7 +584,8 @@ export default function RoutineReviewPage() {
                                         onUpdateRestTime={updateRestTime}
                                         onAddSet={addSet}
                                         onDeleteSet={deleteSet}
-                                        onDeleteBlock={deleteBlock}
+                                        onDeleteBlock={requestDeleteBlock}
+                                        swapDisabled={!catalogReady}
                                         onSwapRequest={(blockId) => {
                                             setSwapBlockId(blockId)
                                             setSwapQuery("")
@@ -550,20 +596,27 @@ export default function RoutineReviewPage() {
                         </SortableContext>
                     </DndContext>
 
-                    {isManualMode && blocks.length === 0 && (
+                    {blocks.length === 0 && (
                         <EmptyState title="아직 운동이 없어요" body="아래 버튼으로 첫 운동을 추가하세요." />
                     )}
 
-                    <Button variant="secondary" block icon={<Plus className="size-4" aria-hidden />} onClick={addNewExerciseBlock}>
+                    <Button
+                        variant="secondary"
+                        block
+                        icon={<Plus className="size-4" aria-hidden />}
+                        onClick={addNewExerciseBlock}
+                        disabled={!catalogReady}
+                        loading={catalogStatus === "loading"}
+                    >
                         운동 추가
                     </Button>
                 </section>
             </div>
 
             <div className="sticky bottom-0 z-10 mt-auto border-t border-hairline bg-ground px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
-                {!isRoutineValid && (
+                {invalidReason && (
                     <p role="alert" className="mb-2 text-caption text-danger-ink">
-                        세트 값을 확인하세요. 횟수 1~50, 무게 0~500kg, 휴식 0~600초 안이어야 해요.
+                        {DRAFT_INVALID_MESSAGE[invalidReason]}
                     </p>
                 )}
                 {finalizeStatus === "failed" && (
@@ -621,6 +674,25 @@ export default function RoutineReviewPage() {
                 }
             >
                 {null}
+            </Sheet>
+
+            <Sheet
+                open={pendingDeleteBlock !== null}
+                onClose={() => setPendingDeleteBlockId(null)}
+                title="이 운동을 뺄까요?"
+                description={pendingDeleteBlock?.exerciseName ? `${pendingDeleteBlock.exerciseName}을(를) 루틴에서 빼요.` : "이 운동을 루틴에서 빼요."}
+                footer={
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button variant="secondary" size="lg" onClick={() => setPendingDeleteBlockId(null)}>
+                            취소
+                        </Button>
+                        <Button variant="danger" size="lg" onClick={confirmDeleteBlock}>
+                            빼기
+                        </Button>
+                    </div>
+                }
+            >
+                <p className="text-body-sm text-ink-2">저장하기 전에는 뒤로 가서 편집을 그만두면 원래 루틴으로 돌아가요.</p>
             </Sheet>
 
             <Sheet open={swapBlockId !== null} onClose={handleCloseSwapModal} title="다른 운동으로 교체" description="이름이나 부위로 찾을 수 있어요.">
@@ -685,9 +757,9 @@ function SwapOption({ item, recommended, onPick }: { item: ExerciseCatalogItem; 
     )
 }
 
-function blockSummary(block: RoutineBlock, unit: "kg" | "lbs"): string {
-    const toUnit = (kg: number) => (unit === "lbs" ? Math.round(kg * 2.20462) : kg)
-    const weights = block.prescription.map((s) => s.targetWeightKg).filter((kg): kg is number => kg !== null).map(toUnit)
+function blockSummary(block: RoutineBlock, unit: WeightUnit): string {
+    const toUnit = (kg: number) => kgToDisplay(kg, unit)
+    const weights = block.prescription.map((s) => s.targetWeightKg).filter((kg): kg is number => kg !== null && kg > 0).map(toUnit)
     const reps = block.prescription.map((s) => s.targetReps)
     const weightText =
         weights.length === 0 ? "맨몸" : Math.min(...weights) === Math.max(...weights) ? `${weights[0]}${unit}` : `${Math.min(...weights)}–${Math.max(...weights)}${unit}`
@@ -701,16 +773,17 @@ interface StationProps {
     isLast: boolean
     expanded: boolean
     onToggle: () => void
-    displayUnit: "kg" | "lbs"
+    displayUnit: WeightUnit
     onUpdateSet: (blockId: string, arrayIndex: number, field: keyof SetPrescription, value: number | null) => void
     onUpdateRestTime: (blockId: string, arrayIndex: number, value: number) => void
     onAddSet: (blockId: string) => void
     onDeleteSet: (blockId: string, arrayIndex: number) => void
     onDeleteBlock: (blockId: string) => void
     onSwapRequest: (blockId: string) => void
+    swapDisabled: boolean
 }
 
-function SortableStation({ block, line, isLast, expanded, onToggle, displayUnit, onUpdateSet, onUpdateRestTime, onAddSet, onDeleteSet, onDeleteBlock, onSwapRequest }: StationProps) {
+function SortableStation({ block, line, isLast, expanded, onToggle, displayUnit, onUpdateSet, onUpdateRestTime, onAddSet, onDeleteSet, onDeleteBlock, onSwapRequest, swapDisabled }: StationProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.clientBlockId! })
     const color = ROUTE_LINE_COLOR_VAR[line]
     const blockId = block.clientBlockId!
@@ -783,7 +856,12 @@ function SortableStation({ block, line, isLast, expanded, onToggle, displayUnit,
                                         <Button variant="secondary" icon={<Plus className="size-4" aria-hidden />} onClick={() => onAddSet(blockId)}>
                                             세트 추가
                                         </Button>
-                                        <Button variant="secondary" icon={<Repeat className="size-4" aria-hidden />} onClick={() => onSwapRequest(blockId)}>
+                                        <Button
+                                            variant="secondary"
+                                            icon={<Repeat className="size-4" aria-hidden />}
+                                            onClick={() => onSwapRequest(blockId)}
+                                            disabled={swapDisabled}
+                                        >
                                             운동 교체
                                         </Button>
                                     </div>
@@ -804,15 +882,11 @@ interface SetRowProps {
     set: SetPrescription
     arrayIndex: number
     blockId: string
-    displayUnit: "kg" | "lbs"
+    displayUnit: WeightUnit
     onUpdate: (blockId: string, arrayIndex: number, field: keyof SetPrescription, value: number | null) => void
     onUpdateRest: (blockId: string, arrayIndex: number, value: number) => void
     onDelete: (blockId: string, arrayIndex: number) => void
     isOnly: boolean
-}
-
-function validateDraftSetValue(field: NumericFieldName, value: number, unit: "kg" | "lbs" = "kg") {
-    return validateNumericRange(field, value, unit) === true
 }
 
 const SET_INPUT_BASE =
@@ -820,47 +894,59 @@ const SET_INPUT_BASE =
 const SET_INPUT = `${SET_INPUT_BASE} w-full`
 
 function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest, onDelete, isOnly }: SetRowProps) {
-    const {
-        register,
-        trigger,
-        formState: { errors },
-    } = useForm<Record<string, unknown>>({ mode: "onChange" })
-    const weightRegister = register("weightKg", numericRules("weightKg", displayUnit))
-    const repsRegister = register("reps", numericRules("reps"))
-    const restRegister = register("restSec", numericRules("restSec"))
-    // The model always stores kg; only the view converts.
-    const weightDisplay =
-        set.targetWeightKg === null ? "" : displayUnit === "lbs" ? String(Math.round(set.targetWeightKg * 2.20462)) : String(set.targetWeightKg)
+    // Text is held only while a field is focused, so the user can clear it mid-typing. Outside focus the
+    // field always shows the stored value (kg in the model; only the view converts).
+    const [editing, setEditing] = useState<{ field: SetField; text: string } | null>(null)
+    const [errors, setErrors] = useState<Partial<Record<SetField, string>>>({})
     const setNo = arrayIndex + 1
 
-    const handleWeightChange = (raw: string) => {
-        if (raw === "") {
-            onUpdate(blockId, arrayIndex, "targetWeightKg", null)
-            return
-        }
-        const num = parseFloat(raw)
-        if (!isNaN(num) && validateDraftSetValue("weightKg", num, displayUnit)) {
-            const kg = displayUnit === "lbs" ? Math.round(num / 2.20462) : num
-            onUpdate(blockId, arrayIndex, "targetWeightKg", kg)
-        }
+    const storedText: Record<SetField, string> = {
+        weight: formatWeight(set.targetWeightKg, displayUnit),
+        reps: String(set.targetReps),
+        rest: String(set.targetRestSec),
     }
 
-    const handleRepsChange = (raw: string) => {
-        const num = parseInt(raw)
-        if (!isNaN(num) && validateDraftSetValue("reps", num)) onUpdate(blockId, arrayIndex, "targetReps", num)
+    const commit = (field: SetField, value: number | null) => {
+        if (field === "weight") onUpdate(blockId, arrayIndex, "targetWeightKg", value)
+        else if (field === "reps") onUpdate(blockId, arrayIndex, "targetReps", value)
+        else if (value !== null) onUpdateRest(blockId, arrayIndex, value)
     }
+
+    const clearError = (field: SetField) => setErrors((prev) => ({ ...prev, [field]: undefined }))
+
+    const fieldProps = (field: SetField) => ({
+        value: editing?.field === field ? editing.text : storedText[field],
+        "aria-invalid": errors[field] ? true : undefined,
+        onFocus: () => setEditing({ field, text: storedText[field] }),
+        onChange: (e: ChangeEvent<HTMLInputElement>) => setEditing({ field, text: e.target.value }),
+        onBlur: () => {
+            const text = editing?.field === field ? editing.text : storedText[field]
+            setEditing(null)
+            if (text === storedText[field]) {
+                clearError(field)
+                return
+            }
+            const parsed = parseSetInput(field, text, displayUnit)
+            if (parsed.ok) {
+                clearError(field)
+                commit(field, parsed.value)
+            } else {
+                // Invalid input reverts to the stored value, so what is shown is what gets saved.
+                setErrors((prev) => ({ ...prev, [field]: `${parsed.message} 이전 값으로 되돌렸어요.` }))
+            }
+        },
+        onKeyDown: (e: ReactKeyboardEvent<HTMLInputElement>) => {
+            if (e.key === "Enter") e.currentTarget.blur()
+        },
+    })
 
     const handleRestStep = (delta: number) => {
         const next = Math.min(NUMERIC_RANGES.restSec.max, Math.max(NUMERIC_RANGES.restSec.min, set.targetRestSec + delta))
+        clearError("rest")
         onUpdateRest(blockId, arrayIndex, next)
     }
 
-    const handleRestChange = (raw: string) => {
-        const num = parseInt(raw)
-        if (!isNaN(num) && validateDraftSetValue("restSec", num)) onUpdateRest(blockId, arrayIndex, num)
-    }
-
-    const errorText = [errors.weightKg?.message, errors.reps?.message, errors.restSec?.message].filter(Boolean).map(String)
+    const errorText = [errors.weight, errors.reps, errors.rest].filter((m): m is string => Boolean(m))
 
     return (
         <li className="flex flex-col gap-2 py-2.5">
@@ -870,16 +956,10 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
                     type="number"
                     inputMode="decimal"
                     aria-label={`${setNo}세트 무게(${displayUnit})`}
-                    aria-invalid={errors.weightKg ? true : undefined}
-                    min={toDisplayBound(NUMERIC_RANGES.weightKg.min, displayUnit)}
-                    max={toDisplayBound(NUMERIC_RANGES.weightKg.max, displayUnit)}
-                    step={displayUnit === "lbs" ? 1 : NUMERIC_RANGES.weightKg.step}
-                    value={weightDisplay}
-                    onChange={(e) => {
-                        weightRegister.onChange(e)
-                        handleWeightChange(e.target.value)
-                        void trigger("weightKg")
-                    }}
+                    min={0}
+                    max={toDisplayBound(DRAFT_WEIGHT_MAX_KG, displayUnit)}
+                    step={displayUnit === "lbs" ? 1 : 0.1}
+                    {...fieldProps("weight")}
                     placeholder="맨몸"
                     className={SET_INPUT}
                 />
@@ -887,16 +967,10 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
                     type="number"
                     inputMode="numeric"
                     aria-label={`${setNo}세트 횟수`}
-                    aria-invalid={errors.reps ? true : undefined}
                     min={NUMERIC_RANGES.reps.min}
                     max={NUMERIC_RANGES.reps.max}
                     step={NUMERIC_RANGES.reps.step}
-                    value={set.targetReps}
-                    onChange={(e) => {
-                        repsRegister.onChange(e)
-                        handleRepsChange(e.target.value)
-                        void trigger("reps")
-                    }}
+                    {...fieldProps("reps")}
                     className={SET_INPUT}
                 />
                 <button
@@ -924,16 +998,10 @@ function SetRow({ set, arrayIndex, blockId, displayUnit, onUpdate, onUpdateRest,
                     type="number"
                     inputMode="numeric"
                     aria-label={`${setNo}세트 휴식(초)`}
-                    aria-invalid={errors.restSec ? true : undefined}
                     min={NUMERIC_RANGES.restSec.min}
                     max={NUMERIC_RANGES.restSec.max}
                     step={NUMERIC_RANGES.restSec.step}
-                    value={set.targetRestSec}
-                    onChange={(e) => {
-                        restRegister.onChange(e)
-                        handleRestChange(e.target.value)
-                        void trigger("restSec")
-                    }}
+                    {...fieldProps("rest")}
                     className={cx(SET_INPUT_BASE, "w-20")}
                 />
                 <span className="text-caption text-ink-2">초</span>

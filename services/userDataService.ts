@@ -14,14 +14,24 @@ type BeConditionResponse = {
 }
 
 function levelToInt(level: string): 1 | 2 {
-    return level === "moderate" ? 2 : 1
+    return level === "moderate" || level === "severe" ? 2 : 1
 }
 
-function parseBeCondition(raw: BeConditionResponse): UserCondition {
+/**
+ * Throws on a malformed body instead of returning empty lists: callers treat an empty painAreas as
+ * "no pain", so a broken response must surface as a failure, never as a silent "no pain".
+ */
+export function parseBeCondition(raw: unknown): UserCondition {
+    const body = raw as Partial<BeConditionResponse> | null | undefined
+    if (!body || !Array.isArray(body.painAreas) || !Array.isArray(body.doms)) {
+        throw new Error("[condition] malformed /api/users/condition response")
+    }
     return {
-        painAreas: raw.painAreas,
+        painAreas: body.painAreas.filter((area): area is string => typeof area === "string" && area.length > 0),
         doms: Object.fromEntries(
-            raw.doms.map((d) => [d.bodyPart, levelToInt(d.level)])
+            body.doms
+                .filter((d) => d && typeof d.bodyPart === "string" && d.bodyPart.length > 0)
+                .map((d) => [d.bodyPart, levelToInt(d.level)])
         ) as Partial<Record<string, 1 | 2>>,
     }
 }

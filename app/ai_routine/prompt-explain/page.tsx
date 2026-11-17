@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { notFound } from "next/navigation"
 import {
     Activity,
     ArrowLeft,
@@ -84,6 +85,9 @@ const sections = [
 ]
 
 export default function PromptExplainPage() {
+    // Interview/demo explainer: dev only, like app/dev/ui.
+    if (process.env.NODE_ENV === "production") notFound()
+
     return (
         <div className="flex min-h-full w-full flex-col bg-ground">
             <header className="sticky top-0 z-20 flex items-center gap-1 border-b border-hairline bg-ground px-2 py-1.5">

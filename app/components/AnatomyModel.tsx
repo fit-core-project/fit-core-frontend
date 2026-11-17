@@ -1,5 +1,8 @@
 import Model, { MuscleType, type IExerciseData, type Muscle } from "react-body-highlighter"
+import { ChevronDown, Lock } from "lucide-react"
 import { lineForRoutine, ROUTE_LINE_COLOR_VAR, type RouteLine } from "@/utils/routeLine"
+import { muscleLabel, PAIN_AREA_SLUGS, TRAINABLE_MUSCLE_SLUGS } from "@/utils/displayLabels"
+import { cx, ToggleChip } from "@/components/ui"
 
 interface AnatomyModelProps {
     data: Record<string, number>
@@ -68,6 +71,91 @@ function buildPaint(mode: AnatomyModelProps["mode"], data: Record<string, number
     }
 }
 
+const DOMS_STATE_LABEL = ["정상", "뻐근함", "근육통"] as const
+
+/**
+ * Parts for the accessible list: the SSOT vocabulary for the mode, plus any part already in the data or locked
+ * that the vocabulary does not list (e.g. a saved slug the diagram cannot draw), so the list always shows state.
+ */
+export function bodyPartListFor(mode: AnatomyModelProps["mode"], data: Record<string, number>, lockedMuscles: readonly string[]): string[] {
+    const base: readonly string[] = mode === "injury" ? PAIN_AREA_SLUGS : TRAINABLE_MUSCLE_SLUGS
+    const extras = [...lockedMuscles, ...Object.keys(data).filter((key) => data[key] > 0)].filter((slug) => !base.includes(slug))
+    return [...base, ...Array.from(new Set(extras))]
+}
+
+function BodyPartList({ mode, data, lockedMuscles, onMuscleClick }: AnatomyModelProps & { lockedMuscles: readonly string[] }) {
+    const parts = bodyPartListFor(mode, data, lockedMuscles)
+    const locked = new Set(lockedMuscles)
+    const legend = mode === "doms" ? "누를 때마다 정상, 뻐근함, 근육통 순서로 바뀌어요." : "누르면 고르고, 다시 누르면 빼요."
+
+    return (
+        <details className="group mt-4 w-full rounded-panel border border-hairline">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-body-sm font-bold text-ink [&::-webkit-details-marker]:hidden">
+                목록에서 부위 고르기
+                <ChevronDown className="size-4 shrink-0 text-ink-2 transition-transform duration-150 group-open:rotate-180" aria-hidden />
+            </summary>
+            <fieldset className="border-t border-hairline px-3 pb-3 pt-2">
+                <legend className="sr-only">신체 부위</legend>
+                <p className="mb-2 text-caption text-ink-2">{legend}</p>
+                <ul className="flex flex-wrap gap-2">
+                    {parts.map((slug) => {
+                        const label = muscleLabel(slug)
+                        if (locked.has(slug)) {
+                            return (
+                                <li key={slug}>
+                                    <button
+                                        type="button"
+                                        aria-disabled="true"
+                                        onClick={() => onMuscleClick(slug)}
+                                        className="inline-flex min-h-11 items-center gap-1.5 rounded-control border border-danger bg-danger-bg px-3 text-body-sm font-medium text-danger-ink"
+                                    >
+                                        <Lock className="size-3.5" aria-hidden />
+                                        {label}
+                                        <span className="text-caption">· 통증(프로필)</span>
+                                    </button>
+                                </li>
+                            )
+                        }
+                        const level = data[slug] ?? 0
+                        if (mode === "doms") {
+                            const step = Math.min(2, Math.max(0, level))
+                            return (
+                                <li key={slug}>
+                                    <button
+                                        type="button"
+                                        onClick={() => onMuscleClick(slug)}
+                                        aria-pressed={step > 0}
+                                        className={cx(
+                                            "inline-flex min-h-11 items-center gap-1 rounded-control border px-3 text-body-sm font-medium",
+                                            step === 0 && "border-rail bg-ground text-ink hover:border-ink-3",
+                                            step === 1 && "border-transparent bg-ink-2 text-white",
+                                            step === 2 && "border-transparent bg-ink text-white",
+                                        )}
+                                    >
+                                        {label}
+                                        <span className="text-caption">· {DOMS_STATE_LABEL[step]}</span>
+                                    </button>
+                                </li>
+                            )
+                        }
+                        return (
+                            <li key={slug}>
+                                <ToggleChip
+                                    pressed={level > 0}
+                                    line={mode === "target" ? lineForRoutine(null, [slug]) : undefined}
+                                    onClick={() => onMuscleClick(slug)}
+                                >
+                                    {label}
+                                </ToggleChip>
+                            </li>
+                        )
+                    })}
+                </ul>
+            </fieldset>
+        </details>
+    )
+}
+
 function LegendItem({ color, label }: { color: string; label: string }) {
     return (
         <li className="flex items-center gap-1.5">
@@ -108,6 +196,8 @@ export default function AnatomyModel({ data, onMuscleClick, mode, lockedMuscles 
                     {lockedMuscles.length > 0 && <LegendItem color={DOMS_PALETTE.locked} label="통증(프로필)" />}
                 </ul>
             )}
+
+            <BodyPartList mode={mode} data={data} lockedMuscles={lockedMuscles} onMuscleClick={onMuscleClick} />
         </div>
     )
 }

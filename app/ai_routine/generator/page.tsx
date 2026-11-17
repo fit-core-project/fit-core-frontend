@@ -5,12 +5,21 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, RefreshCw } from "lucide-react"
 import AnatomyModel from "@/app/components/AnatomyModel"
-import { RoutineFormState, assembleRoutineRequest } from "@/utils/requestAssembler"
+import { RoutineFormState, WEIGHTED_EQUIPMENT, assembleRoutineRequest } from "@/utils/requestAssembler"
 import { getUserPreferences } from "@/services/userDataService"
 import { generateRoutine } from "@/services/aiRoutineService"
 import { GenerateState } from "@/types/state"
-import { clearProgramContext } from "@/utils/programContext"
-import { equipmentLabel, goalLabel, muscleLabel } from "@/utils/displayLabels"
+import { generateAndCommitRoutine } from "./generateAndCommit"
+import { needsOverwriteConfirm, OVERWRITE_CONFIRM_COPY } from "@/utils/activeWorkout"
+import {
+    classifyGenerateError,
+    equipmentLabel,
+    generateErrorCopy,
+    generateFailedReasonLabel,
+    goalLabel,
+    muscleLabel,
+    type GenerateErrorKind,
+} from "@/utils/displayLabels"
 import { lineForRoutine, type RouteLine } from "@/utils/routeLine"
 import { Button, Notice, Section, Sheet, Skeleton, Surface, TextAreaField, ToggleChip } from "@/components/ui"
 
@@ -27,7 +36,8 @@ const LOADING_MESSAGES = [
     "운동 강도와 휴식 구성을 점검하고 있어요.",
 ]
 
-const EQUIPMENTS: Equipment[] = ["BARBELL", "DUMBBELL", "MACHINE", "CABLE", "BODYWEIGHT"]
+// Only weighted gear is a real choice: bodyweight exercises are always allowed by BE/AI, so a 맨몸 chip would do nothing.
+const EQUIPMENTS: readonly Equipment[] = WEIGHTED_EQUIPMENT
 
 const GOALS: RoutineFormState["goal"][] = ["hypertrophy", "strength", "fatLoss", "recomposition", "generalFitness"]
 
@@ -66,7 +76,12 @@ export default function RoutineGenerator() {
     const [isUsingDefaultEquipment, setIsUsingDefaultEquipment] = useState(false)
     const [loadingMsgIndex, setLoadingMsgIndex] = useState(0)
     const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
+    const [overwriteConfirmOpen, setOverwriteConfirmOpen] = useState(false)
+    /** The user already chose to replace the unfinished workout; retries don't ask again. */
+    const overwriteConfirmedRef = useRef(false)
     const cancelledRef = useRef(false)
+    const [errorKind, setErrorKind] = useState<GenerateErrorKind>("unknown")
+    const [hardFailReasonCode, setHardFailReasonCode] = useState<string | null>(null)
 
     const [formData, setFormData] = useState<RoutineFormState>({
         targetMuscles: [],
@@ -213,29 +228,38 @@ export default function RoutineGenerator() {
         router.push("/ai_routine")
     }
 
-    const handleSubmit = async () => {
+    // `confirmed` is true only from the overwrite sheet; click handlers pass an event here.
+    const handleSubmit = async (confirmed?: unknown) => {
+        if (confirmed === true) overwriteConfirmedRef.current = true
+        if (!overwriteConfirmedRef.current && needsOverwriteConfirm()) {
+            setOverwriteConfirmOpen(true)
+            return
+        }
+        setOverwriteConfirmOpen(false)
         cancelledRef.current = false
         setStatus("loading")
-        clearProgramContext()
         try {
             const payload = assembleRoutineRequest(formData)
-            const routineDraft = await generateRoutine(payload)
-            if (cancelledRef.current) return
-            if (routineDraft.generationStatus === "failed") {
+            // The previous routine's program link is cleared only once the new routine is written.
+            const outcome = await generateAndCommitRoutine(payload, generateRoutine, () => cancelledRef.current)
+            if (outcome.kind === "cancelled") return
+            if (outcome.kind === "hardFailed") {
+                setHardFailReasonCode(outcome.reasonCode)
                 setStatus("hardFailed")
                 return
             }
-            localStorage.setItem("fitcore_active_routine", JSON.stringify(routineDraft))
-            localStorage.setItem("fitcore_unavailable_equipment", JSON.stringify(payload.unavailableEquipment))
-            setStatus(routineDraft.isFallback ? "fallback" : "success")
+            setStatus(outcome.draft.isFallback ? "fallback" : "success")
             router.push("/routine/draft")
-        } catch {
+        } catch (err) {
             if (cancelledRef.current) return
+            console.error("[generator] generate failed:", err)
+            setErrorKind(classifyGenerateError(err))
             setStatus("retryableFailed")
         }
     }
 
     const hasTargets = formData.targetMuscles.length > 0
+    const errorCopy = generateErrorCopy(errorKind)
     const routeLine = lineForRoutine(formData.targetSplitLabel, formData.targetMuscles)
 
     return (
@@ -351,6 +375,7 @@ export default function RoutineGenerator() {
                             </Link>
                         </Notice>
                     )}
+                    <p className="text-body-sm text-ink-2">맨몸 운동은 장비 선택과 상관없이 항상 넣을 수 있어요.</p>
                     <div role="group" aria-label="사용할 장비, 여러 개 고르기" className="flex flex-wrap gap-2">
                         {EQUIPMENTS.map((value) => (
                             <ToggleChip
@@ -397,12 +422,18 @@ export default function RoutineGenerator() {
             <Sheet
                 open={status === "retryableFailed"}
                 onClose={() => setStatus("idle")}
-                title="서버에 연결하지 못했어요"
-                description="응답이 늦어지고 있어요. 잠시 뒤 다시 시도하세요."
+                title={errorCopy.title}
+                description={errorCopy.description}
                 footer={
-                    <Button variant="primary" size="lg" block onClick={handleSubmit} icon={<RefreshCw className="size-4" aria-hidden />}>
-                        다시 시도하기
-                    </Button>
+                    errorCopy.retryable ? (
+                        <Button variant="primary" size="lg" block onClick={handleSubmit} icon={<RefreshCw className="size-4" aria-hidden />}>
+                            다시 시도하기
+                        </Button>
+                    ) : (
+                        <Button variant="primary" size="lg" block onClick={() => setStatus("idle")}>
+                            조건 바꾸기
+                        </Button>
+                    )
                 }
             >
                 <p className="text-body-sm text-ink-2">고른 조건은 그대로 남아 있어요.</p>
@@ -412,7 +443,7 @@ export default function RoutineGenerator() {
                 open={status === "hardFailed"}
                 onClose={() => setStatus("idle")}
                 title="루틴을 만들 수 없어요"
-                description="고른 조건에 맞는 운동이 없어요."
+                description={generateFailedReasonLabel(hardFailReasonCode)}
                 footer={
                     <Button variant="primary" size="lg" block onClick={() => setStatus("idle")}>
                         조건 바꾸기
@@ -439,6 +470,25 @@ export default function RoutineGenerator() {
                 }
             >
                 <p className="text-body-sm text-ink-2">조금만 기다리면 루틴이 완성돼요.</p>
+            </Sheet>
+
+            <Sheet
+                open={overwriteConfirmOpen}
+                onClose={() => setOverwriteConfirmOpen(false)}
+                title={OVERWRITE_CONFIRM_COPY.title}
+                description={OVERWRITE_CONFIRM_COPY.description}
+                footer={
+                    <div className="flex gap-2">
+                        <Button variant="primary" size="lg" block onClick={() => router.push("/ai_routine/player")}>
+                            {OVERWRITE_CONFIRM_COPY.resume}
+                        </Button>
+                        <Button variant="secondary" size="lg" block onClick={() => handleSubmit(true)}>
+                            {OVERWRITE_CONFIRM_COPY.replace}
+                        </Button>
+                    </div>
+                }
+            >
+                <p className="text-body-sm text-ink-2">새로 시작하면 지금 조건으로 루틴을 만들어요.</p>
             </Sheet>
 
             {/* 로딩: 루틴 확인 화면 모양의 전체 화면 스켈레톤 */}

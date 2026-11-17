@@ -29,6 +29,47 @@ const MUSCLE_LABEL: Record<string, string> = {
     knees: "무릎",
 }
 
+/**
+ * Selectable body-part slugs, ordered top to bottom for the accessible list next to the body diagram.
+ * Values follow docs/ops/golden-examples/muscle-slug-whitelist-v3 (exercise_tier.xlsx primary_muscle);
+ * this is an ordering of that vocabulary, not a new one.
+ */
+export const TRAINABLE_MUSCLE_SLUGS = [
+    "neck",
+    "trapezius",
+    "front-deltoids",
+    "back-deltoids",
+    "chest",
+    "upper-back",
+    "lower-back",
+    "biceps",
+    "triceps",
+    "forearm",
+    "abs",
+    "obliques",
+    "gluteal",
+    "quadriceps",
+    "hamstring",
+    "adductor",
+    "abductors",
+    "calves",
+] as const
+
+/** Pain areas add the pain-only slugs of the same whitelist. */
+export const PAIN_AREA_SLUGS = [
+    "head",
+    ...TRAINABLE_MUSCLE_SLUGS.slice(0, 12),
+    "gluteal",
+    "quadriceps",
+    "hamstring",
+    "adductor",
+    "abductors",
+    "knees",
+    "calves",
+    "left-soleus",
+    "right-soleus",
+] as const
+
 export function muscleLabel(slug: string | null | undefined): string {
     if (!slug) return "부위 미지정"
     return MUSCLE_LABEL[slug.trim()] ?? "기타 부위"
@@ -161,6 +202,52 @@ const FALLBACK_REASON_LABEL: Record<string, string> = {
 export function fallbackReasonLabel(code: string | null | undefined): string | null {
     if (!code) return null
     return FALLBACK_REASON_LABEL[code.trim()] ?? null
+}
+
+/** Reason shown when generation failed outright (`generationStatus: failed`). Unknown codes get a generic line. */
+const GENERATE_FAILED_REASON_LABEL: Record<string, string> = {
+    emptyCandidate: "고른 부위·장비·통증 조건에 맞는 운동을 찾지 못했어요.",
+}
+
+export function generateFailedReasonLabel(code: string | null | undefined): string {
+    return (code && GENERATE_FAILED_REASON_LABEL[code.trim()]) || "지금 조건으로는 루틴을 만들 수 없어요."
+}
+
+export type GenerateErrorKind = "network" | "timeout" | "badRequest" | "rateLimited" | "server" | "invalidResponse" | "unknown"
+
+/**
+ * Classifies a thrown generate error. Axios errors carry `response.status` for 4xx/5xx and no response for
+ * network failures; the runtime response guard throws an Error whose message starts with "[Runtime Guard]".
+ */
+export function classifyGenerateError(err: unknown): GenerateErrorKind {
+    if (err instanceof Error && err.message.startsWith("[Runtime Guard]")) return "invalidResponse"
+    if (typeof err !== "object" || err === null) return "unknown"
+    const e = err as { code?: unknown; response?: { status?: unknown }; isAxiosError?: unknown; request?: unknown }
+    const status = typeof e.response?.status === "number" ? e.response.status : null
+    if (status !== null) {
+        if (status === 408 || status === 504) return "timeout"
+        if (status === 429) return "rateLimited"
+        if (status >= 500) return "server"
+        if (status >= 400) return "badRequest"
+        return "unknown"
+    }
+    if (e.code === "ECONNABORTED" || e.code === "ETIMEDOUT") return "timeout"
+    if (e.code === "ERR_NETWORK" || e.isAxiosError === true || e.request !== undefined) return "network"
+    return "unknown"
+}
+
+const GENERATE_ERROR_COPY: Record<GenerateErrorKind, { title: string; description: string; retryable: boolean }> = {
+    network: { title: "서버에 연결하지 못했어요", description: "인터넷 연결을 확인한 뒤 다시 시도하세요.", retryable: true },
+    timeout: { title: "응답이 너무 늦어요", description: "서버가 바빠요. 잠시 뒤 다시 시도하세요.", retryable: true },
+    rateLimited: { title: "요청이 너무 많아요", description: "잠시 기다린 뒤 다시 시도하세요.", retryable: true },
+    server: { title: "서버에 문제가 생겼어요", description: "잠시 뒤 다시 시도하세요. 계속되면 나중에 다시 와 주세요.", retryable: true },
+    badRequest: { title: "요청을 처리하지 못했어요", description: "고른 조건을 확인하거나 바꾼 뒤 다시 만들어 보세요.", retryable: false },
+    invalidResponse: { title: "받은 루틴을 읽지 못했어요", description: "응답이 올바르지 않았어요. 다시 시도하면 새로 만들어요.", retryable: true },
+    unknown: { title: "루틴을 만들지 못했어요", description: "잠시 뒤 다시 시도하세요.", retryable: true },
+}
+
+export function generateErrorCopy(kind: GenerateErrorKind) {
+    return GENERATE_ERROR_COPY[kind]
 }
 
 /** Badge text for a routine's origin. */
