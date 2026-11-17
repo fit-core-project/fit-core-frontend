@@ -8,10 +8,11 @@ import { toast } from "sonner"
 import programApiClient from "@/lib/api/program/programApiClient"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
 import type { ProgramDetailResponse, ProgramItemState, ProgramStatus } from "@/types/program"
-import type { RoutineDraft } from "@/types/routine"
 import { buildProgramPlayerContext, clearProgramContextIfProgram, setProgramContext } from "@/utils/programContext"
 import { splitLabel } from "@/utils/displayLabels"
 import { lineForRoutine } from "@/utils/routeLine"
+import { needsOverwriteConfirm, OVERWRITE_CONFIRM_COPY, writeActiveRoutine } from "@/utils/activeWorkout"
+import { finalRoutineToDraft, PLAYER_PATH } from "@/utils/routinePlay"
 import {
     Button,
     EmptyState,
@@ -61,6 +62,7 @@ export default function ProgramDetailPage() {
     const [savingName, setSavingName] = useState(false)
     const [deleting, setDeleting] = useState(false)
     const [confirm, setConfirm] = useState<ConfirmKind | null>(null)
+    const [overwriteConfirmOpen, setOverwriteConfirmOpen] = useState(false)
 
     useEffect(() => {
         if (!programId) return
@@ -77,34 +79,27 @@ export default function ProgramDetailPage() {
             .finally(() => setLoading(false))
     }, [programId, router])
 
-    const startNextRoutine = async () => {
+    const startNextRoutine = async (confirmed?: unknown) => {
         if (!program?.nextItem || starting) return
+        // `confirmed` is true only from the overwrite sheet; the button passes a click event.
+        if (confirmed !== true && needsOverwriteConfirm()) {
+            setOverwriteConfirmOpen(true)
+            return
+        }
+        setOverwriteConfirmOpen(false)
         setStarting(true)
         try {
             const finalRoutine = await routineApiClient.getFinal(program.nextItem.routineFinalId)
-            const payload = finalRoutine.finalRoutinePayload
-            const draft: RoutineDraft = {
-                routineDraftId: finalRoutine.routineDraftId,
-                generationStatus: payload.generationStatus,
-                statusReasonCode: payload.statusReasonCode,
-                isFallback: payload.fallback,
-                totalEstimatedTime: payload.totalEstimatedTime,
-                summaryTitle: payload.summaryTitle,
-                rationaleSummary: payload.rationaleSummary ?? [],
-                warnings: payload.warnings ?? [],
-                routineBlocks: payload.routineBlocks,
-            }
-            localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))
-            localStorage.setItem("fitcore_routine_final_id", finalRoutine.routineFinalId)
-            if (finalRoutine.targetSplitLabel) {
-                localStorage.setItem("fitcore_split_label", finalRoutine.targetSplitLabel)
-            }
+            writeActiveRoutine(finalRoutineToDraft(finalRoutine), {
+                finalId: finalRoutine.routineFinalId,
+                splitLabel: finalRoutine.targetSplitLabel ?? null,
+            })
             setProgramContext(buildProgramPlayerContext(
                 program.programId,
                 program.nextItem.programItemId,
                 finalRoutine.routineFinalId
             ))
-            router.push("/ai_routine/player")
+            router.push(PLAYER_PATH)
         } catch {
             toast.error("다음 루틴을 시작하지 못했어요. 잠시 후 다시 시도하세요.")
         } finally {
@@ -382,6 +377,25 @@ export default function ProgramDetailPage() {
                         ? "되돌릴 수 없어요. 저장 루틴과 운동 기록은 그대로 남아요."
                         : "저장 루틴과 운동 기록은 그대로 남아요. 보관한 뒤에도 다시 활성화할 수 있어요."}
                 </p>
+            </Sheet>
+
+            <Sheet
+                open={overwriteConfirmOpen}
+                onClose={() => setOverwriteConfirmOpen(false)}
+                title={OVERWRITE_CONFIRM_COPY.title}
+                description={OVERWRITE_CONFIRM_COPY.description}
+                footer={
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button variant="primary" size="lg" onClick={() => router.push(PLAYER_PATH)}>
+                            {OVERWRITE_CONFIRM_COPY.resume}
+                        </Button>
+                        <Button variant="secondary" size="lg" onClick={() => startNextRoutine(true)}>
+                            {OVERWRITE_CONFIRM_COPY.replace}
+                        </Button>
+                    </div>
+                }
+            >
+                <p className="text-body-sm text-ink-2">새로 시작하면 이 프로그램의 다음 루틴으로 출발해요.</p>
             </Sheet>
         </main>
     )

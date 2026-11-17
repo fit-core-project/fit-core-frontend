@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Dumbbell, PenLine, Play } from "lucide-react"
+import { Dumbbell, PenLine, Play, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import workoutApiClient from "@/lib/api/workout/workoutApiClient"
+import { redirectToLogin } from "@/lib/axios/AxiosController"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
 import { clearProgramContext } from "@/utils/programContext"
 import type { WorkoutSessionResponse } from "@/types/project"
@@ -12,8 +13,30 @@ import type { RoutineFinalResponse } from "@/types/routine"
 import { getKstToday } from "@/utils/date"
 import { splitTitle } from "@/utils/displayLabels"
 import { lineForRoutine, ROUTE_LINE_COLOR_VAR } from "@/utils/routeLine"
-import { prepareFinalRoutineForPlay } from "@/utils/routinePlay"
+import { PLAYER_PATH, prepareFinalRoutineForPlay } from "@/utils/routinePlay"
+import { useAuthStore } from "@/store/authStore"
+import {
+    confirmFailedSaveOwnership,
+    confirmWorkoutOwnership,
+    readFailedSaveOffer,
+    workoutOwnershipFor,
+} from "@/utils/accountScopedStorage"
+import {
+    clearFailedSave,
+    clearWorkoutStorage,
+    type FailedWorkoutSave,
+    httpStatusOf,
+    needsOverwriteConfirm,
+    OVERWRITE_CONFIRM_COPY,
+    readUnfinishedWorkout,
+    type UnfinishedWorkout,
+    writeActiveRoutine,
+} from "@/utils/activeWorkout"
 import { Button, ButtonLink, LineBadge, Notice, RouteStrip, Section, Sheet, Skeleton, Surface, Tag } from "@/components/ui"
+
+/** Asked before offering device data with no known owner (legacy backup or adopted workout). */
+const OWNERSHIP_QUESTION_TITLE = "이 기기에 저장되지 않은 운동 기록이 있어요"
+const OWNERSHIP_QUESTION = "내 기록이 맞나요?"
 
 const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"]
 const MAX_STOPS = 5
@@ -55,6 +78,7 @@ function weekDates(today: string): string[] {
 export default function TodayWorkoutCard() {
     const router = useRouter()
     const today = getKstToday()
+    const accountId = useAuthStore((s) => s.user?.email)
 
     const [isLoading, setIsLoading] = useState(true)
     const [sessions, setSessions] = useState<WorkoutSessionResponse[]>([])
@@ -62,10 +86,35 @@ export default function TodayWorkoutCard() {
     const [hasError, setHasError] = useState(false)
     const [isCreatingManualRoutine, setIsCreatingManualRoutine] = useState(false)
     const [optionsOpen, setOptionsOpen] = useState(false)
+    const [unfinished, setUnfinished] = useState<UnfinishedWorkout | null>(null)
+    const [unfinishedNeedsConfirm, setUnfinishedNeedsConfirm] = useState(false)
+    const [failedSave, setFailedSave] = useState<FailedWorkoutSave | null>(null)
+    const [failedNeedsConfirm, setFailedNeedsConfirm] = useState(false)
+    const [isRetryingSave, setIsRetryingSave] = useState(false)
+    const [discardFailedOpen, setDiscardFailedOpen] = useState(false)
+    /** A start action waiting for the user to confirm replacing the unfinished workout. */
+    const [pendingStart, setPendingStart] = useState<(() => void) | null>(null)
+
+    const loadSessions = useCallback(() => workoutApiClient.getRecent(0, 14).then((page) => setSessions(page.content ?? [])), [])
+
+    useEffect(() => {
+        // home is public: only the account that owns the in-progress workout may see/resume it.
+        // Data with no known owner is shown with a "내 기록이 맞나요?" confirmation first.
+        const ownership = workoutOwnershipFor(accountId)
+        setUnfinished(ownership === "other" ? null : readUnfinishedWorkout())
+        setUnfinishedNeedsConfirm(ownership === "unconfirmed")
+    }, [accountId])
+
+    // The failed-save backup is offered only to the account embedded in it; a legacy backup asks first.
+    useEffect(() => {
+        const offer = readFailedSaveOffer(accountId)
+        setFailedSave(offer?.entry ?? null)
+        setFailedNeedsConfirm(offer?.needsConfirm ?? false)
+    }, [accountId])
 
     useEffect(() => {
         Promise.all([
-            workoutApiClient.getRecent(0, 14).then((page) => setSessions(page.content ?? [])),
+            loadSessions(),
             routineApiClient
                 .getMyFinals(0, 1)
                 .then((page) => setLatestRoutine(page.content?.[0] ?? null))
@@ -73,11 +122,17 @@ export default function TodayWorkoutCard() {
         ])
             .catch(() => setHasError(true))
             .finally(() => setIsLoading(false))
-    }, [])
+    }, [loadSessions])
 
     const todaySessions = useMemo(() => sessions.filter((s) => String(s.workoutDate).slice(0, 10) === today), [sessions, today])
     const totalDurationMin = todaySessions.reduce((sum, s) => sum + (s.durationMin ?? 0), 0)
     const week = useMemo(() => weekDates(today), [today])
+
+    /** Runs a start action now, or after confirmation when it would replace an unfinished workout. */
+    const guardStart = (action: () => void) => {
+        if (needsOverwriteConfirm()) setPendingStart(() => action)
+        else action()
+    }
 
     const handleCreateManualRoutine = async () => {
         if (isCreatingManualRoutine) return
@@ -85,13 +140,83 @@ export default function TodayWorkoutCard() {
         clearProgramContext()
         try {
             const draft = await routineApiClient.createManualDraft("새 루틴")
-            localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))
+            writeActiveRoutine(draft, { finalId: null })
             router.push("/routine/draft?mode=manual")
         } catch {
             toast.error("루틴을 만들지 못했어요.")
         } finally {
             setIsCreatingManualRoutine(false)
         }
+    }
+
+    /** True when the failed payload came from the unfinished workout stored on this device. */
+    const failedSaveMatchesUnfinished = (entry: FailedWorkoutSave | null) => {
+        const current = readUnfinishedWorkout()
+        return Boolean(current && entry?.routineId && current.routineId === entry.routineId)
+    }
+
+    const handleRetryFailedSave = async () => {
+        if (!failedSave || isRetryingSave) return
+        setIsRetryingSave(true)
+        try {
+            await workoutApiClient.save(failedSave.payload)
+            if (failedSaveMatchesUnfinished(failedSave)) {
+                clearWorkoutStorage()
+                setUnfinished(null)
+            }
+            clearFailedSave()
+            setFailedSave(null)
+            toast.success("지난 운동 기록을 저장했어요.")
+            if (failedSave.programId) {
+                router.push(`/workout/programs/${failedSave.programId}`)
+                return
+            }
+            loadSessions().catch(() => {})
+        } catch (err) {
+            // The payload stays in storage either way; after re-login this card offers the retry again.
+            if (httpStatusOf(err) === 401) {
+                toast.error("로그인이 만료됐어요. 다시 로그인하면 이 기록을 저장할 수 있어요.")
+                redirectToLogin("/")
+            } else {
+                toast.error("아직 저장하지 못했어요. 잠시 뒤 다시 시도하세요.")
+            }
+        } finally {
+            setIsRetryingSave(false)
+        }
+    }
+
+    /** "내 기록이 맞아요" on a legacy backup: stamp this account into it, then save. */
+    const handleConfirmFailedSave = () => {
+        confirmFailedSaveOwnership(accountId)
+        if (failedSaveMatchesUnfinished(failedSave)) {
+            confirmWorkoutOwnership(accountId)
+            setUnfinishedNeedsConfirm(false)
+        }
+        setFailedNeedsConfirm(false)
+        handleRetryFailedSave()
+    }
+
+    /** "내 기록이 아니에요": hide it on this screen without saving or deleting it. */
+    const handleRejectFailedSave = () => {
+        if (failedSaveMatchesUnfinished(failedSave)) setUnfinished(null)
+        setFailedSave(null)
+        setFailedNeedsConfirm(false)
+    }
+
+    const handleConfirmUnfinished = () => {
+        confirmWorkoutOwnership(accountId)
+        setUnfinishedNeedsConfirm(false)
+        router.push(PLAYER_PATH)
+    }
+
+    const handleDiscardFailedSave = () => {
+        if (failedSaveMatchesUnfinished(failedSave)) {
+            clearWorkoutStorage()
+            setUnfinished(null)
+        }
+        clearFailedSave()
+        setFailedSave(null)
+        setDiscardFailedOpen(false)
     }
 
     const createButtons = (
@@ -102,7 +227,7 @@ export default function TodayWorkoutCard() {
                 icon={<PenLine className="size-4" aria-hidden />}
                 onClick={() => {
                     setOptionsOpen(false)
-                    handleCreateManualRoutine()
+                    guardStart(handleCreateManualRoutine)
                 }}
             >
                 직접 만들기
@@ -119,6 +244,105 @@ export default function TodayWorkoutCard() {
             </Button>
         </div>
     )
+
+    const renderRecovery = () => {
+        if (!failedSave) return null
+        const details = `${failedSave.payload.splitLabel || "운동"} · ${String(failedSave.payload.workoutDate).slice(0, 10)} · ${failedSave.payload.sets.length}세트`
+        if (failedNeedsConfirm) {
+            return (
+                <Surface tone="sunken" className="flex flex-col gap-3" role="region" aria-label="저장하지 못한 운동 기록">
+                    <div>
+                        <p className="text-title-sm font-bold text-ink">{OWNERSHIP_QUESTION_TITLE}</p>
+                        <p className="mt-0.5 text-body text-ink">{OWNERSHIP_QUESTION}</p>
+                        <p className="mt-0.5 text-body-sm text-ink-2 tabular-nums">{details}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button variant="secondary" size="lg" disabled={isRetryingSave} onClick={handleRejectFailedSave}>
+                            내 기록이 아니에요
+                        </Button>
+                        <Button variant="primary" size="lg" loading={isRetryingSave} onClick={handleConfirmFailedSave}>
+                            맞아요, 저장
+                        </Button>
+                    </div>
+                </Surface>
+            )
+        }
+        return (
+            <Surface tone="sunken" className="flex flex-col gap-3" role="region" aria-label="저장하지 못한 운동 기록">
+                <div>
+                    <p className="text-title-sm font-bold text-ink">저장하지 못한 운동 기록이 있어요</p>
+                    <p className="mt-0.5 text-body-sm text-ink-2 tabular-nums">{details}</p>
+                    {failedSave.reason === "auth" && (
+                        <p className="mt-1 text-body-sm text-ink-2">로그인이 만료돼서 저장하지 못했어요. 이제 다시 저장할 수 있어요.</p>
+                    )}
+                </div>
+                <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <Button
+                        variant="primary"
+                        size="lg"
+                        block
+                        loading={isRetryingSave}
+                        icon={<RotateCcw className="size-4" aria-hidden />}
+                        onClick={handleRetryFailedSave}
+                    >
+                        다시 저장
+                    </Button>
+                    <Button variant="ghost" size="lg" disabled={isRetryingSave} onClick={() => setDiscardFailedOpen(true)}>
+                        버리기
+                    </Button>
+                </div>
+            </Surface>
+        )
+    }
+
+    const renderResume = () => {
+        if (!unfinished) return null
+        // The recovery card already covers a workout whose save failed.
+        if (failedSave?.routineId && failedSave.routineId === unfinished.routineId) return null
+        const line = lineForRoutine(null, unfinished.routine.routineBlocks.flatMap((b) => b.primaryMuscles ?? []))
+        if (unfinishedNeedsConfirm) {
+            return (
+                <Surface tone="sunken" className="flex flex-col gap-3" role="region" aria-label="진행 중인 운동">
+                    <div>
+                        <p className="text-title-sm font-bold text-ink">{OWNERSHIP_QUESTION_TITLE}</p>
+                        <p className="mt-0.5 text-body text-ink">{OWNERSHIP_QUESTION}</p>
+                        <p className="mt-0.5 text-body-sm text-ink-2 tabular-nums">
+                            {unfinished.title} · {unfinished.doneSets} / {unfinished.totalSets} 세트 완료
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button variant="secondary" size="lg" onClick={() => setUnfinished(null)}>
+                            내 기록이 아니에요
+                        </Button>
+                        <Button variant="primary" size="lg" line={line} icon={<Play className="size-4" aria-hidden />} onClick={handleConfirmUnfinished}>
+                            맞아요, 이어서
+                        </Button>
+                    </div>
+                </Surface>
+            )
+        }
+        return (
+            <Surface tone="sunken" className="flex flex-col gap-3" role="region" aria-label="진행 중인 운동">
+                <div>
+                    <LineBadge line={line} />
+                    <p className="mt-1.5 text-title-sm font-bold text-ink">{unfinished.title}</p>
+                    <p className="mt-0.5 text-body-sm text-ink-2 tabular-nums">
+                        진행 중 · {unfinished.doneSets} / {unfinished.totalSets} 세트 완료
+                    </p>
+                </div>
+                <Button
+                    variant="primary"
+                    size="lg"
+                    block
+                    line={line}
+                    icon={<Play className="size-4" aria-hidden />}
+                    onClick={() => router.push(PLAYER_PATH)}
+                >
+                    이어서 하기
+                </Button>
+            </Surface>
+        )
+    }
 
     const renderToday = () => {
         if (isLoading) {
@@ -182,12 +406,14 @@ export default function TodayWorkoutCard() {
                     {stops.length > 0 && <RouteStrip line={line} label={`${title} 노선`} stops={stops} />}
                     <div className="flex flex-col gap-1">
                         <Button
-                            variant="primary"
+                            variant={unfinished ? "secondary" : "primary"}
                             size="lg"
                             block
                             line={line}
                             icon={<Play className="size-4" aria-hidden />}
-                            onClick={() => router.push(prepareFinalRoutineForPlay(latestRoutine))}
+                            onClick={() =>
+                                guardStart(() => router.push(prepareFinalRoutineForPlay(latestRoutine, { confirmOverwrite: () => true })))
+                            }
                         >
                             출발하기
                         </Button>
@@ -212,7 +438,13 @@ export default function TodayWorkoutCard() {
 
     return (
         <>
-            <Section title="오늘의 노선">{renderToday()}</Section>
+            <Section title="오늘의 노선">
+                <div className="flex flex-col gap-3">
+                    {renderRecovery()}
+                    {renderResume()}
+                    {renderToday()}
+                </div>
+            </Section>
 
             {!isLoading && !hasError && (
                 <Section title="이번 주 운행">
@@ -246,6 +478,67 @@ export default function TodayWorkoutCard() {
 
             <Sheet open={optionsOpen} onClose={() => setOptionsOpen(false)} title="새 루틴 만들기" description="AI에게 맡기거나 직접 운동을 고를 수 있어요.">
                 {createButtons}
+            </Sheet>
+
+            <Sheet
+                open={pendingStart !== null}
+                onClose={() => setPendingStart(null)}
+                title={OVERWRITE_CONFIRM_COPY.title}
+                description={OVERWRITE_CONFIRM_COPY.description}
+                footer={
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button
+                            variant="primary"
+                            size="lg"
+                            onClick={() => {
+                                setPendingStart(null)
+                                router.push(PLAYER_PATH)
+                            }}
+                        >
+                            {OVERWRITE_CONFIRM_COPY.resume}
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="lg"
+                            onClick={() => {
+                                const action = pendingStart
+                                setPendingStart(null)
+                                action?.()
+                            }}
+                        >
+                            {OVERWRITE_CONFIRM_COPY.replace}
+                        </Button>
+                    </div>
+                }
+            >
+                {unfinished && (
+                    <p className="text-body-sm text-ink-2 tabular-nums">
+                        {unfinished.title} · {unfinished.doneSets} / {unfinished.totalSets} 세트 완료
+                    </p>
+                )}
+            </Sheet>
+
+            <Sheet
+                open={discardFailedOpen}
+                onClose={() => setDiscardFailedOpen(false)}
+                title="이 기록을 버릴까요?"
+                description="버리면 저장하지 못한 운동 기록을 되살릴 수 없어요."
+                footer={
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button variant="secondary" size="lg" onClick={() => setDiscardFailedOpen(false)}>
+                            취소
+                        </Button>
+                        <Button variant="danger" size="lg" onClick={handleDiscardFailedSave}>
+                            버리기
+                        </Button>
+                    </div>
+                }
+            >
+                {failedSave && (
+                    <p className="text-body-sm text-ink-2 tabular-nums">
+                        {failedSave.payload.splitLabel || "운동"} · {failedSave.payload.sets.length}세트
+                    </p>
+                )}
             </Sheet>
         </>
     )

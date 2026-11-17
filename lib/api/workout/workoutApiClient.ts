@@ -2,6 +2,8 @@ import AxiosController from "@/lib/axios/AxiosController"
 import { AttendanceWeekResponse, Page, PrResponse, WorkoutSessionResponse } from "@/types/project"
 import { guardWorkoutSaveRequest } from "@/utils/responseGuard"
 import { demoProfile, getDemoRecentWorkouts, isDemoMode } from "@/utils/demoMode"
+import { demoAttendance, demoPrs } from "@/utils/demoWorkoutStats"
+import { getKstToday } from "@/utils/date"
 
 export interface WorkoutSetSaveRequest {
     exerciseOrder: number
@@ -30,6 +32,8 @@ export interface WorkoutSaveRequest {
     currentPainAreas: string[]
     currentDoms: Array<{ bodyPart: string; level: string }>
     unavailableEquipment: string[]
+    /** Optional note on the whole session (max 1000 chars on the backend). */
+    sessionNote?: string
     sets: WorkoutSetSaveRequest[]
 }
 
@@ -56,7 +60,7 @@ const workoutApiClient = {
                         currentPainAreas: request.currentPainAreas,
                         currentDoms: request.currentDoms,
                         unavailableEquipment: request.unavailableEquipment,
-                        sessionNote: "",
+                        sessionNote: request.sessionNote?.trim() ?? "",
                         createdAt: now,
                         updatedAt: now,
                         sets: request.sets.map((set, index) => ({
@@ -85,12 +89,14 @@ const workoutApiClient = {
 
     getPrs: (): Promise<PrResponse[]> =>
         isDemoMode()
-            ? Promise.resolve([])
+            ? Promise.resolve(demoPrs(getDemoRecentWorkouts(0, 100).content))
             : AxiosController.get<PrResponse[]>("/api/workouts/prs"),
 
     getAttendance: (): Promise<AttendanceWeekResponse[]> =>
         isDemoMode()
-            ? Promise.resolve([])
+            ? Promise.resolve(
+                  demoAttendance(getDemoRecentWorkouts(0, 100).content, getKstToday(), demoProfile.trainingDaysPerWeek ?? null),
+              )
             : AxiosController.get<AttendanceWeekResponse[]>("/api/workouts/attendance"),
 }
 
