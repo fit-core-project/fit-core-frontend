@@ -5,7 +5,26 @@ import axios, {
     AxiosRequestTransformer,
 } from "axios"
 import qs from "qs"
+import { toast } from "sonner"
 import { isNotEmpty } from "@/lib/utill/DataUtil"
+import { useAuthStore } from "@/store/authStore"
+import { buildLoginUrl, isUnsavedWorkPath, rememberReturnPath } from "@/lib/axios/authRedirect"
+import {
+    AUTH_EXPIRED_FLAG,
+    isCanceledError,
+    isWorkoutSaveRequest,
+    timeoutFor,
+} from "@/lib/axios/requestPolicy"
+
+export {
+    AI_TIMEOUT_MS,
+    DEFAULT_TIMEOUT_MS,
+    aiRequestConfig,
+    createRequestController,
+    isAuthExpiredError,
+    isCanceledError,
+    isTimeoutError,
+} from "@/lib/axios/requestPolicy"
 
 export interface IAxiosController extends AxiosInstance {
     defaults: AxiosInstance["defaults"]
@@ -80,7 +99,7 @@ const AxiosController: IAxiosController = axios.create({
             ? axios.defaults.transformRequest
             : ([axios.defaults.transformRequest] as AxiosRequestTransformer[])),
     ],
-    timeout: 500000,
+    // No instance timeout: the request interceptor picks one per URL (30s default, 90s for AI calls).
     onUploadProgress: () => {},
     onDownloadProgress: () => {},
 })
@@ -104,6 +123,8 @@ AxiosController.interceptors.request.use(
             }
         }
 
+        config.timeout = timeoutFor(config.url, config.timeout)
+
         return config
     },
     (error) => {
@@ -111,15 +132,59 @@ AxiosController.interceptors.request.use(
     }
 )
 
+const SESSION_EXPIRED_MESSAGE = "로그인이 만료됐어요"
+const HARD_REDIRECT_DELAY_MS = 1200
+let handlingExpiry = false
+
+function currentPath(): string {
+    return `${window.location.pathname}${window.location.search}`
+}
+
+/**
+ * Sends the user to /login and remembers where they were. Safe to call from pages
+ * (e.g. the workout player's "다시 로그인" button after it has kept its payload).
+ */
+export function redirectToLogin(returnPath?: string): void {
+    if (typeof window === "undefined") return
+    const target = returnPath ?? currentPath()
+    rememberReturnPath(target)
+    if (window.location.pathname === "/login") return
+    window.location.assign(buildLoginUrl(target))
+}
+
+function handleSessionExpired() {
+    if (handlingExpiry) return
+    handlingExpiry = true
+    const returnPath = currentPath()
+    rememberReturnPath(returnPath)
+    toast.error(SESSION_EXPIRED_MESSAGE, { description: "다시 로그인해 주세요.", id: "session-expired" })
+    // Clears token, user and the fit-core-role cookie. The route guard soft-navigates protected
+    // pages to /login (the toast survives that); public pages get a delayed hard redirect.
+    useAuthStore.getState().logout()
+    window.setTimeout(() => {
+        handlingExpiry = false
+        if (window.location.pathname !== "/login") {
+            window.location.assign(buildLoginUrl(returnPath))
+        }
+    }, HARD_REDIRECT_DELAY_MS)
+}
+
 // [추가] 응답 인터셉터: 401 발생 시 로그아웃 처리
 AxiosController.interceptors.response.use(
     (response) => response.data, // response.data만 바로 반환하도록 설정하면 편리합니다!
     async (error) => {
-        if (error.response?.status === 401) {
-            // 토큰 만료 또는 인증 실패 시 로직
-            if (typeof window !== "undefined") {
-                localStorage.removeItem("auth-storage")
-                window.location.href = "/login"
+        if (isCanceledError(error)) return Promise.reject(error)
+
+        if (error?.response?.status === 401 && typeof window !== "undefined") {
+            error[AUTH_EXPIRED_FLAG] = true
+            const hadToken = Boolean(error.config?.headers?.Authorization)
+            // Workout save, or any call made from the player: keep the token and stay on the page so
+            // the player keeps its payload and offers re-login (see redirectToLogin / isAuthExpiredError).
+            const keepSession =
+                isWorkoutSaveRequest(error.config?.method, error.config?.url) ||
+                isUnsavedWorkPath(window.location.pathname)
+            if (hadToken && !keepSession) {
+                handleSessionExpired()
             }
         }
         return Promise.reject(error)
