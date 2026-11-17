@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Apple, ChevronRight, Home, PenLine, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import routineApiClient from "@/lib/api/routine/routineApiClient"
+import { writeActiveRoutine } from "@/utils/activeWorkout"
 import { Button } from "@/components/ui"
 
 function NextRow({
@@ -50,7 +51,7 @@ export default function StepDone({ weightSaved = false }: { weightSaved?: boolea
         setIsCreating(true)
         try {
             const draft = await routineApiClient.createManualDraft("새 루틴")
-            localStorage.setItem("fitcore_active_routine", JSON.stringify(draft))
+            writeActiveRoutine(draft, { finalId: null })
             router.push("/routine/draft?mode=manual")
         } catch {
             toast.error("루틴을 만들지 못했어요. 잠시 후 다시 시도하세요.")

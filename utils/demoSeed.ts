@@ -12,6 +12,7 @@
  * muscle and pain values are SSOT slugs (utils/displayLabels).
  */
 import type { BodyComposition, DietLogResponse, Doms, WorkoutSessionResponse, WorkoutSetResponse } from "@/types/project"
+import type { RoutineBlock, RoutineFinalResponse } from "@/types/routine"
 import type { MealType } from "@/utils/quicklogDraft"
 import { DEMO_FOODS } from "@/utils/demoAi"
 
@@ -77,6 +78,10 @@ const WEEK_PATTERNS: number[][] = [
 interface ExercisePlan {
     exerciseId: string
     name: string
+    /** Catalog primaryMuscle (+ secondary) as SSOT slugs, and the catalog equipment. */
+    primaryMuscles: string[]
+    equipmentType: string
+    rationale: string
     /** Working weight of the first session of this split, and the gain per session. */
     baseKg: number
     stepKg: number
@@ -96,38 +101,70 @@ interface ExercisePlan {
 const SPLIT_PLANS: Record<DemoSplit, ExercisePlan[]> = {
     push: [
         {
-            exerciseId: "ex_1", name: "벤치프레스", baseKg: 87.5, stepKg: 1.25, roundKg: 2.5, workingReps: [8, 7, 6], restSec: 180,
+            exerciseId: "ex_1", name: "벤치프레스", primaryMuscles: ["chest"], equipmentType: "BARBELL",
+            rationale: "주요 근비대 자극과 기준 중량 확인을 위한 메인 리프트입니다.",
+            baseKg: 87.5, stepKg: 1.25, roundKg: 2.5, workingReps: [8, 7, 6], restSec: 180,
             warmups: [{ ratio: 0.45, reps: 10 }, { ratio: 0.7, reps: 5 }],
         },
-        { exerciseId: "ex_11", name: "인클라인 덤벨 프레스", baseKg: 26, stepKg: 0.75, roundKg: 2, workingReps: [10, 9, 8], restSec: 90 },
         {
-            exerciseId: "ex_6", name: "오버헤드프레스", baseKg: 50, stepKg: 1.25, roundKg: 2.5, workingReps: [6, 6, 5], restSec: 150,
+            exerciseId: "ex_11", name: "인클라인 덤벨 프레스", primaryMuscles: ["chest"], equipmentType: "DUMBBELL",
+            rationale: "전면 삼각근 부담을 관리하며 상부 흉근 볼륨을 확보합니다.",
+            baseKg: 26, stepKg: 0.75, roundKg: 2, workingReps: [10, 9, 8], restSec: 90,
+        },
+        {
+            exerciseId: "ex_6", name: "오버헤드프레스", primaryMuscles: ["front-deltoids"], equipmentType: "BARBELL",
+            rationale: "어깨 컨디션이 괜찮은 날에만 격주로 넣는 프레스입니다.",
+            baseKg: 50, stepKg: 1.25, roundKg: 2.5, workingReps: [6, 6, 5], restSec: 150,
             warmups: [{ ratio: 0.6, reps: 6 }], everyOther: true,
         },
-        { exerciseId: "ex_12", name: "케이블 크로스오버", baseKg: 12.5, stepKg: 0.5, roundKg: 2.5, workingReps: [15, 12, 12], restSec: 60 },
         {
-            exerciseId: "ex_10", name: "트라이셉스 푸시다운", baseKg: 22.5, stepKg: 1, roundKg: 2.5, workingReps: [12, 12, 10], restSec: 60,
+            exerciseId: "ex_12", name: "케이블 크로스오버", primaryMuscles: ["chest"], equipmentType: "CABLE",
+            rationale: "고반복으로 흉근 수축감을 마무리합니다.",
+            baseKg: 12.5, stepKg: 0.5, roundKg: 2.5, workingReps: [15, 12, 12], restSec: 60,
+        },
+        {
+            exerciseId: "ex_10", name: "트라이셉스 푸시다운", primaryMuscles: ["triceps"], equipmentType: "CABLE",
+            rationale: "삼두 볼륨을 채우고 드롭세트로 마무리합니다.",
+            baseKg: 22.5, stepKg: 1, roundKg: 2.5, workingReps: [12, 12, 10], restSec: 60,
             finisher: "drop",
         },
     ],
     pull: [
         {
-            exerciseId: "ex_7", name: "바벨로우", baseKg: 70, stepKg: 1.25, roundKg: 2.5, workingReps: [8, 8, 7], restSec: 120,
+            exerciseId: "ex_7", name: "바벨로우", primaryMuscles: ["upper-back"], equipmentType: "BARBELL",
+            rationale: "등 두께를 위한 메인 로우 동작입니다.",
+            baseKg: 70, stepKg: 1.25, roundKg: 2.5, workingReps: [8, 8, 7], restSec: 120,
             warmups: [{ ratio: 0.6, reps: 8 }],
         },
-        { exerciseId: "ex_5", name: "랫풀다운", baseKg: 55, stepKg: 1.25, roundKg: 2.5, workingReps: [10, 10, 9], restSec: 90 },
-        { exerciseId: "ex_9", name: "덤벨컬", baseKg: 12, stepKg: 0.5, roundKg: 2, workingReps: [12, 10, 10], restSec: 60, finisher: "failure" },
+        {
+            exerciseId: "ex_5", name: "랫풀다운", primaryMuscles: ["upper-back"], equipmentType: "CABLE",
+            rationale: "광배 중심의 수직 당기기로 볼륨을 더합니다.",
+            baseKg: 55, stepKg: 1.25, roundKg: 2.5, workingReps: [10, 10, 9], restSec: 90,
+        },
+        {
+            exerciseId: "ex_9", name: "덤벨컬", primaryMuscles: ["biceps"], equipmentType: "DUMBBELL",
+            rationale: "이두 고립 운동으로 마지막 세트는 실패 지점까지 갑니다.",
+            baseKg: 12, stepKg: 0.5, roundKg: 2, workingReps: [12, 10, 10], restSec: 60, finisher: "failure",
+        },
     ],
     legs: [
         {
-            exerciseId: "ex_2", name: "스쿼트", baseKg: 120, stepKg: 2.5, roundKg: 2.5, workingReps: [6, 6, 5], restSec: 180,
+            exerciseId: "ex_2", name: "스쿼트", primaryMuscles: ["quadriceps"], equipmentType: "BARBELL",
+            rationale: "하체 근비대의 중심이 되는 메인 리프트입니다.",
+            baseKg: 120, stepKg: 2.5, roundKg: 2.5, workingReps: [6, 6, 5], restSec: 180,
             warmups: [{ ratio: 0.45, reps: 8 }, { ratio: 0.7, reps: 4 }],
         },
         {
-            exerciseId: "ex_3", name: "데드리프트", baseKg: 140, stepKg: 2.5, roundKg: 2.5, workingReps: [5, 5], restSec: 180,
+            exerciseId: "ex_3", name: "데드리프트", primaryMuscles: ["hamstring"], equipmentType: "BARBELL",
+            rationale: "후면 사슬 강화를 위해 저반복으로 진행합니다.",
+            baseKg: 140, stepKg: 2.5, roundKg: 2.5, workingReps: [5, 5], restSec: 180,
             warmups: [{ ratio: 0.6, reps: 5 }],
         },
-        { exerciseId: "ex_8", name: "레그익스텐션", baseKg: 45, stepKg: 1.25, roundKg: 2.5, workingReps: [15, 12, 12], restSec: 75 },
+        {
+            exerciseId: "ex_8", name: "레그익스텐션", primaryMuscles: ["quadriceps"], equipmentType: "MACHINE",
+            rationale: "대퇴사두 고립으로 하체 볼륨을 마무리합니다.",
+            baseKg: 45, stepKg: 1.25, roundKg: 2.5, workingReps: [15, 12, 12], restSec: 75,
+        },
     ],
 }
 
@@ -202,24 +239,53 @@ function buildSets(split: DemoSplit, k: number, sessionKey: string): WorkoutSetR
     return sets
 }
 
+const ROTATION: DemoSplit[] = ["push", "pull", "legs"]
+
+interface DemoScheduleEntry {
+    date: string
+    /** Index of the session in the history, oldest first. */
+    i: number
+    split: DemoSplit
+    /** How many sessions of this split came before (drives progressive overload). */
+    k: number
+}
+
+/**
+ * The Push / Pull / Legs rotation over the history dates, oldest first, plus the next session in the
+ * rotation (planned for `today`). Sessions and saved routines both read from it so they cannot drift.
+ */
+function demoSchedule(today: string): { past: DemoScheduleEntry[]; next: DemoScheduleEntry } {
+    const seen: Record<DemoSplit, number> = { push: 0, pull: 0, legs: 0 }
+    const dates = demoWorkoutDates(today)
+    const past = dates.map((date, i) => {
+        const split = ROTATION[i % ROTATION.length]
+        return { date, i, split, k: seen[split]++ }
+    })
+    const nextSplit = ROTATION[dates.length % ROTATION.length]
+    return { past, next: { date: today, i: dates.length, split: nextSplit, k: seen[nextSplit] } }
+}
+
+const sessionStartTime = (i: number): [hour: number, minute: number] => (i % 4 === 1 ? [7, 10] : [19, 30])
+
+function demoPainAreasFor(split: DemoSplit, k: number, sets: WorkoutSetResponse[]): string[] {
+    const painAreas: string[] = []
+    if (sets.some((s) => s.exerciseId === "ex_6")) painAreas.push("front-deltoids")
+    if (split === "legs" && k % 2 === 0) painAreas.push("lower-back")
+    return painAreas
+}
+
 /** About 6 weeks of sessions, newest first (the order the demo store keeps; a save prepends). */
 export function buildDemoWorkouts(today: string): WorkoutSessionResponse[] {
-    const rotation: DemoSplit[] = ["push", "pull", "legs"]
-    const seen: Record<DemoSplit, number> = { push: 0, pull: 0, legs: 0 }
     let previous: { date: string; split: DemoSplit } | null = null
 
-    const sessions = demoWorkoutDates(today).map((date, i) => {
-        const split = rotation[i % rotation.length]
-        const k = seen[split]++
+    const sessions = demoSchedule(today).past.map(({ date, i, split, k }) => {
         const meta = SPLIT_META[split]
         const sets = buildSets(split, k, date)
         const durationMin = meta.timeAvailableMin - 12 + ((i * 7) % 15)
-        const morning = i % 4 === 1
-        const createdAt = kstInstant(date, morning ? 7 : 19, morning ? 10 : 30)
+        const [hour, minute] = sessionStartTime(i)
+        const createdAt = kstInstant(date, hour, minute)
 
-        const currentPainAreas: string[] = []
-        if (sets.some((s) => s.exerciseId === "ex_6")) currentPainAreas.push("front-deltoids")
-        if (split === "legs" && k % 2 === 0) currentPainAreas.push("lower-back")
+        const currentPainAreas = demoPainAreasFor(split, k, sets)
 
         const currentDoms: Doms[] =
             previous && daysBetween(previous.date, date) <= 1
@@ -238,7 +304,7 @@ export function buildDemoWorkouts(today: string): WorkoutSessionResponse[] {
             splitLabel: meta.splitLabel,
             routineName: meta.routineName,
             targetSplitLabel: split,
-            sourceRoutineFinalId: `demo-final-${date}`,
+            sourceRoutineFinalId: demoFinalIdFor(date),
             timeAvailableMin: meta.timeAvailableMin,
             durationMin,
             readinessLevel: "normal",
@@ -247,12 +313,110 @@ export function buildDemoWorkouts(today: string): WorkoutSessionResponse[] {
             unavailableEquipment: [],
             sessionNote,
             createdAt,
-            updatedAt: kstInstant(date, morning ? 7 : 19, morning ? 10 : 30, durationMin),
+            updatedAt: kstInstant(date, hour, minute, durationMin),
             sets,
         } satisfies WorkoutSessionResponse
     })
 
     return sessions.reverse()
+}
+
+// ---------------------------------------------------------------------------
+// Saved routines (routine finals)
+// ---------------------------------------------------------------------------
+
+/** The saved routine a seeded session was played from (WorkoutSessionResponse.sourceRoutineFinalId). */
+export const demoFinalIdFor = (date: string) => `demo-final-${date}`
+const demoDraftIdFor = (date: string) => `demo-draft-${date}`
+
+/** KST wall-clock time as a zone-less LocalDateTime string, the shape the backend sends for savedAt. */
+const kstLocal = (ymd: string, hour: number, minute: number, addMin = 0) =>
+    new Date(toUtc(ymd) + (hour * 60 + minute + addMin) * 60_000).toISOString().slice(0, 19)
+
+const SPLIT_RATIONALE: Record<DemoSplit, string[]> = {
+    push: [
+        "근비대 목적과 최근 벤치프레스 기록을 반영해 작업 중량을 정했습니다.",
+        "전면 삼각근 불편감을 고려해 오버헤드성 볼륨은 격주로만 넣었습니다.",
+    ],
+    pull: ["등 두께를 우선해 수평 당기기를 먼저 배치했습니다.", "이두는 고립 운동 한 종목으로 볼륨을 채웁니다."],
+    legs: ["스쿼트를 메인으로 두고 지난 기록에서 2.5kg씩 올렸습니다.", "허리 피로를 고려해 데드리프트는 저반복으로 진행합니다."],
+}
+
+/** One block per exercise of the session's sets; each block's prescription is exactly those sets. */
+function blocksFromSets(split: DemoSplit, sets: WorkoutSetResponse[]): RoutineBlock[] {
+    const plans = new Map(SPLIT_PLANS[split].map((plan) => [plan.exerciseId, plan]))
+    const blocks: RoutineBlock[] = []
+    for (const set of sets) {
+        let block = blocks.find((b) => b.order === set.exerciseOrder)
+        if (!block) {
+            const plan = plans.get(set.exerciseId)!
+            block = {
+                order: set.exerciseOrder,
+                exerciseId: plan.exerciseId,
+                exerciseName: plan.name,
+                primaryMuscles: [...plan.primaryMuscles],
+                equipmentType: plan.equipmentType,
+                defaultRestSec: plan.restSec,
+                exerciseRationale: plan.rationale,
+                prescription: [],
+            }
+            blocks.push(block)
+        }
+        block.prescription.push({
+            setIndex: set.setIndex,
+            setType: set.setType ?? "working",
+            targetReps: set.reps,
+            targetWeightKg: set.weightKg,
+            targetRir: set.rir ?? 2,
+            targetRestSec: set.restSec ?? block.defaultRestSec ?? 90,
+        })
+    }
+    return blocks
+}
+
+function buildDemoFinal(entry: DemoScheduleEntry, savedAt: string): RoutineFinalResponse {
+    const { date, split, k } = entry
+    const meta = SPLIT_META[split]
+    const sets = buildSets(split, k, date)
+    const painAreas = demoPainAreasFor(split, k, sets)
+    const warnings: string[] = []
+    if (painAreas.includes("front-deltoids")) warnings.push("전면 삼각근 통증이 있으면 프레스 각도를 낮추세요.")
+    if (painAreas.includes("lower-back")) warnings.push("허리 피로가 남아 있으면 데드리프트 중량을 한 단계 낮추세요.")
+    return {
+        routineFinalId: demoFinalIdFor(date),
+        routineDraftId: demoDraftIdFor(date),
+        userId: DEMO_USER_ID,
+        targetWorkoutDate: date,
+        targetSplitLabel: split,
+        finalRoutinePayload: {
+            fallback: false,
+            generationStatus: "success",
+            statusReasonCode: "none",
+            rationaleSummary: [...SPLIT_RATIONALE[split]],
+            routineBlocks: blocksFromSets(split, sets),
+            summaryTitle: meta.routineName,
+            totalEstimatedTime: meta.timeAvailableMin,
+            warnings,
+        },
+        acceptedWithoutEdits: true,
+        userEditSummary: [],
+        savedAt,
+    }
+}
+
+/**
+ * One saved routine per seeded session (id = that session's sourceRoutineFinalId, saved 15 minutes before
+ * it started) plus the routine planned for `today`: the next split in the rotation, saved the evening before.
+ * Newest first by savedAt, so today's routine leads.
+ */
+export function buildDemoFinals(today: string): RoutineFinalResponse[] {
+    const { past, next } = demoSchedule(today)
+    const finals = past.map((entry) => {
+        const [hour, minute] = sessionStartTime(entry.i)
+        return buildDemoFinal(entry, kstLocal(entry.date, hour, minute, -15))
+    })
+    finals.push(buildDemoFinal(next, kstLocal(addDays(today, -1), 22, 0)))
+    return finals.reverse()
 }
 
 /**

@@ -1,7 +1,9 @@
 import AxiosController from "@/lib/axios/AxiosController"
 import { AttendanceWeekResponse, Page, PrResponse, WorkoutSessionResponse } from "@/types/project"
 import { guardWorkoutSaveRequest } from "@/utils/responseGuard"
-import { demoProfile, getDemoRecentWorkouts, isDemoMode } from "@/utils/demoMode"
+import { demoProfile, getAllDemoWorkouts, getDemoRecentWorkouts, isDemoMode } from "@/utils/demoMode"
+import { prepareDemoProgramCompletion } from "@/utils/demoProgramStore"
+import { demoLocalId, findDemoFinal } from "@/utils/demoRoutineStore"
 import { demoAttendance, demoPrs } from "@/utils/demoWorkoutStats"
 import { getKstToday } from "@/utils/date"
 
@@ -41,18 +43,33 @@ const workoutApiClient = {
     save: (request: WorkoutSaveRequest): Promise<void> => {
         guardWorkoutSaveRequest(request)
         if (isDemoMode()) {
-            const saved = getDemoRecentWorkouts(0, 100).content
+            // Program progress is validated before anything is stored, as the backend runs it in the
+            // save's transaction: a 400 / 409 there means the session is not saved either.
+            let completeProgramItem: ((workoutSessionId: string) => void) | null
+            try {
+                completeProgramItem = prepareDemoProgramCompletion(
+                    request.programId,
+                    request.programItemId,
+                    request.sourceRoutineFinalId,
+                )
+            } catch (error) {
+                return Promise.reject(error)
+            }
+            const saved = getAllDemoWorkouts()
             const now = new Date().toISOString()
+            const sessionId = demoLocalId("demo-workout")
+            const sourceFinal = request.sourceRoutineFinalId ? findDemoFinal(request.sourceRoutineFinalId) : null
             localStorage.setItem(
                 "fitcore_demo_workouts",
                 JSON.stringify([
                     {
-                        id: `demo-workout-${Date.now()}`,
+                        id: sessionId,
                         userId: demoProfile.userId,
                         workoutDate: request.workoutDate,
                         splitLabel: request.splitLabel,
                         routineName: request.splitLabel,
                         title: request.splitLabel,
+                        ...(sourceFinal ? { targetSplitLabel: sourceFinal.targetSplitLabel } : {}),
                         sourceRoutineFinalId: request.sourceRoutineFinalId ?? "demo-final-local",
                         timeAvailableMin: request.timeAvailableMin,
                         durationMin: request.durationMin,
@@ -77,6 +94,7 @@ const workoutApiClient = {
                     ...saved,
                 ])
             )
+            completeProgramItem?.(sessionId)
             return Promise.resolve()
         }
         return AxiosController.post("/api/workouts", request)

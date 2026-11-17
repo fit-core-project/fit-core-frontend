@@ -8,7 +8,7 @@ import type {
     DietSummaryResponse,
     NutritionTarget,
 } from "@/types/project"
-import type { RoutineDraft } from "@/types/routine"
+import type { RoutineDraft, RoutineFinalResponse } from "@/types/routine"
 import type { UserCondition, UserPreferences } from "@/services/mockDataFactory"
 import { aggregateDietLogs } from "@/utils/dietAggregation"
 import { getKstToday } from "@/utils/date"
@@ -18,18 +18,23 @@ import {
     addDays,
     buildDemoBodyComposition,
     buildDemoDietLogs,
+    buildDemoFinals,
     buildDemoWorkouts,
     demoDomsFromSessions,
 } from "@/utils/demoSeed"
 
 export const DEMO_MODE_STORAGE_KEY = "fitcore_demo_mode"
 /** Bump whenever the seed changes: a browser holding another version reseeds on its next demo read. */
-export const DEMO_DATA_VERSION = "2026-11-17-demo-v4"
+export const DEMO_DATA_VERSION = "2026-11-17-demo-v5"
 const DEMO_DATA_VERSION_STORAGE_KEY = "fitcore_demo_data_version"
 const DEMO_PROFILE_STORAGE_KEY = "fitcore_demo_profile"
 const DEMO_WORKOUTS_STORAGE_KEY = "fitcore_demo_workouts"
 export const DEMO_DIETS_STORAGE_KEY = "fitcore_demo_diets"
 export const DEMO_NUTRITION_TARGET_STORAGE_KEY = "fitcore_demo_nutrition_target"
+/** Saved routines (RoutineFinalResponse[], newest first) the demo reads instead of /api/routines/finals. */
+export const DEMO_ROUTINE_FINALS_STORAGE_KEY = "fitcore_demo_routine_finals"
+/** Routine programs the demo keeps instead of /api/programs (see utils/demoProgramStore). */
+export const DEMO_PROGRAMS_STORAGE_KEY = "fitcore_demo_programs"
 
 export const demoNutritionTarget: NutritionTarget = {
     kcalGoal: 2000,
@@ -127,49 +132,32 @@ export const demoUserPreferences: UserPreferences = {
     },
 }
 
-export const demoRoutineDraft: RoutineDraft = {
-    routineDraftId: "demo-draft-001",
-    generationStatus: "success",
-    statusReasonCode: "none",
-    isFallback: false,
-    totalEstimatedTime: 75,
-    summaryTitle: "데모 Push 루틴",
-    rationaleSummary: [
-        "근비대 목적과 최근 벤치프레스 기록을 반영해 작업 중량을 정했습니다.",
-        "전면 삼각근 불편감을 고려해 오버헤드성 볼륨은 낮췄습니다.",
-    ],
-    warnings: ["전면 삼각근 통증이 있으면 프레스 각도를 낮추세요."],
-    routineBlocks: [
-        {
-            order: 1,
-            exerciseId: "ex_1",
-            exerciseName: "벤치프레스",
-            exerciseRationale: "주요 근비대 자극과 기준 중량 확인을 위한 메인 리프트입니다.",
-            prescription: [
-                { setIndex: 1, setType: "warmup", targetReps: 10, targetWeightKg: 45, targetRir: 5, targetRestSec: 90 },
-                { setIndex: 2, setType: "working", targetReps: 8, targetWeightKg: 97.5, targetRir: 3, targetRestSec: 180 },
-                { setIndex: 3, setType: "working", targetReps: 7, targetWeightKg: 97.5, targetRir: 2, targetRestSec: 180 },
-                { setIndex: 4, setType: "working", targetReps: 6, targetWeightKg: 97.5, targetRir: 2, targetRestSec: 180 },
-            ],
-        },
-        {
-            order: 2,
-            exerciseId: "ex_11",
-            exerciseName: "인클라인 덤벨 프레스",
-            exerciseRationale: "전면 삼각근 부담을 관리하며 상부 흉근 볼륨을 확보합니다.",
-            prescription: [
-                { setIndex: 1, setType: "working", targetReps: 10, targetWeightKg: 30, targetRir: 3, targetRestSec: 90 },
-                { setIndex: 2, setType: "working", targetReps: 9, targetWeightKg: 30, targetRir: 2, targetRestSec: 90 },
-                { setIndex: 3, setType: "working", targetReps: 8, targetWeightKg: 30, targetRir: 2, targetRestSec: 90 },
-            ],
-        },
-    ],
+/** Saved routines built at import; seedDemoSession rebuilds from the current date. */
+export const demoRoutineFinals: RoutineFinalResponse[] = buildDemoFinals(getKstToday())
+
+/** The player's draft shape of a saved routine (same mapping as utils/routinePlay finalRoutineToDraft). */
+export function demoDraftFromFinal(final: RoutineFinalResponse): RoutineDraft {
+    const payload = final.finalRoutinePayload
+    return {
+        routineDraftId: final.routineDraftId,
+        generationStatus: payload.generationStatus,
+        statusReasonCode: payload.statusReasonCode,
+        isFallback: payload.fallback,
+        totalEstimatedTime: payload.totalEstimatedTime,
+        summaryTitle: payload.summaryTitle,
+        rationaleSummary: payload.rationaleSummary ?? [],
+        warnings: payload.warnings ?? [],
+        routineBlocks: payload.routineBlocks,
+    }
 }
+
+/** Today's planned routine (the newest seeded final) as the seeded active routine. Built at import. */
+export const demoRoutineDraft: RoutineDraft = demoDraftFromFinal(demoRoutineFinals[0])
 
 /** Built at import; seedDemoSession rebuilds from the current date. */
 export const demoDietLogs: DietLogResponse[] = buildDemoDietLogs(getKstToday())
 
-const readJson = <T>(key: string, fallback: T): T => {
+export const readJson = <T>(key: string, fallback: T): T => {
     if (typeof window === "undefined") return fallback
 
     try {
@@ -180,7 +168,7 @@ const readJson = <T>(key: string, fallback: T): T => {
     }
 }
 
-const writeJson = (key: string, value: unknown) => {
+export const writeJson = (key: string, value: unknown) => {
     if (typeof window === "undefined") return
     localStorage.setItem(key, JSON.stringify(value))
 }
@@ -224,6 +212,11 @@ export function seedDemoSession() {
     const today = getKstToday()
     const profile = buildDemoProfile(today)
     const workouts = buildDemoWorkouts(today)
+    const finals = buildDemoFinals(today)
+    // finals[0] is today's planned routine; the seeded active routine is that routine, not yet started.
+    // Its final id is not seeded: fitcore_routine_final_id belongs to the account-scoped in-progress keys
+    // (utils/accountScopedStorage), and "Start" on the home card writes it when the routine is played.
+    const todayRoutine = demoDraftFromFinal(finals[0])
 
     localStorage.setItem(DEMO_MODE_STORAGE_KEY, "true")
     localStorage.setItem(DEMO_DATA_VERSION_STORAGE_KEY, DEMO_DATA_VERSION)
@@ -231,10 +224,19 @@ export function seedDemoSession() {
     writeJson(DEMO_WORKOUTS_STORAGE_KEY, workouts)
     writeJson(DEMO_DIETS_STORAGE_KEY, buildDemoDietLogs(today))
     writeJson(DEMO_NUTRITION_TARGET_STORAGE_KEY, demoNutritionTarget)
+    writeJson(DEMO_ROUTINE_FINALS_STORAGE_KEY, finals)
+    // Programs point at final ids; a reseed replaces the finals, so programs start over too.
+    writeJson(DEMO_PROGRAMS_STORAGE_KEY, [])
     writeJson("fitcore_doms_data", demoDomsFromSessions(workouts, today))
     writeJson("fitcore_pain_areas", profile.painAreas.map((painArea) => painArea.area))
-    writeJson("fitcore_active_routine", demoRoutineDraft)
-    localStorage.setItem("fitcore_split_label", demoRoutineDraft.summaryTitle)
+    writeJson("fitcore_active_routine", todayRoutine)
+    // a split code, as writeActiveRoutine stores it (lineForRoutine and the demo finalize read it)
+    localStorage.setItem("fitcore_split_label", finals[0].targetSplitLabel)
+    // The active routine was replaced: drop what pointed at the previous one (as writeActiveRoutine and
+    // prepareFinalRoutineForPlay do), so an older seed's backend final id or program link cannot survive a reseed.
+    localStorage.removeItem("fitcore_routine_final_id")
+    localStorage.removeItem("fitcore_player_progress")
+    localStorage.removeItem("fitcore_program_context")
     localStorage.removeItem("fitcore_unavailable_equipment")
     localStorage.removeItem("fitcore_failed_workout_save")
 }
@@ -246,6 +248,8 @@ const DEMO_ONLY_KEYS = [
     DEMO_WORKOUTS_STORAGE_KEY,
     DEMO_DIETS_STORAGE_KEY,
     DEMO_NUTRITION_TARGET_STORAGE_KEY,
+    DEMO_ROUTINE_FINALS_STORAGE_KEY,
+    DEMO_PROGRAMS_STORAGE_KEY,
 ]
 
 /** Workout keys the demo session writes. Removed only while demo mode is on: then they hold demo data. */
@@ -293,10 +297,33 @@ export function clearDemoSession(storage?: DemoKeyStorage) {
     }
 }
 
-export function getDemoProfile(): UserResponse {
+/** Reseeds when the stored seed is from another DEMO_DATA_VERSION (or missing). Every demo reader calls it. */
+export function ensureDemoSeed(): void {
     if (typeof window !== "undefined" && localStorage.getItem(DEMO_DATA_VERSION_STORAGE_KEY) !== DEMO_DATA_VERSION) {
         seedDemoSession()
     }
+}
+
+/** Spring Page shape over an in-memory list. */
+export function toDemoPage<T>(items: T[], page: number, size: number): Page<T> {
+    const start = page * size
+    const content = items.slice(start, start + size)
+    const totalPages = Math.max(1, Math.ceil(items.length / size))
+    return {
+        content,
+        last: page >= totalPages - 1,
+        totalPages,
+        totalElements: items.length,
+        size,
+        number: page,
+        first: page === 0,
+        numberOfElements: content.length,
+        empty: content.length === 0,
+    }
+}
+
+export function getDemoProfile(): UserResponse {
+    ensureDemoSeed()
 
     return readJson(DEMO_PROFILE_STORAGE_KEY, demoProfile)
 }
@@ -319,32 +346,19 @@ export function updateDemoProfile(request: UserUpdateRequest): UserResponse {
 }
 
 export function getDemoRecentWorkouts(page: number = 0, size: number = 10): Page<WorkoutSessionResponse> {
-    if (typeof window !== "undefined" && localStorage.getItem(DEMO_DATA_VERSION_STORAGE_KEY) !== DEMO_DATA_VERSION) {
-        seedDemoSession()
-    }
+    ensureDemoSeed()
 
-    const workouts = readJson(DEMO_WORKOUTS_STORAGE_KEY, demoWorkoutSessions)
-    const start = page * size
-    const content = workouts.slice(start, start + size)
-    const totalPages = Math.max(1, Math.ceil(workouts.length / size))
+    return toDemoPage(readJson(DEMO_WORKOUTS_STORAGE_KEY, demoWorkoutSessions), page, size)
+}
 
-    return {
-        content,
-        last: page >= totalPages - 1,
-        totalPages,
-        totalElements: workouts.length,
-        size,
-        number: page,
-        first: page === 0,
-        numberOfElements: content.length,
-        empty: content.length === 0,
-    }
+/** All stored demo workouts, newest first (no page cap). */
+export function getAllDemoWorkouts(): WorkoutSessionResponse[] {
+    ensureDemoSeed()
+    return readJson(DEMO_WORKOUTS_STORAGE_KEY, demoWorkoutSessions)
 }
 
 function readAllDemoDietLogs(): DietLogResponse[] {
-    if (typeof window !== "undefined" && localStorage.getItem(DEMO_DATA_VERSION_STORAGE_KEY) !== DEMO_DATA_VERSION) {
-        seedDemoSession()
-    }
+    ensureDemoSeed()
     return readJson<DietLogResponse[]>(DEMO_DIETS_STORAGE_KEY, demoDietLogs)
 }
 
