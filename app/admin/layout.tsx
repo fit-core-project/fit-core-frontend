@@ -11,15 +11,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     useEffect(() => {
         if (isLoading) return
-        if (!user || !user.role?.includes("ROLE_ADMIN")) {
+        // Logged out: the route guard (AuthProvider) sends to /login with a return path.
+        if (user && !user.role?.includes("ROLE_ADMIN")) {
             router.replace("/")
         }
     }, [user, isLoading, router])
 
     if (isLoading || !user?.role?.includes("ROLE_ADMIN")) {
         return (
-            <div className="flex min-h-screen items-center justify-center">
-                <p className="animate-pulse text-slate-500">권한 확인 중...</p>
+            <div className="flex flex-1 items-center justify-center bg-ground px-4 py-12">
+                <p role="status" className="text-body text-ink-2 motion-safe:animate-pulse">권한을 확인하고 있어요</p>
             </div>
         )
     }

@@ -8,14 +8,12 @@ import TodayWorkoutCard from "@/app/components/TodayWorkoutCard"
 import CoachInsightCard from "@/app/components/CoachInsightCard"
 import DietSummaryCard from "@/app/components/DietSummaryCard"
 import ManualEntryModal from "@/app/my/nutrition/ManualEntryModal"
-import { useOnboardingGuard } from "@/hooks/useOnboardingGuard"
 import { getKstToday } from "@/utils/date"
 import { Section } from "@/components/ui"
 
 export default function HomePage() {
     const router = useRouter()
     const today = getKstToday()
-    useOnboardingGuard()
     const [showManualModal, setShowManualModal] = useState(false)
     const [dietRefreshKey, setDietRefreshKey] = useState(0)
 

@@ -3,10 +3,9 @@ import "./globals.css"
 import Header from "@/app/components/Header"
 import AppShell from "@/app/components/AppShell"
 import AuthInitializer from "@/app/components/AuthInitializer"
-import AuthGuard from "@/app/components/AuthGuard"
+import { ProtectedContent } from "@/components/AuthProvider"
 import MainLayout from "@/app/components/MainLayout"
 import Providers from "@/components/Providers"
-import MSWProvider from "@/app/components/MSWProvider"
 import { Toaster } from "sonner"
 
 export const metadata: Metadata = { title: "Fit Core" }
@@ -16,13 +15,21 @@ export const metadata: Metadata = { title: "Fit Core" }
 const isMockMode =
     process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_API_MODE === "mock"
 
+// Required only inside the constant-false branch so production bundles never reference
+// MSWProvider or the msw chunk it loads (scripts/check-prod-bundle.js enforces this).
+const MSWProvider: React.ComponentType<{ children: React.ReactNode }> | null =
+    process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_API_MODE === "mock"
+        ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+          require("@/app/components/MSWProvider").default
+        : null
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     const content = (
         <Providers>
             <AuthInitializer />
             <Header />
             <AppShell>
-                <AuthGuard>{children}</AuthGuard>
+                <ProtectedContent>{children}</ProtectedContent>
             </AppShell>
         </Providers>
     )
@@ -32,7 +39,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <body className="h-[100dvh] bg-surface antialiased">
                 <MainLayout>
                     <section className="relative flex h-full w-full max-w-[480px] shrink-0 flex-col overflow-hidden bg-ground min-[481px]:border-x min-[481px]:border-hairline">
-                        {isMockMode ? <MSWProvider>{content}</MSWProvider> : content}
+                        {isMockMode && MSWProvider ? <MSWProvider>{content}</MSWProvider> : content}
                     </section>
                 </MainLayout>
                 <Toaster richColors position="top-center" />
