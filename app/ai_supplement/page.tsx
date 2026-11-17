@@ -2,9 +2,21 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronDown, ExternalLink, Loader2, Mic, Pill, Send, StopCircle, X } from "lucide-react"
+import { ChevronDown, ExternalLink, Loader2, Mic, Pill, RotateCcw, Send, SquarePen, StopCircle, X } from "lucide-react"
 import AxiosController from "@/lib/axios/AxiosController"
-import { cx } from "@/components/ui"
+import { isDemoMode } from "@/utils/demoMode"
+import { demoSupplementAnswer } from "@/utils/demoSupplementAi"
+import { Button, cx, Notice } from "@/components/ui"
+import { AI_REQUEST_TIMEOUT_MS, STT_REQUEST_TIMEOUT_MS, aiErrorMessage, micErrorMessage } from "@/utils/aiRequestError"
+import { discardRecorder, stopStreamTracks } from "@/utils/mediaRecorderCleanup"
+import { restoreCanceledQuestion } from "@/utils/supplementChatInput"
+import { buildSupplementHistory, resolveDemoFollowUpQuestion, WELCOME_MESSAGE_ID } from "@/utils/supplementHistory"
+import {
+    clearSupplementChat,
+    loadSupplementChat,
+    MEDICAL_DISCLAIMER,
+    saveSupplementChat,
+} from "@/utils/supplementChatStorage"
 
 // --- TypeScript 타입 정의 ---
 type SourceRecord = {
@@ -34,6 +46,20 @@ interface Message {
     sources?: SourceDetail[]
     mode?: "full" | "degraded" | "fallback"
     fallbackReason?: string
+    /** Error bubble only: the question to resend and the user bubble it answers. */
+    retryText?: string
+    retryOfId?: string
+    isError?: boolean
+}
+
+const WELCOME_MESSAGE: Message = {
+    id: WELCOME_MESSAGE_ID,
+    role: "ai",
+    content: `복용 정보와 주의사항을 참고용으로 정리해 줘요.\n먹고 있는 영양제 조합, 부작용, 약과 함께 먹어도 되는지 물어보세요.\n${MEDICAL_DISCLAIMER}.`,
+}
+
+function newId(): string {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 }
 
 interface SttResponse {
@@ -212,18 +238,21 @@ function MessageSources({
     )
 }
 
+function restoreMessages(): Message[] | null {
+    const stored = loadSupplementChat()
+    if (!stored) return null
+    return stored.map((m) => ({ ...m, sources: normalizeSources(m.sources) }))
+}
+
 export default function SupplementChatPage() {
     const router = useRouter()
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            id: "1",
-            role: "ai",
-            content:
-                "복용 정보와 주의사항을 참고용으로 정리해 줘요.\n먹고 있는 영양제 조합, 부작용, 약과 함께 먹어도 되는지 물어보세요.",
-        },
-    ])
+    const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE])
+    const [hydrated, setHydrated] = useState(false)
     const [inputText, setInputText] = useState("")
     const [isLoading, setIsLoading] = useState(false)
+    const [voiceError, setVoiceError] = useState<string | null>(null)
+    const chatAbortRef = useRef<AbortController | null>(null)
+    const sttAbortRef = useRef<AbortController | null>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const [expandedSourceMessageIds, setExpandedSourceMessageIds] = useState<Set<string>>(new Set())
 
@@ -232,12 +261,38 @@ export default function SupplementChatPage() {
     const [isSttLoading, setIsSttLoading] = useState(false)
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const audioChunksRef = useRef<BlobPart[]>([])
+    const mountedRef = useRef(true)
 
     // 드래그 스크롤(Drag-to-Scroll)을 위한 상태 및 Ref
     const scrollRef = useRef<HTMLDivElement>(null)
     const [isDragging, setIsDragging] = useState(false)
     const [startX, setStartX] = useState(0)
     const [scrollLeft, setScrollLeft] = useState(0)
+
+    // sessionStorage is read after mount so the server render and the first client render match.
+    useEffect(() => {
+        const restored = restoreMessages()
+        if (restored) setMessages(restored)
+        setHydrated(true)
+    }, [])
+
+    useEffect(() => {
+        if (!hydrated) return
+        if (messages.length <= 1 && messages[0]?.id === WELCOME_MESSAGE.id) clearSupplementChat()
+        else saveSupplementChat(messages)
+    }, [messages, hydrated])
+
+    // Leaving the page: abort in-flight calls and release the microphone without uploading.
+    useEffect(() => {
+        mountedRef.current = true
+        return () => {
+            mountedRef.current = false
+            chatAbortRef.current?.abort()
+            sttAbortRef.current?.abort()
+            discardRecorder(mediaRecorderRef.current)
+            mediaRecorderRef.current = null
+        }
+    }, [])
 
     // 새 메시지가 추가될 때마다 맨 아래로 스크롤
     useEffect(() => {
@@ -248,8 +303,20 @@ export default function SupplementChatPage() {
     // 오디오 녹음 및 Whisper STT 전송 (QuickLog와 동일)
     // ==========================================
     const startRecording = async () => {
+        setVoiceError(null)
+        let stream: MediaStream
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        } catch (err) {
+            if (mountedRef.current) setVoiceError(micErrorMessage(err))
+            return
+        }
+        // Left the page while the permission prompt was open: don't keep the mic on.
+        if (!mountedRef.current) {
+            stopStreamTracks(stream)
+            return
+        }
+        try {
             const mediaRecorder = new MediaRecorder(stream)
             mediaRecorderRef.current = mediaRecorder
             audioChunksRef.current = []
@@ -259,50 +326,42 @@ export default function SupplementChatPage() {
             }
 
             mediaRecorder.onstop = async () => {
+                stream.getTracks().forEach((track) => track.stop())
                 setIsSttLoading(true)
                 const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" })
                 const formData = new FormData()
                 formData.append("audio_file", audioBlob, "voice_record.webm")
+                const controller = new AbortController()
+                sttAbortRef.current = controller
 
                 try {
-                    const data = await AxiosController.post<SttResponse>("/api/ai/stt", formData)
+                    const data = await AxiosController.post<SttResponse>("/api/ai/stt", formData, {
+                        timeout: STT_REQUEST_TIMEOUT_MS,
+                        signal: controller.signal,
+                    })
+                    // "새 대화" detached this transcription: don't drop old speech into the fresh input.
+                    if (sttAbortRef.current !== controller) return
                     if (data.status === "unavailable") {
-                        setMessages((prev) => [
-                            ...prev,
-                            {
-                                id: Date.now().toString(),
-                                role: "ai",
-                                content: data.message ?? "지금은 음성 인식을 쓸 수 없어요. 글로 적어 주세요.",
-                                mode: "fallback",
-                                fallbackReason: data.fallbackReason,
-                            },
-                        ])
+                        setVoiceError("지금은 음성 인식을 쓸 수 없어요. 글로 적어 주세요.")
                     } else if (data.text) {
                         setInputText((prev) => (prev ? `${prev} ${data.text}` : data.text))
+                    } else {
+                        setVoiceError("말소리가 들리지 않았어요. 다시 말하거나 글로 적어 주세요.")
                     }
-                } catch (err: unknown) {
-                    const msg = (err as { message?: string }).message ?? "알 수 없는 오류"
-                    setMessages((prev) => [
-                        ...prev,
-                        {
-                            id: Date.now().toString(),
-                            role: "ai",
-                            content: `음성을 알아듣지 못했어요(${msg}). 다시 말하거나 글로 적어 주세요.`,
-                        },
-                    ])
+                } catch (err) {
+                    const message = aiErrorMessage(err, "stt")
+                    if (message) setVoiceError(message)
                 } finally {
+                    if (sttAbortRef.current === controller) sttAbortRef.current = null
                     setIsSttLoading(false)
-                    stream.getTracks().forEach((track) => track.stop())
                 }
             }
 
             mediaRecorder.start()
             setIsRecording(true)
-        } catch {
-            setMessages((prev) => [
-                ...prev,
-                { id: Date.now().toString(), role: "ai", content: "마이크 권한이 없어요. 브라우저 설정에서 마이크를 허용하거나 글로 적어 주세요." },
-            ])
+        } catch (err) {
+            stream.getTracks().forEach((track) => track.stop())
+            setVoiceError(micErrorMessage(err))
         }
     }
 
@@ -316,21 +375,43 @@ export default function SupplementChatPage() {
     // ==========================================
     // 메시지 전송
     // ==========================================
-    const handleSendMessage = async (textToSubmit: string = inputText) => {
-        if (!textToSubmit.trim() || isLoading) return
+    /**
+     * `fromInput`: the text came from the input box, so clearing it is expected.
+     * Suggestion chips and "다시 보내기" pass false so whatever the user is typing stays put.
+     * `excludeFromHistory`: ids removed in the same update ("다시 보내기"), which `messages` still holds here.
+     */
+    const handleSendMessage = async (
+        textToSubmit: string = inputText,
+        fromInput = true,
+        excludeFromHistory: readonly (string | undefined)[] = [],
+    ) => {
+        const question = textToSubmit.trim()
+        if (!question || isLoading) return
 
-        const newUserMsg: Message = { id: Date.now().toString(), role: "user", content: textToSubmit }
-        setMessages((prev) => [...prev, newUserMsg])
-        setInputText("")
+        // Turns before this question; `messages` is the state this render saw, without the new bubble.
+        const history = buildSupplementHistory(messages, excludeFromHistory)
+        const userMsgId = newId()
+        setMessages((prev) => [...prev, { id: userMsgId, role: "user", content: question }])
+        if (fromInput) setInputText("")
+        setVoiceError(null)
         setIsLoading(true)
+        const controller = new AbortController()
+        chatAbortRef.current = controller
 
         try {
-            const data = await AxiosController.post<SupplementResponse>(
-                "/api/ai/supplement-chat",
-                { question: textToSubmit }
-            )
+            // Demo runs without the backend: answer from canned, non-medical examples.
+            // A follow-up without a supplement name borrows the earlier one so the canned answer stays on topic.
+            const data: SupplementResponse = isDemoMode()
+                ? demoSupplementAnswer(resolveDemoFollowUpQuestion(question, history))
+                : await AxiosController.post<SupplementResponse>(
+                      "/api/ai/supplement-chat",
+                      { question, history },
+                      { timeout: AI_REQUEST_TIMEOUT_MS, signal: controller.signal },
+                  )
+            // "새 대화" (or leaving) detached this request: the answer belongs to a chat that no longer exists.
+            if (chatAbortRef.current !== controller) return
             const newAiMsg: Message = {
-                id: (Date.now() + 1).toString(),
+                id: newId(),
                 role: "ai",
                 content: data.answer,
                 caution: data.caution ?? null,
@@ -340,16 +421,59 @@ export default function SupplementChatPage() {
             }
             setMessages((prev) => [...prev, newAiMsg])
         } catch (error: unknown) {
-            const e = error as { response?: { data?: { detail?: string } }; message?: string }
-            const errorMsg: Message = {
-                id: (Date.now() + 1).toString(),
-                role: "ai",
-                content: `답변을 받지 못했어요(${e.response?.data?.detail ?? e.message ?? "알 수 없는 오류"}).\n잠시 후 다시 물어봐 주세요.`,
+            if (chatAbortRef.current !== controller) return
+            const message = aiErrorMessage(error, "chat")
+            if (message == null) {
+                // User canceled: drop the unanswered question and put it back, unless they already typed something new.
+                setMessages((prev) => prev.filter((m) => m.id !== userMsgId))
+                setInputText((prev) => restoreCanceledQuestion(prev, question))
+            } else {
+                setMessages((prev) => [
+                    ...prev,
+                    { id: newId(), role: "ai", content: message, isError: true, retryText: question, retryOfId: userMsgId },
+                ])
             }
-            setMessages((prev) => [...prev, errorMsg])
         } finally {
-            setIsLoading(false)
+            if (chatAbortRef.current === controller) {
+                chatAbortRef.current = null
+                setIsLoading(false)
+            }
         }
+    }
+
+    const cancelSend = () => {
+        chatAbortRef.current?.abort()
+    }
+
+    const resend = (errorMsg: Message) => {
+        if (!errorMsg.retryText || isLoading) return
+        setMessages((prev) => prev.filter((m) => m.id !== errorMsg.id && m.id !== errorMsg.retryOfId))
+        void handleSendMessage(errorMsg.retryText, false, [errorMsg.id, errorMsg.retryOfId])
+    }
+
+    const startNewChat = () => {
+        // Detach first so the aborted request's handlers see it as stale and leave the new chat (and input) alone.
+        const pendingChat = chatAbortRef.current
+        chatAbortRef.current = null
+        pendingChat?.abort()
+        setIsLoading(false)
+        const pendingStt = sttAbortRef.current
+        sttAbortRef.current = null
+        pendingStt?.abort()
+        setIsSttLoading(false)
+        discardRecorder(mediaRecorderRef.current)
+        mediaRecorderRef.current = null
+        setIsRecording(false)
+        clearSupplementChat()
+        setMessages([WELCOME_MESSAGE])
+        setExpandedSourceMessageIds(new Set())
+        setInputText("")
+        setVoiceError(null)
+    }
+
+    const handleClose = () => {
+        if (typeof window !== "undefined" && window.history.length > 1) router.back()
+        else router.push("/")
     }
 
     const onDragStart = (e: React.MouseEvent) => {
@@ -380,7 +504,7 @@ export default function SupplementChatPage() {
         })
     }
 
-    const canSend = !isLoading && inputText.length > 0 && !isRecording && !isSttLoading
+    const canSend = !isLoading && inputText.trim().length > 0 && !isRecording && !isSttLoading
 
     return (
         <div className="flex h-full min-h-0 w-full flex-1 flex-col bg-ground">
@@ -395,14 +519,26 @@ export default function SupplementChatPage() {
                         <p className="text-body-sm text-ink-2">영양제 조합·복용 시간·부작용을 물어보세요</p>
                     </div>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => router.push("/nutrition")}
-                    aria-label="영양 화면으로 돌아가기"
-                    className="-mr-2 inline-flex size-11 shrink-0 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
-                >
-                    <X className="size-5" aria-hidden />
-                </button>
+                <div className="-mr-2 flex shrink-0 items-center">
+                    {messages.length > 1 && (
+                        <button
+                            type="button"
+                            onClick={startNewChat}
+                            className="inline-flex min-h-11 items-center gap-1 rounded-control px-2 text-body-sm font-bold text-ink hover:bg-surface"
+                        >
+                            <SquarePen className="size-4" aria-hidden />
+                            새 대화
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={handleClose}
+                        aria-label="닫기"
+                        className="inline-flex size-11 items-center justify-center rounded-control text-ink-2 hover:bg-surface"
+                    >
+                        <X className="size-5" aria-hidden />
+                    </button>
+                </div>
             </header>
 
             {/* 대화 기록 */}
@@ -416,15 +552,29 @@ export default function SupplementChatPage() {
                             )}
                         >
                             {msg.role === "ai" && <span className="sr-only">코치: </span>}
-                            {msg.mode === "fallback" && (
-                                <p className="mb-2 text-caption font-medium text-ink-2">AI 서버에 연결하지 못해 일반 안전 안내로 대신했어요.</p>
+                            {msg.role === "ai" && (msg.mode === "fallback" || msg.mode === "degraded") && (
+                                <Notice role="note" className="mb-2 whitespace-normal">
+                                    {msg.mode === "fallback"
+                                        ? "AI 서버에 연결하지 못해 일반 안전 안내로 대신했어요."
+                                        : "근거를 충분히 찾지 못해 간단한 안내로 답했어요. 의사·약사에게 한 번 더 확인하세요."}
+                                </Notice>
                             )}
-                            <div>{msg.content}</div>
+                            <div className={cx(msg.isError && "text-danger-ink")}>{msg.content}</div>
+                            {msg.isError && msg.retryText && (
+                                <Button
+                                    variant="secondary"
+                                    className="mt-2"
+                                    icon={<RotateCcw className="size-4" aria-hidden />}
+                                    onClick={() => resend(msg)}
+                                    disabled={isLoading}
+                                >
+                                    다시 보내기
+                                </Button>
+                            )}
                             {msg.role === "ai" && msg.caution && msg.caution.trim().length > 0 && (
-                                <div className="mt-3 border-l-[3px] border-danger pl-3 text-body-sm">
-                                    <p className="font-bold text-danger-ink">주의사항</p>
-                                    <p className="whitespace-pre-wrap text-ink">{msg.caution}</p>
-                                </div>
+                                <Notice tone="danger" role="note" title="주의사항" className="mt-3 whitespace-normal">
+                                    <p className="whitespace-pre-wrap">{msg.caution}</p>
+                                </Notice>
                             )}
                             {msg.role === "ai" && (
                                 <MessageSources
@@ -439,9 +589,12 @@ export default function SupplementChatPage() {
 
                 {isLoading && (
                     <div className="flex justify-start" aria-busy="true">
-                        <div className="flex items-center gap-2 rounded-panel bg-surface px-4 py-3">
+                        <div className="flex items-center gap-2 rounded-panel bg-surface py-1 pl-4 pr-1">
                             <Loader2 className="size-4 shrink-0 animate-spin text-ink-2 motion-reduce:animate-none" aria-hidden />
                             <span className="text-body-sm text-ink-2">관련 근거와 주의 문구를 확인하고 있어요</span>
+                            <Button variant="ghost" onClick={cancelSend}>
+                                취소
+                            </Button>
                         </div>
                     </div>
                 )}
@@ -466,7 +619,7 @@ export default function SupplementChatPage() {
                             <button
                                 key={idx}
                                 type="button"
-                                onClick={() => handleSendMessage(q)}
+                                onClick={() => handleSendMessage(q, false)}
                                 className="inline-flex min-h-11 shrink-0 items-center rounded-control border border-rail bg-ground px-3.5 text-body-sm text-ink hover:border-ink-3"
                             >
                                 {q}
@@ -476,6 +629,11 @@ export default function SupplementChatPage() {
                 )}
 
                 <div className="px-4">
+                    {voiceError && (
+                        <Notice tone="danger" title="음성 입력 문제" className="mb-3">
+                            {voiceError}
+                        </Notice>
+                    )}
                     <div className="flex items-end gap-2">
                         <button
                             type="button"
@@ -501,7 +659,7 @@ export default function SupplementChatPage() {
                             onKeyDown={(e) => {
                                 if (e.key === "Enter" && !e.shiftKey) {
                                     e.preventDefault()
-                                    if (!isLoading && inputText.length > 0 && !isRecording && !isSttLoading) {
+                                    if (canSend) {
                                         handleSendMessage()
                                     }
                                 }
@@ -524,13 +682,18 @@ export default function SupplementChatPage() {
                     </div>
 
                     {(isRecording || isSttLoading) && (
-                        <p className="mt-2 text-center text-caption text-ink-2" role="status">
-                            {isRecording ? "듣고 있어요. 다 말했으면 멈춤 버튼을 누르세요." : "음성을 글자로 바꾸고 있어요."}
-                        </p>
+                        <div className="mt-2 flex items-center justify-center gap-2" role="status">
+                            <p className="text-caption text-ink-2">
+                                {isRecording ? "듣고 있어요. 다 말했으면 멈춤 버튼을 누르세요." : "음성을 글자로 바꾸고 있어요."}
+                            </p>
+                            {isSttLoading && (
+                                <Button variant="ghost" onClick={() => sttAbortRef.current?.abort()}>
+                                    취소
+                                </Button>
+                            )}
+                        </div>
                     )}
-                    <p className="mt-2 text-center text-caption text-ink-2">
-                        질환이 있거나 약을 먹고 있다면 의사·약사와 상담하세요.
-                    </p>
+                    <p className="mt-2 text-center text-caption text-ink-2">{MEDICAL_DISCLAIMER}.</p>
                 </div>
             </div>
         </div>

@@ -1,14 +1,15 @@
 import AxiosController from "@/lib/axios/AxiosController"
 import type { DietDailyAggregationResponse, DietLogRequest, DietLogResponse, DietSummaryResponse } from "@/types/project"
-import { DEMO_DIETS_STORAGE_KEY, deleteDemoDiet, getDemoDietSummary, isDemoMode, updateDemoDiet } from "@/utils/demoMode"
-
-const PROTEIN_KCAL = 4
-const CARBS_KCAL = 4
-const FAT_KCAL = 9
-
-function calcMacroKcal(proteinG?: number | null, carbsG?: number | null, fatG?: number | null): number {
-    return Math.round((proteinG ?? 0) * PROTEIN_KCAL + (carbsG ?? 0) * CARBS_KCAL + (fatG ?? 0) * FAT_KCAL)
-}
+import {
+    DEMO_DIETS_STORAGE_KEY,
+    deleteDemoDiet,
+    getDemoDailySummary,
+    getDemoDietSummary,
+    isDemoMode,
+    updateDemoDiet,
+} from "@/utils/demoMode"
+import { getKstToday } from "@/utils/date"
+import { calcMacroKcal, resolveDietKcal } from "@/utils/dietKcal"
 
 function readDemoDiets(): DietLogResponse[] {
     if (typeof window === "undefined") return []
@@ -25,19 +26,13 @@ function writeDemoDiets(logs: DietLogResponse[]): void {
     localStorage.setItem(DEMO_DIETS_STORAGE_KEY, JSON.stringify(logs))
 }
 
-function getKstDate(): string {
-    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
-}
-
 const dietApiClient = {
     save: (items: DietLogRequest[]): Promise<DietLogResponse[]> => {
         if (isDemoMode()) {
             const stored = readDemoDiets()
             const newItems: DietLogResponse[] = items.map((req) => {
-                const kcal =
-                    req.source !== "ai" && req.kcal != null
-                        ? req.kcal
-                        : calcMacroKcal(req.proteinG, req.carbsG, req.fatG)
+                // Same rule as BE DietLogService.resolveKcal.
+                const kcal = resolveDietKcal(req) ?? 0
                 const loggedAt = req.loggedAt ? `${req.logDate}T${req.loggedAt}:00` : null
                 return {
                     id: `demo-diet-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -65,7 +60,8 @@ const dietApiClient = {
             const stored = readDemoDiets()
             const existing = stored.find((l) => l.id === id)
             if (!existing) return Promise.reject(new Error("Not found"))
-            const kcal = req.kcal != null ? req.kcal : calcMacroKcal(req.proteinG, req.carbsG, req.fatG)
+            // BE update: typed kcal wins, otherwise 4·4·9 from macros.
+            const kcal = req.kcal != null ? Math.round(req.kcal) : calcMacroKcal(req.proteinG, req.carbsG, req.fatG)
             const loggedAt = req.loggedAt ? `${existing.logDate}T${req.loggedAt}:00` : null
             const updated: DietLogResponse = {
                 ...existing,
@@ -78,6 +74,7 @@ const dietApiClient = {
                 proteinG: req.proteinG ?? null,
                 carbsG: req.carbsG ?? null,
                 fatG: req.fatG ?? null,
+                // Same as BE DietLogService.update: any edit makes the row "manual".
                 source: "manual",
             }
             updateDemoDiet(id, updated)
@@ -99,11 +96,11 @@ const dietApiClient = {
             ? Promise.resolve(getDemoDietSummary(date))
             : AxiosController.get<DietSummaryResponse>(`/api/diet-logs/summary?date=${date}`),
 
-    getToday: (): Promise<DietSummaryResponse> => dietApiClient.getSummary(getKstDate()),
+    getToday: (): Promise<DietSummaryResponse> => dietApiClient.getSummary(getKstToday()),
 
     getDailySummary: (from: string, to: string): Promise<DietDailyAggregationResponse[]> =>
         isDemoMode()
-            ? Promise.resolve([])
+            ? Promise.resolve(getDemoDailySummary(from, to))
             : AxiosController.get<DietDailyAggregationResponse[]>(`/api/diet-logs/daily-summary?from=${from}&to=${to}`),
 }
 

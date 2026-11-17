@@ -7,6 +7,8 @@ import { toast } from "sonner"
 import dietApiClient from "@/lib/api/diet/dietApiClient"
 import type { DietLogRequest, DietLogResponse } from "@/types/project"
 import { mealLabel } from "@/utils/displayLabels"
+import { getKstToday } from "@/utils/date"
+import { dailyTotalsLabel } from "@/utils/nutritionGoal"
 import { Button, Sheet, TextField, ToggleChip } from "@/components/ui"
 
 interface Props {
@@ -17,10 +19,6 @@ interface Props {
 }
 
 const MEAL_OPTIONS = ["breakfast", "lunch", "dinner", "snack"] as const
-
-function getKstDate(): string {
-    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
-}
 
 function getKstTime(): string {
     return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(11, 16)
@@ -47,6 +45,8 @@ export default function ManualEntryModal({ onClose, onSaved, editItem, defaultDa
     const [carbs, setCarbs] = useState(editItem?.carbsG != null ? String(editItem.carbsG) : "")
     const [fat, setFat] = useState(editItem?.fatG != null ? String(editItem.fatG) : "")
     const [kcal, setKcal] = useState(editItem?.kcal != null ? String(editItem.kcal) : "")
+    // Edit: macro changes recompute kcal unless the user typed kcal in this edit.
+    const [kcalTouched, setKcalTouched] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
     const [validationMsg, setValidationMsg] = useState("")
     const [confirmOpen, setConfirmOpen] = useState(false)
@@ -57,12 +57,23 @@ export default function ManualEntryModal({ onClose, onSaved, editItem, defaultDa
     }, [])
 
     const previewKcal = computePreviewKcal(protein, carbs, fat)
+
+    const changeMacro = (field: "protein" | "carbs" | "fat", value: string) => {
+        const next = { protein, carbs, fat, [field]: value }
+        if (field === "protein") setProtein(value)
+        else if (field === "carbs") setCarbs(value)
+        else setFat(value)
+        if (isEdit && !kcalTouched) {
+            const recomputed = computePreviewKcal(next.protein, next.carbs, next.fat)
+            setKcal(recomputed != null ? String(recomputed) : "")
+        }
+    }
     const hasMacro = protein !== "" || carbs !== "" || fat !== ""
     const hasKcal = kcal !== ""
     const canSave = foodName.trim() !== "" && (hasMacro || hasKcal)
 
     const buildReq = (): DietLogRequest => ({
-        logDate: editItem?.logDate ?? defaultDate ?? getKstDate(),
+        logDate: editItem?.logDate ?? defaultDate ?? getKstToday(),
         mealType: mealType || null,
         loggedAt: loggedAt || null,
         foodName: foodName.trim(),
@@ -223,7 +234,7 @@ export default function ManualEntryModal({ onClose, onSaved, editItem, defaultDa
                                 inputMode="decimal"
                                 suffix="g"
                                 value={carbs}
-                                onChange={(e) => setCarbs(e.target.value)}
+                                onChange={(e) => changeMacro("carbs", e.target.value)}
                                 placeholder="0"
                                 min={0}
                                 max={1000}
@@ -235,7 +246,7 @@ export default function ManualEntryModal({ onClose, onSaved, editItem, defaultDa
                                 inputMode="decimal"
                                 suffix="g"
                                 value={protein}
-                                onChange={(e) => setProtein(e.target.value)}
+                                onChange={(e) => changeMacro("protein", e.target.value)}
                                 placeholder="0"
                                 min={0}
                                 max={1000}
@@ -247,7 +258,7 @@ export default function ManualEntryModal({ onClose, onSaved, editItem, defaultDa
                                 inputMode="decimal"
                                 suffix="g"
                                 value={fat}
-                                onChange={(e) => setFat(e.target.value)}
+                                onChange={(e) => changeMacro("fat", e.target.value)}
                                 placeholder="0"
                                 min={0}
                                 max={1000}
@@ -268,11 +279,18 @@ export default function ManualEntryModal({ onClose, onSaved, editItem, defaultDa
                         inputMode="decimal"
                         suffix="kcal"
                         value={kcal}
-                        onChange={(e) => setKcal(e.target.value)}
+                        onChange={(e) => {
+                            setKcal(e.target.value)
+                            setKcalTouched(true)
+                        }}
                         placeholder="예: 350"
                         min={0}
                         max={5000}
-                        hint="비워 두면 탄단지로 계산해요. 적으면 이 값을 먼저 써요."
+                        hint={
+                            isEdit && !kcalTouched
+                                ? "탄단지를 바꾸면 칼로리를 다시 계산해요. 직접 적으면 이 값을 써요."
+                                : "비워 두면 탄단지로 계산해요. 적으면 이 값을 먼저 써요."
+                        }
                     />
 
                     {validationMsg && (
@@ -300,7 +318,7 @@ export default function ManualEntryModal({ onClose, onSaved, editItem, defaultDa
                         </div>
                     }
                 >
-                    <p className="text-body-sm text-ink-2">오늘 영양 합계에서도 빠져요.</p>
+                    <p className="text-body-sm text-ink-2">{dailyTotalsLabel(editItem!.logDate, getKstToday())}에서도 빠져요.</p>
                 </Sheet>
             )}
         </>

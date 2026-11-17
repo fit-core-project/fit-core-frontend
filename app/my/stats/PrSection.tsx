@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { startTransition, useCallback, useEffect, useState } from "react"
 import workoutApiClient from "@/lib/api/workout/workoutApiClient"
 import { PrResponse } from "@/types/project"
 import { useSettingsStore } from "@/store/settingsStore"
-import { EmptyState, Section, Skeleton, Surface } from "@/components/ui"
+import { Button, EmptyState, Notice, Section, Skeleton, Surface } from "@/components/ui"
 
 function toDisplay(kg: number, unit: "kg" | "lbs") {
     if (unit === "lbs") return Math.round(kg * 2.20462)
@@ -14,15 +14,29 @@ function toDisplay(kg: number, unit: "kg" | "lbs") {
 export default function PrSection() {
     const [prs, setPrs] = useState<PrResponse[]>([])
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(false)
     const { weightUnit } = useSettingsStore()
 
-    useEffect(() => {
+    const fetchPrs = useCallback(() => {
+        startTransition(() => {
+            setLoading(true)
+            setError(false)
+        })
         workoutApiClient
             .getPrs()
-            .then(setPrs)
-            .catch(() => setPrs([]))
-            .finally(() => setLoading(false))
+            .then((data) => startTransition(() => setPrs(data ?? [])))
+            .catch(() =>
+                startTransition(() => {
+                    setPrs([])
+                    setError(true)
+                }),
+            )
+            .finally(() => startTransition(() => setLoading(false)))
     }, [])
+
+    useEffect(() => {
+        fetchPrs()
+    }, [fetchPrs])
 
     return (
         <Section title="종목별 최고 기록">
@@ -33,6 +47,15 @@ export default function PrSection() {
                         <Skeleton key={i} className="h-11 w-full" />
                     ))}
                 </Surface>
+            ) : error ? (
+                <Notice tone="danger" title="최고 기록을 불러오지 못했어요">
+                    <span className="flex flex-col gap-2">
+                        <span>연결을 확인하고 다시 불러와 주세요.</span>
+                        <Button variant="secondary" onClick={fetchPrs} className="self-start">
+                            다시 불러오기
+                        </Button>
+                    </span>
+                </Notice>
             ) : prs.length === 0 ? (
                 <Surface>
                     <EmptyState title="아직 최고 기록이 없어요" body="운동 세트를 기록하면 종목별 추정 1RM이 계산돼요." />

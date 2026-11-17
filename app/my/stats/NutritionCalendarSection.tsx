@@ -6,11 +6,9 @@ import dietApiClient from "@/lib/api/diet/dietApiClient"
 import nutritionTargetApiClient from "@/lib/api/nutrition/nutritionTargetApiClient"
 import type { DietDailyAggregationResponse, NutritionTarget } from "@/types/project"
 import NutritionTab from "@/app/my/nutrition/NutritionTab"
-import { Surface } from "@/components/ui"
-
-function getKstToday(): string {
-    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
-}
+import { getKstToday } from "@/utils/date"
+import { kcalDayStatus, kcalTargetRange } from "@/utils/nutritionGoal"
+import { Button, Notice, Surface } from "@/components/ui"
 
 function monthRange(year: number, month: number): { from: string; to: string } {
     const from = `${year}-${String(month).padStart(2, "0")}-01`
@@ -25,28 +23,52 @@ function formatSelectedDateLabel(value: string): string {
 }
 
 function dayColor(row: DietDailyAggregationResponse | undefined, kcalGoal: number | null | undefined): string {
-    if (!row) return "text-ink hover:bg-surface"
-    if (!kcalGoal) return "bg-ink text-white"
-    return row.totalKcal > kcalGoal ? "bg-danger text-white" : "bg-ink text-white"
+    switch (kcalDayStatus(row?.totalKcal, kcalGoal)) {
+        case "none":
+            return "text-ink hover:bg-surface"
+        case "over":
+            return "bg-danger text-white"
+        case "under":
+            return "bg-ink-2 text-white"
+        default:
+            return "bg-ink text-white"
+    }
 }
 
 function dayStatus(row: DietDailyAggregationResponse | undefined, kcalGoal: number | null | undefined): string {
-    if (!row) return "기록 없음"
-    if (!kcalGoal) return "기록 있음"
-    return row.totalKcal > kcalGoal ? "목표 초과" : "목표 이하"
+    switch (kcalDayStatus(row?.totalKcal, kcalGoal)) {
+        case "none":
+            return "기록 없음"
+        case "recorded":
+            return "기록 있음"
+        case "under":
+            return "목표보다 적음"
+        case "over":
+            return "목표 초과"
+        default:
+            return "목표 범위"
+    }
 }
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"]
 
-export default function NutritionCalendarSection() {
+interface NutritionCalendarSectionProps {
+    /** Bump to refetch the month (e.g. after a log changed elsewhere on the page). */
+    refreshKey?: number
+    /** Called after a log is edited or deleted from the selected day's list. */
+    onDataChanged?: () => void
+}
+
+export default function NutritionCalendarSection({ refreshKey = 0, onDataChanged }: NutritionCalendarSectionProps = {}) {
     const today = getKstToday()
-    const todayDate = new Date(today)
+    const todayDate = new Date(`${today}T00:00:00`)
 
     const [year, setYear] = useState(todayDate.getFullYear())
     const [month, setMonth] = useState(todayDate.getMonth() + 1)
     const [rows, setRows] = useState<DietDailyAggregationResponse[]>([])
     const [target, setTarget] = useState<NutritionTarget | null>(null)
     const [selectedDate, setSelectedDate] = useState<string | null>(null)
+    const [rowsError, setRowsError] = useState(false)
     const detailRef = useRef<HTMLDivElement>(null)
 
     const { from, to } = useMemo(() => monthRange(year, month), [year, month])
@@ -54,13 +76,28 @@ export default function NutritionCalendarSection() {
     const fetchRows = useCallback(() => {
         dietApiClient
             .getDailySummary(from, to)
-            .then((data) => startTransition(() => setRows(data)))
-            .catch(() => {})
+            .then((data) =>
+                startTransition(() => {
+                    setRows(data ?? [])
+                    setRowsError(false)
+                }),
+            )
+            .catch(() =>
+                startTransition(() => {
+                    setRows([])
+                    setRowsError(true)
+                }),
+            )
     }, [from, to])
 
     useEffect(() => {
         fetchRows()
-    }, [fetchRows])
+    }, [fetchRows, refreshKey])
+
+    const handleDayChanged = useCallback(() => {
+        fetchRows()
+        onDataChanged?.()
+    }, [fetchRows, onDataChanged])
 
     useEffect(() => {
         nutritionTargetApiClient.getTarget().then((t) => startTransition(() => setTarget(t))).catch(() => {})
@@ -131,6 +168,17 @@ export default function NutritionCalendarSection() {
                     </div>
                 </div>
 
+                {rowsError && (
+                    <Notice tone="danger" title="이 달 식단 기록을 불러오지 못했어요">
+                        <span className="flex flex-col gap-2">
+                            <span>달력에 기록이 비어 보일 수 있어요.</span>
+                            <Button variant="secondary" onClick={fetchRows} className="self-start">
+                                다시 불러오기
+                            </Button>
+                        </span>
+                    </Notice>
+                )}
+
                 <div className="grid grid-cols-7 text-center" aria-hidden>
                     {DAY_LABELS.map((d) => (
                         <span key={d} className="text-caption font-medium text-ink-2">{d}</span>
@@ -164,10 +212,11 @@ export default function NutritionCalendarSection() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-ink-2">
-                    {target?.kcalGoal ? (
+                    {kcalTargetRange(target?.kcalGoal) ? (
                         <>
-                            <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-full bg-ink" aria-hidden />목표 이하</span>
-                            <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-full bg-danger" aria-hidden />목표 초과</span>
+                            <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-full bg-ink" aria-hidden />목표 범위(±10%)</span>
+                            <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-full bg-ink-2" aria-hidden />적음</span>
+                            <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-full bg-danger" aria-hidden />초과</span>
                         </>
                     ) : (
                         <span className="flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-full bg-ink" aria-hidden />기록 있음</span>
@@ -190,7 +239,7 @@ export default function NutritionCalendarSection() {
                             <X className="size-5" aria-hidden />
                         </button>
                     </div>
-                    <NutritionTab key={selectedDate} date={selectedDate} onRefresh={fetchRows} />
+                    <NutritionTab key={selectedDate} date={selectedDate} onRefresh={handleDayChanged} dataRefreshKey={refreshKey} />
                 </div>
             )}
         </>
